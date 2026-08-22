@@ -11,7 +11,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
+.product-cell > div { min-width: 0; }
 .product-thumb {
   width: 40px;
   height: 40px;

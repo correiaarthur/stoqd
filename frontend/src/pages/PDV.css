@@ -56,6 +56,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  min-width: 0;
   padding: 1.2rem;
   min-height: 110px;
   border-radius: 12px;
@@ -86,6 +87,7 @@
 .item-card-info {
   text-align: left;
   margin-bottom: 1rem;
+  min-width: 0;
 }
 
 .item-card-info h4 {
@@ -105,15 +107,19 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 8px;
 }
 
 .item-card-footer .price {
   font-weight: 800;
   color: var(--accent-color);
   font-size: 1.1rem;
+  white-space: nowrap;
 }
 
 .item-card-footer .product-stock {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-dim);
@@ -261,6 +267,9 @@
   margin-bottom: 12px;
 }
 
+.item-details {
+  min-width: 0;
+}
 .item-details h4 {
   margin: 0 0 4px 0;
   font-size: 0.95rem;
@@ -275,7 +284,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
 }
+.item-controls .btn-remove { flex-shrink: 0; }
 
 .qty-controls {
   display: flex;
@@ -308,6 +319,7 @@
 .item-subtotal {
   font-weight: 700;
   color: var(--success-color);
+  white-space: nowrap;
 }
 
 .btn-remove {

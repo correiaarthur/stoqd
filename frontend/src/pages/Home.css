@@ -83,6 +83,7 @@
   opacity: 0.2;
 }
 .product-info {
+  min-width: 0;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -96,6 +97,7 @@
   font-weight: 600;
 }
 .product-price {
+  white-space: nowrap;
   font-size: 1.6rem;
   font-weight: 800;
   color: var(--accent-color);
