@@ -18,8 +18,20 @@ const app = express();
 
 app.use(helmet());
 
+// Em produção, só as origens declaradas em CORS_ORIGINS (separadas por vírgula).
+// Sem a variável, reflete a origem da requisição — cômodo no desenvolvimento
+// local, mas equivale a liberar geral.
+const allowedOrigins = process.env.CORS_ORIGINS
+  ?.split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+if (!allowedOrigins?.length && process.env.NODE_ENV === 'production') {
+  console.warn('[cors] CORS_ORIGINS não definido: a API está aceitando qualquer origem.');
+}
+
 app.use(cors({
-  origin: '*' 
+  origin: allowedOrigins?.length ? allowedOrigins : true
 }));
 
 app.use(limiter);

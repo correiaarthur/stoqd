@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { TOKEN_KEY } from '../utils/auth';
 import './Login.css';
 
 export function Login() {
@@ -14,7 +15,7 @@ export function Login() {
       const response = await api.post('/auth/login', { email, password });
       
       const { token } = response.data;
-      localStorage.setItem('token', token);
+      localStorage.setItem(TOKEN_KEY, token);
       
       window.location.href = '/dashboard';
     } catch (err) {

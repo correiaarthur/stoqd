@@ -8,8 +8,31 @@ class SaleError extends Error {}
 export async function create(req: Request, res: Response) { 
   const { customerId, items, installmentsCount = 1, observation, discount = 0, paymentType = 'VISTA' } = req.body;
 
-  if (!items || items.length === 0) {
+  if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: "A venda precisa ter pelo menos um item." });
+  }
+
+  // Quantidade negativa passaria na checagem de estoque, aumentaria o estoque no
+  // decremento e reduziria o total da venda.
+  const parsedItems: Array<{ productId: number; quantity: number }> = [];
+  const seenProducts = new Set<number>();
+
+  for (const item of items) {
+    const productId = Number(item?.productId);
+    const quantity = Number(item?.quantity);
+
+    if (!Number.isInteger(productId) || productId < 1) {
+      return res.status(400).json({ error: "Item inválido na venda." });
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return res.status(400).json({ error: "A quantidade de cada item precisa ser um número inteiro maior que zero." });
+    }
+    if (seenProducts.has(productId)) {
+      return res.status(400).json({ error: "O mesmo produto aparece mais de uma vez na venda." });
+    }
+
+    seenProducts.add(productId);
+    parsedItems.push({ productId, quantity });
   }
 
   const isPaidUpfront = paymentType !== 'PRAZO';
@@ -30,9 +53,9 @@ export async function create(req: Request, res: Response) {
       let grossTotal = 0;
       const saleItemsData = [];
 
-      for (const item of items) {
-        const product = await tx.product.findUnique({ where: { id: Number(item.productId) } });
-        
+      for (const item of parsedItems) {
+        const product = await tx.product.findUnique({ where: { id: item.productId } });
+
         if (!product) throw new SaleError(`Produto ID ${item.productId} não encontrado.`);
         if (product.quantity < item.quantity) {
           throw new SaleError(`Estoque insuficiente para ${product.name}. Restam ${product.quantity}.`);
@@ -60,7 +83,12 @@ export async function create(req: Request, res: Response) {
       const finalTotal = grossTotal - discountValue;
 
       const installmentsData = [];
-      const installmentValue = finalTotal / totalInstallments;
+
+      // Divisão em centavos: 10,00 em 3x daria 3,3333… e a soma das parcelas não
+      // fecharia com o total. O resto vai para as primeiras parcelas.
+      const totalCents = Math.round(finalTotal * 100);
+      const baseCents = Math.floor(totalCents / totalInstallments);
+      const leftoverCents = totalCents - baseCents * totalInstallments;
 
       for (let i = 1; i <= totalInstallments; i++) {
         const dueDate = new Date();
@@ -70,7 +98,7 @@ export async function create(req: Request, res: Response) {
 
         installmentsData.push({
           number: i,
-          value: installmentValue,
+          value: (baseCents + (i <= leftoverCents ? 1 : 0)) / 100,
           dueDate: dueDate,
           paidAt: isPaidUpfront ? new Date() : null 
         });

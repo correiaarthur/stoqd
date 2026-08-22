@@ -8,12 +8,12 @@ import { Customers } from './pages/Customers';
 import { Login } from './pages/Login';
 import { Inventory } from './pages/Inventory';
 
+import { isTokenValid } from './utils/auth';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = !!localStorage.getItem('token');
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  return isTokenValid() ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function App() {

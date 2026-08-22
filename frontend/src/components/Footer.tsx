@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import "./Footer.css";
+import { isTokenValid } from '../utils/auth';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
   
-  const isAuthenticated = !!localStorage.getItem('token');
+  const isAuthenticated = isTokenValid();
 
   return (
     <footer className="modern-footer">

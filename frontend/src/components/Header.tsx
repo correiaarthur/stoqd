@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { isTokenValid, clearToken } from '../utils/auth';
 import './Header.css';
 
 export function Header() {
@@ -7,7 +8,7 @@ export function Header() {
   const [searchParams] = useSearchParams();
   const isHome = location.pathname === '/';
   
-  const isAuthenticated = !!localStorage.getItem('token');
+  const isAuthenticated = isTokenValid();
 
   const searchQuery = searchParams.get('q') || '';
 
@@ -21,7 +22,7 @@ export function Header() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    clearToken();
     navigate('/');
     window.location.reload(); 
   };
