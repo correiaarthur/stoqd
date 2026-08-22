@@ -86,6 +86,35 @@ export async function update(req: Request, res: Response) {
   }
 }
 
+export async function getShowcase(_req: Request, res: Response) {
+  try {
+    const products = await prisma.product.findMany({
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        quantity: true,
+        sellingPrice: true,
+        promotionalPrice: true,
+        brand: { select: { name: true } },
+        category: { select: { name: true } },
+      },
+    });
+
+    const showcaseProducts = products.map((product) => ({
+      ...product,
+      activePrice: product.promotionalPrice
+        ? product.promotionalPrice
+        : product.sellingPrice,
+    }));
+
+    return res.json(showcaseProducts);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Erro ao buscar produtos" });
+  }
+}
+
 export async function getAll(_req: Request, res: Response) {
   try {
     const products = await prisma.product.findMany({

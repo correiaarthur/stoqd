@@ -4,7 +4,8 @@ import { authMiddleware } from '../middlewares/auth.js';
 
 const router = Router();
 
-router.get('/', ProductController.getAll);
+router.get('/showcase', ProductController.getShowcase);
+router.get('/', authMiddleware, ProductController.getAll);
 router.post('/', authMiddleware, ProductController.upsert);
 router.put('/:id', authMiddleware, ProductController.update);
 router.delete('/:id', authMiddleware, ProductController.remove);

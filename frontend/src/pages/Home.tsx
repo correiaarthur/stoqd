@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useProducts } from '../hooks/useProducts';
+import { useShowcase } from '../hooks/useShowcase';
 import { formatCurrency } from '../utils/formatters';
 import './Home.css';
 
 export function Home() {
-  const { products, loading } = useProducts();
+  const { products, loading } = useShowcase();
   const [selectedBrand, setSelectedBrand] = useState<string>('Todas');
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
@@ -67,7 +67,7 @@ export function Home() {
                 <span className={`badge ${product.quantity > 0 ? 'badge-success' : 'badge-danger'}`}>
                   Estoque: {product.quantity}
                 </span>
-                <span className="product-price">{formatCurrency(product.sellingPrice)}</span>
+                <span className="product-price">{formatCurrency(product.activePrice)}</span>
               </div>
             </div>
           ))}
