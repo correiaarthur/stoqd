@@ -3,7 +3,7 @@ import { api } from '../api';
 import { useProducts } from '../hooks/useProducts';
 import { useCustomers } from '../hooks/useCustomers';
 import { useCart } from '../hooks/useCart';
-import { formatCurrency, parseCurrencyInput } from '../utils/formatters';
+import { formatCurrency, parseCurrencyInput, parsePercentInput } from '../utils/formatters';
 import { CustomerModal } from '../components/CustomerModal';
 import { CheckoutModal } from '../components/CheckoutModal';
 import './PDV.css';
@@ -28,14 +28,22 @@ export function PDV() {
   const [discountInput, setDiscountInput] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
 
-  const itemsTotal = cartTotal; 
+  const itemsTotal = cartTotal;
   const typedDiscount = Number(discountInput) || 0;
-  
-  const finalDiscountInReais = discountType === 'percentage' 
-    ? itemsTotal * (typedDiscount / 100) 
+
+  const rawDiscountInReais = discountType === 'percentage'
+    ? itemsTotal * (typedDiscount / 100)
     : typedDiscount;
 
-  const finalTotal = Math.max(0, itemsTotal - finalDiscountInReais);
+  // O backend recusa desconto maior que o total, então não deixamos passar daqui.
+  const finalDiscountInReais = Math.min(rawDiscountInReais, itemsTotal);
+
+  const finalTotal = itemsTotal - finalDiscountInReais;
+
+  const handleDiscountTypeChange = (type: 'fixed' | 'percentage') => {
+    setDiscountType(type);
+    setDiscountInput('');
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -73,9 +81,9 @@ export function PDV() {
       setDiscountType('fixed');
       setIsCheckoutModalOpen(false);
       refetchProducts(); 
-    } catch (err) { 
-      alert('Erro ao registrar venda.'); 
-    } finally { 
+    } catch (err) {
+      alert('Erro ao registrar venda.');
+    } finally {
       setIsProcessing(false); 
     }
   };
@@ -214,23 +222,27 @@ export function PDV() {
                 <label className="pdv-section-label">Desconto</label>
                 <div className="pdv-discount-input-group">
                   <div className="pdv-discount-toggle">
-                    <button 
+                    <button
                       type="button"
                       className={`pdv-toggle-btn ${discountType === 'fixed' ? 'active' : ''}`}
-                      onClick={() => setDiscountType('fixed')}
+                      onClick={() => handleDiscountTypeChange('fixed')}
                     >R$</button>
-                    <button 
+                    <button
                       type="button"
                       className={`pdv-toggle-btn ${discountType === 'percentage' ? 'active' : ''}`}
-                      onClick={() => setDiscountType('percentage')}
+                      onClick={() => handleDiscountTypeChange('percentage')}
                     >%</button>
                   </div>
-                  <input 
-                    type="text" 
-                    className="input-standard pdv-discount-input" 
-                    placeholder="0.00" 
+                  <input
+                    type="text"
+                    className="input-standard pdv-discount-input"
+                    placeholder={discountType === 'percentage' ? '0' : '0.00'}
                     value={discountInput}
-                    onChange={e => setDiscountInput(parseCurrencyInput(e.target.value))}
+                    onChange={e => setDiscountInput(
+                      discountType === 'percentage'
+                        ? parsePercentInput(e.target.value)
+                        : parseCurrencyInput(e.target.value)
+                    )}
                   />
                 </div>
               </div>
