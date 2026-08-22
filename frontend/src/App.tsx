@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { Dashboard } from './pages/Dashboard';
 import { PDV } from './pages/PDV';
+import { Sales } from './pages/Sales';
 import { Customers } from './pages/Customers'; 
 import { Login } from './pages/Login';
 import { Inventory } from './pages/Inventory';
@@ -28,6 +29,7 @@ function App() {
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/estoque" element={<PrivateRoute><Inventory /></PrivateRoute>} />
             <Route path="/pdv" element={<PrivateRoute><PDV /></PrivateRoute>} />
+            <Route path="/vendas" element={<PrivateRoute><Sales /></PrivateRoute>} />
             <Route path="/customers" element={<PrivateRoute><Customers /></PrivateRoute>} />
 
             <Route path="*" element={<Navigate to="/" />} />

@@ -7,6 +7,7 @@ import './Home.css';
 export function Home() {
   const { products, loading } = useShowcase();
   const [selectedBrand, setSelectedBrand] = useState<string>('Todas');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
 
@@ -14,15 +15,20 @@ export function Home() {
     return ['Todas', ...Array.from(new Set(products.map(p => p.brand?.name).filter(Boolean)))];
   }, [products]);
 
+  const categories = useMemo(() => {
+    return ['Todas', ...Array.from(new Set(products.map(p => p.category?.name).filter(Boolean)))];
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const matchBrand = selectedBrand === 'Todas' || p.brand?.name === selectedBrand;
+      const matchCategory = selectedCategory === 'Todas' || p.category?.name === selectedCategory;
       const matchSearch = !searchQuery || 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         p.brand?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchBrand && matchSearch;
+      return matchBrand && matchCategory && matchSearch;
     });
-  }, [products, selectedBrand, searchQuery]);
+  }, [products, selectedBrand, selectedCategory, searchQuery]);
 
   if (loading) return <div className="loading-state">Carregando vitrine...</div>;
 
@@ -43,6 +49,23 @@ export function Home() {
             ))}
           </div>
         </section>
+
+        {categories.length > 1 && (
+          <section className="brands-filter">
+            <span className="filter-label">CATEGORIAS</span>
+            <div className="filter-buttons">
+              {categories.map(category => (
+                <button
+                  key={category as string}
+                  className={`btn-filter ${selectedCategory === category ? 'active' : ''}`}
+                  onClick={() => setSelectedCategory(category as string)}
+                >
+                  {category as string}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         <h2 className="page-title">
           Produtos ({filteredProducts.length}) {searchQuery && `- Buscando por "${searchQuery}"`}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
 import { useCustomers } from '../hooks/useCustomers';
+import { formatCurrency } from '../utils/formatters';
 import { CustomerModal } from '../components/CustomerModal';
 import { CustomerStatementModal } from '../components/CustomerStatementModal';
 import './Customers.css';
@@ -63,21 +64,36 @@ export function Customers() {
 
         <div className="table-container">
           <table className="data-table">
-            <thead><tr><th>Nome</th><th>Contato</th><th>Pendências</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Nome</th><th>Contato</th><th>Pendências</th><th className="highlight-col">Deve</th><th>Ações</th></tr></thead>
             <tbody>
               {filteredCustomers.length > 0 ? (
                 filteredCustomers.map(c => {
                   const pendingSalesCount = c.sales?.filter((s: any) => s.installments.some((i: any) => !i.paidAt)).length || 0;
                   const isOverdue = c.sales?.some((s: any) => s.installments.some((i: any) => !i.paidAt && new Date() > new Date(i.dueDate)));
+                  // totalDebt vem somado da API.
+                  const totalDebt = Number(c.totalDebt) || 0;
 
                   return (
                     <tr key={c.id} onClick={() => setSelectedCustomerId(c.id)} className={`customer-row ${isOverdue ? 'is-overdue' : ''}`}>
                       <td><strong>{c.name}</strong></td>
-                      <td>{c.phone || <span className="text-dim">Sem telefone</span>}</td>
+                      <td>
+                        {c.phone || c.email ? (
+                          <>
+                            {c.phone}
+                            {c.phone && c.email && <br />}
+                            {c.email && <small className="text-dim">{c.email}</small>}
+                          </>
+                        ) : <span className="text-dim">Sem contato</span>}
+                      </td>
                       <td>
                         <span className={`pending-count ${pendingSalesCount > 0 ? 'active' : 'inactive'}`}>
                           {pendingSalesCount} {pendingSalesCount === 1 ? 'compra ativa' : 'compras ativas'}
                         </span>
+                      </td>
+                      <td className="highlight-cell">
+                        {totalDebt > 0
+                          ? <strong className={isOverdue ? 'text-danger' : ''}>{formatCurrency(totalDebt)}</strong>
+                          : <span className="text-dim">—</span>}
                       </td>
                       <td>
                         <div className="action-buttons">
@@ -89,7 +105,7 @@ export function Customers() {
                   );
                 })
               ) : (
-                <tr><td colSpan={4} className="empty-state">Nenhum cliente encontrado.</td></tr>
+                <tr><td colSpan={5} className="empty-state">Nenhum cliente encontrado.</td></tr>
               )}
             </tbody>
           </table>

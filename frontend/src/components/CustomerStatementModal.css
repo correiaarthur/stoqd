@@ -150,3 +150,39 @@
   transition: all 0.2s;
 }
 .btn-pay:hover { background: var(--success-color); color: white; }
+/* --- Desconto e observação da venda --- */
+.sale-gross {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 0.85em;
+  margin-right: 8px;
+}
+.sale-extra-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+}
+.sale-extra-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 0.85rem;
+}
+.sale-extra-label {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.sale-extra-value {
+  color: var(--success-color);
+  font-weight: 600;
+}
+.sale-extra-note {
+  text-align: right;
+  font-style: italic;
+}

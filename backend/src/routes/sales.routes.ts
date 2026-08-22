@@ -6,7 +6,7 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.get('/', SalesController.getRecent); 
+router.get('/', SalesController.list);
 router.post('/', SalesController.create);   
 
 export default router;

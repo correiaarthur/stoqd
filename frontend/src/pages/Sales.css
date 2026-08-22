@@ -1,0 +1,199 @@
+.sales-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.sales-stat {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sales-stat .label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sales-stat .value {
+  margin: 0;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.sales-stat .value-pending { color: var(--danger-color); }
+
+.sales-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.sales-search { flex: 1; min-width: 260px; max-width: 460px; }
+
+.sales-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sale-card {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.sale-card:hover { border-color: var(--accent-color); }
+.sale-card.expanded { border-color: var(--accent-color); }
+
+.sale-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 14px 18px;
+  cursor: pointer;
+}
+
+.sale-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.sale-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sale-card-meta {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.sale-card-products {
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60ch;
+}
+
+.sale-card-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.sale-card-total {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sale-card-right .chevron-icon {
+  color: var(--text-dim);
+  transition: transform 0.2s;
+}
+.sale-card-right .chevron-icon.expanded { transform: rotate(180deg); }
+
+.badge-discount {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-color);
+}
+
+.sale-card-body {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sale-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin-top: 14px;
+}
+.sale-items-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 8px 10px;
+}
+.sale-items-table td { padding: 8px 10px; }
+.sale-items-table th:not(:first-child),
+.sale-items-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sale-items-table tbody tr { border-top: 1px solid var(--border-color); }
+.sale-items-table tfoot tr td { color: var(--text-dim); padding-top: 6px; padding-bottom: 6px; }
+.sale-items-table tfoot tr:first-child td { border-top: 1px solid var(--border-color); padding-top: 12px; }
+.sale-items-table tfoot .row-discount td { color: var(--success-color); }
+.sale-items-table tfoot .row-total td {
+  color: var(--text-main);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.sale-observation {
+  margin: 0;
+  font-size: 0.88rem;
+  font-style: italic;
+}
+
+.sale-installments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+.sale-installments-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.inst-pill {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  font-variant-numeric: tabular-nums;
+}
+.inst-pill.paid { background: var(--success-bg); color: var(--success-color); }
+.inst-pill.pending { color: var(--text-dim); }
+
+@media (max-width: 700px) {
+  .sale-card-header { flex-direction: column; align-items: flex-start; }
+  .sale-card-right { align-self: flex-end; }
+  .sale-card-products { max-width: 100%; white-space: normal; }
+}
+
+/* time-pills: mesma aparência do dashboard, redeclarada para a página não
+   depender do CSS de outra rota. */
+.sales-toolbar .time-pills {
+  display: flex;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sales-toolbar .time-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.sales-toolbar .time-pill:hover { color: var(--text-main); }
+.sales-toolbar .time-pill.active { background: var(--accent-color); color: #fff; }

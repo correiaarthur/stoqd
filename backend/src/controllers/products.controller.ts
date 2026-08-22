@@ -70,12 +70,14 @@ export async function update(req: Request, res: Response) {
   try {
     const updatedProduct = await prisma.product.update({
       where: { id: Number(id) },
-      data: { 
+      data: {
         name: data.name?.trim(),
         brandId: Number(data.brandId),
         categoryId: data.categoryId ? Number(data.categoryId) : null,
         quantity: Number(data.quantity),
+        averageCost: Number(data.averageCost) || 0,
         sellingPrice: Number(data.sellingPrice),
+        promotionalPrice: data.promotionalPrice ? Number(data.promotionalPrice) : null,
         expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
         imageUrl: data.imageUrl
       }

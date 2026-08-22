@@ -2,6 +2,11 @@ import { type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getActivePrice } from '../lib/pricing.js';
 
+// Janela de "vencendo em breve". O estoque tem 145 dos 185 produtos com uma
+// única unidade, então contar "estoque baixo" não distinguiria nada — o que
+// realmente exige ação aqui é validade e ruptura.
+const EXPIRY_WARNING_DAYS = 90;
+
 // Uma linha por item vendido, já com o desconto da venda rateado entre os itens.
 // O dashboard agrupa e filtra em cima disso.
 export async function getSalesReport(req: Request, res: Response) {
@@ -69,15 +74,26 @@ export async function getDashboardSummary(_req: Request, res: Response) {
     
     let totalStockValue = 0;
     let totalExpectedProfit = 0;
-    let lowStockItems = 0;
+    let outOfStockItems = 0;
+    let expiredItems = 0;
+    let expiringSoonItems = 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const warningLimit = new Date(today);
+    warningLimit.setDate(warningLimit.getDate() + EXPIRY_WARNING_DAYS);
 
     products.forEach(p => {
       const activePrice = getActivePrice(p);
       totalStockValue += activePrice * p.quantity;
       totalExpectedProfit += (activePrice - p.averageCost) * p.quantity;
-      
-      if (p.quantity > 0 && p.quantity <= 3) {
-        lowStockItems += 1;
+
+      if (p.quantity === 0) outOfStockItems += 1;
+
+      // Vencimento só interessa em item que ainda está em estoque.
+      if (p.expiryDate && p.quantity > 0) {
+        if (p.expiryDate < today) expiredItems += 1;
+        else if (p.expiryDate <= warningLimit) expiringSoonItems += 1;
       }
     });
 
@@ -96,7 +112,10 @@ export async function getDashboardSummary(_req: Request, res: Response) {
         totalProducts: products.length,
         totalStockValue,
         totalExpectedProfit,
-        lowStockItems
+        outOfStockItems,
+        expiredItems,
+        expiringSoonItems,
+        expiryWarningDays: EXPIRY_WARNING_DAYS
       },
       sales: {
         currentMonthTotal: monthlySales._sum.total || 0,

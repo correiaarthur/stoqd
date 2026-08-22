@@ -98,7 +98,12 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
                       <span className="sale-products-label" title={productNames}>{productNames}</span>
                     </div>
                     <div className="sale-info-right">
-                      <span className="sale-total">{formatCurrency(sale.total)}</span>
+                      <span className="sale-total">
+                        {sale.discount > 0 && (
+                          <s className="sale-gross">{formatCurrency(sale.total + sale.discount)}</s>
+                        )}
+                        {formatCurrency(sale.total)}
+                      </span>
                       <svg
                         className={`chevron-icon ${isExpanded ? 'expanded' : ''}`}
                         xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -110,7 +115,24 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
 
                   {isExpanded && (
                     <div className="sale-accordion-body">
-                      
+
+                      {(sale.discount > 0 || sale.observation) && (
+                        <div className="sale-extra-info">
+                          {sale.discount > 0 && (
+                            <div className="sale-extra-row">
+                              <span className="sale-extra-label">Desconto concedido</span>
+                              <span className="sale-extra-value">− {formatCurrency(sale.discount)}</span>
+                            </div>
+                          )}
+                          {sale.observation && (
+                            <div className="sale-extra-row">
+                              <span className="sale-extra-label">Observação</span>
+                              <span className="sale-extra-note">{sale.observation}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="installments-squares">
                         {sortedInstallments.map((inst: any, idx: number) => {
                           let statusClass = 'pending';

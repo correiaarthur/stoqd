@@ -11,15 +11,17 @@ interface ProductModalProps {
   onSuccess: () => void;
 }
 
+const MONEY_FIELDS = ['averageCost', 'sellingPrice', 'promotionalPrice'];
+
 export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModalProps) {
   const [brands, setBrands] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  const [form, setForm] = useState({ 
-    name: '', brandId: '', categoryId: '', quantity: '', 
-    averageCost: '', sellingPrice: '', expiryDate: '', imageUrl: ''
+  const [form, setForm] = useState({
+    name: '', brandId: '', categoryId: '', quantity: '',
+    averageCost: '', sellingPrice: '', promotionalPrice: '', expiryDate: '', imageUrl: ''
   });
 
   const loadInitialData = async () => {
@@ -40,15 +42,35 @@ export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModal
         quantity: productToEdit.quantity ? String(productToEdit.quantity) : '',
         averageCost: productToEdit.averageCost ? String(productToEdit.averageCost) : '', 
         sellingPrice: productToEdit.sellingPrice ? String(productToEdit.sellingPrice) : '',
+        promotionalPrice: productToEdit.promotionalPrice ? String(productToEdit.promotionalPrice) : '',
         expiryDate: productToEdit.expiryDate ? new Date(productToEdit.expiryDate).toISOString().split('T')[0] : '',
         imageUrl: productToEdit.imageUrl || ''
       });
     }
   }, [productToEdit]);
 
+  // Apagar uma marca leva junto todos os produtos dela (onDelete: Cascade no
+  // schema). Categoria só desvincula. A confirmação precisa dizer qual é o caso.
+  const removeTaxonomy = async (resource: 'brands' | 'categories', id: number, items: any[]) => {
+    const name = items.find(i => i.id === id)?.name || 'este item';
+
+    const message = resource === 'brands'
+      ? `Apagar a marca "${name}"?\n\nTODOS os produtos dessa marca serão apagados junto, junto com o histórico de itens vendidos. Esta ação não pode ser desfeita.`
+      : `Apagar a categoria "${name}"?\n\nOs produtos continuam existindo, apenas ficam sem categoria.`;
+
+    if (!confirm(message)) return;
+
+    try {
+      await api.delete(`/${resource}/${id}`);
+      loadInitialData();
+    } catch (err) {
+      alert(getApiErrorMessage(err, 'Não foi possível apagar.'));
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: name === 'averageCost' || name === 'sellingPrice' ? parseCurrencyInput(value) : value }));
+    setForm(prev => ({ ...prev, [name]: MONEY_FIELDS.includes(name) ? parseCurrencyInput(value) : value }));
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,6 +109,7 @@ export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModal
       quantity: Number(form.quantity), 
       averageCost: Number(form.averageCost), 
       sellingPrice: Number(form.sellingPrice),
+      promotionalPrice: form.promotionalPrice ? Number(form.promotionalPrice) : null,
       expiryDate: form.expiryDate ? new Date(form.expiryDate) : null,
       imageUrl: form.imageUrl,
     };
@@ -160,14 +183,28 @@ export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModal
           </div>
 
           <div className="form-row">
-            <DropdownMenu label="Marca" items={brands} selectedId={form.brandId} onSelect={(id) => setForm({...form, brandId: id})} onCreate={async (n) => { await api.post('/brands', { name: n }); loadInitialData(); }} onUpdate={async (id, n) => { await api.put(`/brands/${id}`, { name: n }); loadInitialData(); }} onDelete={async (id) => { await api.delete(`/brands/${id}`); loadInitialData(); }} />
-            <DropdownMenu label="Categoria" items={categories} selectedId={form.categoryId} onSelect={(id) => setForm({...form, categoryId: id})} onCreate={async (n) => { await api.post('/categories', { name: n }); loadInitialData(); }} onUpdate={async (id, n) => { await api.put(`/categories/${id}`, { name: n }); loadInitialData(); }} onDelete={async (id) => { await api.delete(`/categories/${id}`); loadInitialData(); }} />
+            <DropdownMenu label="Marca" items={brands} selectedId={form.brandId} onSelect={(id) => setForm({...form, brandId: id})} onCreate={async (n) => { await api.post('/brands', { name: n }); loadInitialData(); }} onUpdate={async (id, n) => { await api.put(`/brands/${id}`, { name: n }); loadInitialData(); }} onDelete={async (id) => { await removeTaxonomy('brands', id, brands); }} />
+            <DropdownMenu label="Categoria" items={categories} selectedId={form.categoryId} onSelect={(id) => setForm({...form, categoryId: id})} onCreate={async (n) => { await api.post('/categories', { name: n }); loadInitialData(); }} onUpdate={async (id, n) => { await api.put(`/categories/${id}`, { name: n }); loadInitialData(); }} onDelete={async (id) => { await removeTaxonomy('categories', id, categories); }} />
           </div>
 
           <div className="form-row">
             <div className="form-group flex-1"><label>Qtd</label><input type="number" name="quantity" required className="input-standard" value={form.quantity} placeholder='0' onChange={handleChange} /></div>
             <div className="form-group flex-1"><label>Custo (R$)</label><input type="text" name="averageCost" required className="input-standard" value={form.averageCost} placeholder='0.00' onChange={handleChange} /></div>
             <div className="form-group flex-1"><label>Venda (R$)</label><input type="text" name="sellingPrice" required className="input-standard" value={form.sellingPrice} placeholder='0.00' onChange={handleChange} /></div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{ width: '100%' }}>
+              <label>Preço Promocional (R$) — opcional</label>
+              <input type="text" name="promotionalPrice" className="input-standard" value={form.promotionalPrice} placeholder='Deixe vazio para vender pelo preço normal' onChange={handleChange} />
+              {form.promotionalPrice && Number(form.promotionalPrice) > 0 && (
+                <small style={{ color: 'var(--accent-color)', marginTop: '4px', display: 'block' }}>
+                  Este é o preço que a vitrine mostra e o caixa cobra.
+                  {Number(form.promotionalPrice) >= Number(form.sellingPrice) && Number(form.sellingPrice) > 0 &&
+                    ' Atenção: está maior ou igual ao preço de venda.'}
+                </small>
+              )}
+            </div>
           </div>
 
           <div className="form-actions">

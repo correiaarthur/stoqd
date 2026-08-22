@@ -106,21 +106,57 @@ export async function create(req: Request, res: Response) {
   }
 }
 
-export async function getRecent(_req: Request, res: Response) {
+const MAX_SALES_PER_PAGE = 200;
+
+export async function list(req: Request, res: Response) {
+  const { from, to, customerId, limit } = req.query;
+
+  const dateFilter: { gte?: Date; lte?: Date } = {};
+
+  for (const [key, value] of [['gte', from], ['lte', to]] as const) {
+    if (!value) continue;
+    const parsed = new Date(String(value));
+    if (Number.isNaN(parsed.getTime())) {
+      return res.status(400).json({ error: "Período inválido." });
+    }
+    dateFilter[key] = parsed;
+  }
+
+  const take = Math.min(Number(limit) || 50, MAX_SALES_PER_PAGE);
+
   try {
     const sales = await prisma.sale.findMany({
-      take: 20,
+      take,
       orderBy: { date: 'desc' },
+      where: {
+        ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+        ...(customerId ? { customerId: Number(customerId) } : {}),
+      },
       include: {
-        customer: { select: { name: true } },
+        customer: { select: { id: true, name: true } },
         items: {
           include: { product: { select: { name: true } } }
         },
-        installments: true
+        installments: { orderBy: { number: 'asc' } }
       }
     });
-    return res.json(sales);
+
+    const withStatus = sales.map((sale) => {
+      const grossTotal = sale.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+      const pending = sale.installments.filter((i) => !i.paidAt);
+
+      return {
+        ...sale,
+        grossTotal,
+        itemsCount: sale.items.reduce((acc, item) => acc + item.quantity, 0),
+        isPaid: pending.length === 0,
+        pendingAmount: pending.reduce((acc, i) => acc + i.value, 0),
+      };
+    });
+
+    return res.json(withStatus);
   } catch (error) {
+    console.error("Erro ao buscar vendas:", error);
     return res.status(500).json({ error: "Erro ao buscar vendas." });
   }
 }

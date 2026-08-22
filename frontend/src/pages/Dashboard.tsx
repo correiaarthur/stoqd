@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSalesReport } from '../hooks/useSalesReport';
+import { useDashboardSummary } from '../hooks/useDashboardSummary';
 import { formatCurrency } from '../utils/formatters';
 import './Dashboard.css';
 
@@ -99,6 +100,7 @@ export function Dashboard() {
   // Memorizado: uma data nova a cada render faria o hook refazer o fetch em loop.
   const cutoffDate = useMemo(() => getCutoffDate(timeRange), [timeRange]);
   const { soldItems, loading } = useSalesReport(cutoffDate);
+  const { summary } = useDashboardSummary();
 
   const categories = useMemo(() => ['Todas', ...Array.from(new Set(soldItems.map(i => i.categoryName)))], [soldItems]);
   const brands = useMemo(() => ['Todas', ...Array.from(new Set(soldItems.map(i => i.brandName)))], [soldItems]);
@@ -179,8 +181,9 @@ export function Dashboard() {
         <>
           <div className="stats-grid">
             <div className="stat-card base-card profit">
-              <span className="label">Receita Bruta Gerada</span>
+              <span className="label">Receita Líquida Gerada</span>
               <h2 className="value">{formatCurrency(totalRevenue)}</h2>
+              <span className="stat-note">já descontados os abatimentos</span>
             </div>
             <div className="stat-card base-card">
               <span className="label">Unidades Vendidas</span>
@@ -191,6 +194,42 @@ export function Dashboard() {
               <h2 className="value">{formatCurrency(totalItemsSold > 0 ? totalRevenue / totalItemsSold : 0)}</h2>
             </div>
           </div>
+
+          {summary && (
+            <div className="inventory-panel base-card">
+              <div className="inventory-panel-header">
+                <h3>Situação do Estoque</h3>
+                <span className="text-dim">{summary.inventory.totalProducts} produtos cadastrados</span>
+              </div>
+
+              <div className="inventory-metrics">
+                <div className="inventory-metric">
+                  <span className="label">Valor em estoque</span>
+                  <strong>{formatCurrency(summary.inventory.totalStockValue)}</strong>
+                </div>
+                <div className="inventory-metric">
+                  <span className="label">Lucro previsto</span>
+                  <strong className="text-success">{formatCurrency(summary.inventory.totalExpectedProfit)}</strong>
+                </div>
+                <div className={`inventory-metric ${summary.inventory.expiredItems > 0 ? 'is-alert' : ''}`}>
+                  <span className="label">Vencidos em estoque</span>
+                  <strong>{summary.inventory.expiredItems}</strong>
+                </div>
+                <div className={`inventory-metric ${summary.inventory.expiringSoonItems > 0 ? 'is-warning' : ''}`}>
+                  <span className="label">Vencem em {summary.inventory.expiryWarningDays} dias</span>
+                  <strong>{summary.inventory.expiringSoonItems}</strong>
+                </div>
+                <div className={`inventory-metric ${summary.inventory.outOfStockItems > 0 ? 'is-warning' : ''}`}>
+                  <span className="label">Esgotados</span>
+                  <strong>{summary.inventory.outOfStockItems}</strong>
+                </div>
+                <div className="inventory-metric">
+                  <span className="label">Vendas do mês</span>
+                  <strong>{formatCurrency(summary.sales.currentMonthTotal)} <span className="text-dim">({summary.sales.currentMonthCount})</span></strong>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="dashboard-filters" style={{ alignItems: 'flex-end' }}>
             

@@ -4,6 +4,8 @@ import { getApiErrorMessage } from '../utils/errors';
 import { useProducts } from '../hooks/useProducts';
 import { formatCurrency } from '../utils/formatters';
 import { ProductModal } from '../components/ProductModal';
+import { getExpiryStatus, formatExpiryDate } from '../utils/expiry';
+import './Inventory.css';
 
 export function Inventory() {
   const { products, loading, refetch: refetchProducts } = useProducts();
@@ -67,6 +69,7 @@ export function Inventory() {
               <tr>
                 <th>Produto</th>
                 <th>Estoque</th>
+                <th>Validade</th>
                 <th>Custo Unit.</th>
                 <th>Venda Unit.</th>
                 <th>Lucro Unit.</th>
@@ -76,21 +79,59 @@ export function Inventory() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>Carregando estoque...</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>Carregando estoque...</td></tr>
               ) : filteredProducts.map((p: any) => {
                 const custo = Number(p.averageCost) || 0;
-                const venda = Number(p.activePrice || p.sellingPrice) || 0;
+                const venda = Number(p.activePrice ?? p.sellingPrice) || 0;
                 const qtd = Number(p.quantity) || 0;
-                const lucroUnit = venda - custo;
+                // unitProfit e totalExpectedProfit já vêm calculados da API.
+                const lucroUnit = Number(p.unitProfit ?? venda - custo);
+                const lucroTotal = Number(p.totalExpectedProfit ?? lucroUnit * qtd);
+                const expiry = getExpiryStatus(p.expiryDate);
+                const emPromocao = p.promotionalPrice != null;
 
                 return (
                   <tr key={p.id}>
-                    <td><strong>{p.name}</strong><br /><small className="text-dim">{p.brand?.name}</small></td>
-                    <td><span className={`badge ${qtd <= 3 ? 'badge-danger' : 'badge-success'}`}>{qtd} un</span></td>
+                    <td>
+                      <div className="product-cell">
+                        {p.imageUrl
+                          ? <img src={p.imageUrl} alt="" className="product-thumb" loading="lazy" />
+                          : <div className="product-thumb product-thumb-empty">📦</div>}
+                        <div>
+                          <strong>{p.name}</strong>
+                          <br />
+                          <small className="text-dim">
+                            {p.brand?.name}
+                            {p.category?.name && <> · {p.category.name}</>}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span className={`badge ${qtd === 0 ? 'badge-danger' : 'badge-success'}`}>{qtd === 0 ? 'Esgotado' : `${qtd} un`}</span></td>
+                    <td>
+                      {expiry === 'none'
+                        ? <span className="text-dim">—</span>
+                        : (
+                          <span className={`badge badge-expiry-${expiry}`} title={formatExpiryDate(p.expiryDate)}>
+                            {expiry === 'expired' ? 'Vencido' : expiry === 'soon' ? 'Vence em breve' : formatExpiryDate(p.expiryDate)}
+                          </span>
+                        )}
+                    </td>
                     <td className="text-dim">{formatCurrency(custo)}</td>
-                    <td>{formatCurrency(venda)}</td>
-                    <td className="text-success">+{formatCurrency(lucroUnit)}</td>
-                    <td className="highlight-cell text-success"><strong>{formatCurrency(lucroUnit * qtd)}</strong></td>
+                    <td>
+                      {emPromocao ? (
+                        <>
+                          <s className="text-dim">{formatCurrency(p.sellingPrice)}</s>{' '}
+                          <strong className="text-promo">{formatCurrency(venda)}</strong>
+                        </>
+                      ) : formatCurrency(venda)}
+                    </td>
+                    <td className={lucroUnit < 0 ? 'text-danger' : 'text-success'}>
+                      {lucroUnit < 0 ? '' : '+'}{formatCurrency(lucroUnit)}
+                    </td>
+                    <td className={`highlight-cell ${lucroTotal < 0 ? 'text-danger' : 'text-success'}`}>
+                      <strong>{formatCurrency(lucroTotal)}</strong>
+                    </td>
                     <td>
                       <div className="action-buttons">
                         <button className="btn-edit-text" onClick={() => openEditModal(p)}>Editar</button>
@@ -101,7 +142,7 @@ export function Inventory() {
                 );
               })}
               {!loading && filteredProducts.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)' }}>Nenhum produto encontrado.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)' }}>Nenhum produto encontrado.</td></tr>
               )}
             </tbody>
           </table>
