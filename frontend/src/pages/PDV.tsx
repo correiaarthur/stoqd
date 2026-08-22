@@ -4,6 +4,7 @@ import { useProducts } from '../hooks/useProducts';
 import { useCustomers } from '../hooks/useCustomers';
 import { useCart } from '../hooks/useCart';
 import { formatCurrency, parseCurrencyInput, parsePercentInput } from '../utils/formatters';
+import { getApiErrorMessage } from '../utils/errors';
 import { CustomerModal } from '../components/CustomerModal';
 import { CheckoutModal } from '../components/CheckoutModal';
 import './PDV.css';
@@ -82,7 +83,7 @@ export function PDV() {
       setIsCheckoutModalOpen(false);
       refetchProducts(); 
     } catch (err) {
-      alert('Erro ao registrar venda.');
+      alert(getApiErrorMessage(err, 'Erro ao registrar venda.'));
     } finally {
       setIsProcessing(false); 
     }

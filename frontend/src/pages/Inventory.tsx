@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { getApiErrorMessage } from '../utils/errors';
 import { useProducts } from '../hooks/useProducts';
 import { formatCurrency } from '../utils/formatters';
 import { ProductModal } from '../components/ProductModal';
@@ -16,7 +17,7 @@ export function Inventory() {
       try {
         await api.delete(`/products/${id}`);
         refetchProducts();
-      } catch (err) { alert("Erro ao excluir produto."); }
+      } catch (err) { alert(getApiErrorMessage(err, "Erro ao excluir produto.")); }
     }
   };
 

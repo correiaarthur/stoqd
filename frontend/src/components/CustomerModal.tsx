@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import { getApiErrorMessage } from '../utils/errors';
 
 interface CustomerModalProps {
   customerToEdit?: any | null;
@@ -35,7 +36,7 @@ export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerMo
         onSuccess(res.data);
       }
       onClose();
-    } catch (err) { alert('Erro ao salvar cliente.'); } finally { setIsSubmitting(false); }
+    } catch (err) { alert(getApiErrorMessage(err, 'Erro ao salvar cliente.')); } finally { setIsSubmitting(false); }
   };
 
   return (

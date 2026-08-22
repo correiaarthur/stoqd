@@ -1,6 +1,9 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 
+// Regra de negócio que o operador precisa ler na tela, e não um erro interno.
+class SaleError extends Error {}
+
 export async function create(req: Request, res: Response) { 
   const { customerId, items, installmentsCount = 1, observation, discount = 0, paymentType = 'VISTA' } = req.body;
 
@@ -29,8 +32,10 @@ export async function create(req: Request, res: Response) {
       for (const item of items) {
         const product = await tx.product.findUnique({ where: { id: Number(item.productId) } });
         
-        if (!product) throw new Error(`Produto ID ${item.productId} não encontrado.`);
-        if (product.quantity < item.quantity) throw new Error(`Estoque insuficiente para ${product.name}.`);
+        if (!product) throw new SaleError(`Produto ID ${item.productId} não encontrado.`);
+        if (product.quantity < item.quantity) {
+          throw new SaleError(`Estoque insuficiente para ${product.name}. Restam ${product.quantity}.`);
+        }
 
         const itemTotal = product.sellingPrice * item.quantity;
         grossTotal += itemTotal;
@@ -48,7 +53,7 @@ export async function create(req: Request, res: Response) {
       }
 
       if (discountValue > grossTotal) {
-        throw new Error("O desconto não pode ser maior que o valor total da venda.");
+        throw new SaleError("O desconto não pode ser maior que o valor total da venda.");
       }
 
       const finalTotal = grossTotal - discountValue;
@@ -90,8 +95,13 @@ export async function create(req: Request, res: Response) {
 
     return res.status(201).json(result);
 
-  } catch (error: any) {
-    return res.status(400).json({ error: error.message || "Erro ao realizar venda." });
+  } catch (error) {
+    if (error instanceof SaleError) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.error("Erro inesperado ao realizar venda:", error);
+    return res.status(500).json({ error: "Não foi possível registrar a venda. Tente novamente." });
   }
 }
 

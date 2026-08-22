@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import { getApiErrorMessage } from '../utils/errors';
 import { DropdownMenu } from './DropdownMenu';
 import { parseCurrencyInput } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
@@ -100,7 +101,7 @@ export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModal
       }
       onSuccess();
       onClose();
-    } catch (err) { alert('Erro ao salvar produto.'); } finally { setIsSubmitting(false); }
+    } catch (err) { alert(getApiErrorMessage(err, 'Erro ao salvar produto.')); } finally { setIsSubmitting(false); }
   };
 
   return (

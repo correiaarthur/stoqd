@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { getApiErrorMessage } from '../utils/errors';
 import { useCustomers } from '../hooks/useCustomers';
 import { CustomerModal } from '../components/CustomerModal';
 import { CustomerStatementModal } from '../components/CustomerStatementModal';
@@ -21,7 +22,7 @@ export function Customers() {
       try {
         await api.delete(`/customers/${id}`);
         refetchCustomers();
-      } catch (err) { alert("Erro ao excluir cliente."); }
+      } catch (err) { alert(getApiErrorMessage(err, "Erro ao excluir cliente.")); }
     }
   };
 

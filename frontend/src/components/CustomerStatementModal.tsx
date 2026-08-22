@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import { getApiErrorMessage } from '../utils/errors';
 import { formatCurrency } from '../utils/formatters';
 import { useProducts } from '../hooks/useProducts'; 
 import './CustomerStatementModal.css';
@@ -36,7 +37,7 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
       await api.patch(`/installments/${installmentId}/pay`, { paidAt: new Date().toISOString() });
       onRefresh();
     } catch (err) {
-      alert('Erro ao processar a baixa da parcela.');
+      alert(getApiErrorMessage(err, 'Erro ao processar a baixa da parcela.'));
     }
   };
 
