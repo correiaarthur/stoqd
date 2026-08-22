@@ -2,18 +2,21 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
 import { DropdownMenu } from './DropdownMenu';
-import { parseCurrencyInput } from '../utils/formatters';
+import { parseCurrencyInput, formatCurrency } from '../utils/formatters';
+import { formatExpiryDate } from '../utils/expiry';
 import { supabase } from '../lib/supabase';
+import './ProductModal.css';
 
 interface ProductModalProps {
   productToEdit: any | null;
+  existingProducts?: any[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const MONEY_FIELDS = ['averageCost', 'sellingPrice', 'promotionalPrice'];
 
-export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModalProps) {
+export function ProductModal({ productToEdit, existingProducts = [], onClose, onSuccess }: ProductModalProps) {
   const [brands, setBrands] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +70,23 @@ export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModal
       alert(getApiErrorMessage(err, 'Não foi possível apagar.'));
     }
   };
+
+  // O backend casa por nome exato (após trim) para decidir entre criar produto e
+  // somar estoque. A checagem aqui usa o mesmo critério, senão o aviso mentiria.
+  const trimmedName = form.name.trim();
+  const duplicateProduct = productToEdit || !trimmedName
+    ? null
+    : existingProducts.find(p => p.name === trimmedName) ?? null;
+
+  const currentExpiry = duplicateProduct?.expiryDate ?? null;
+  const expiryConflict = Boolean(
+    currentExpiry && form.expiryDate && form.expiryDate !== new Date(currentExpiry).toISOString().split('T')[0]
+  );
+  const keptExpiry = expiryConflict && currentExpiry
+    ? (form.expiryDate < new Date(currentExpiry).toISOString().split('T')[0]
+        ? form.expiryDate
+        : new Date(currentExpiry).toISOString().split('T')[0])
+    : null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -155,6 +175,25 @@ export function ProductModal({ productToEdit, onClose, onSuccess }: ProductModal
               <input type="date" name="expiryDate" className="input-standard input-date-styled" value={form.expiryDate} onChange={handleChange} />
             </div>
           </div>
+
+          {duplicateProduct && (
+            <div className="restock-notice">
+              <strong>Este produto já existe.</strong> O cadastro vai somar ao estoque atual
+              de {duplicateProduct.quantity} {duplicateProduct.quantity === 1 ? 'unidade' : 'unidades'},
+              e o custo médio será recalculado a partir de {formatCurrency(duplicateProduct.averageCost)}.
+
+              {expiryConflict && (
+                <div className="restock-warning">
+                  A validade cadastrada hoje é <strong>{formatExpiryDate(currentExpiry)}</strong>, diferente
+                  da que você digitou. O produto guarda uma única data, então ficará
+                  com <strong>{formatExpiryDate(keptExpiry!)}</strong> — a mais próxima, para o lote
+                  mais velho não passar despercebido.
+                  <br />
+                  Se são lotes que você precisa controlar separado, cadastre com um nome distinto.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="form-row">
             <div className="form-group" style={{ width: '100%' }}>

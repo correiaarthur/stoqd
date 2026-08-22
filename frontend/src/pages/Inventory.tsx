@@ -152,6 +152,7 @@ export function Inventory() {
       {isModalOpen && (
         <ProductModal 
           productToEdit={productToEdit}
+          existingProducts={products}
           onClose={() => { setIsModalOpen(false); setProductToEdit(null); }}
           onSuccess={refetchProducts}
         />

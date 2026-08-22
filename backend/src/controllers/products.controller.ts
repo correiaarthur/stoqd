@@ -18,6 +18,19 @@ async function createNewProduct(trimmedName: string, data: any) {
   });
 }
 
+// Um produto guarda uma única validade, mas o estoque pode juntar unidades de
+// compras diferentes. Mantemos a data mais próxima: sinaliza o lote mais velho
+// em vez de escondê-lo atrás da validade da entrada mais recente.
+// (Controle real por lote exigiria uma tabela de lotes — ver README.)
+function mergeExpiryDates(currentDate: Date | null, incomingDate: unknown) {
+  const incoming = incomingDate ? new Date(String(incomingDate)) : null;
+
+  if (!incoming || Number.isNaN(incoming.getTime())) return currentDate;
+  if (!currentDate) return incoming;
+
+  return incoming < currentDate ? incoming : currentDate;
+}
+
 async function addStockToExistingProduct(existingProduct: any, data: any) {
   const currentQty = Number(existingProduct.quantity) || 0;
   const currentCost = Number(existingProduct.averageCost) || 0;
@@ -35,6 +48,9 @@ async function addStockToExistingProduct(existingProduct: any, data: any) {
       quantity: totalQuantity,
       averageCost: newAverageCost,
       sellingPrice: Number(data.sellingPrice) || existingProduct.sellingPrice,
+      promotionalPrice: data.promotionalPrice ? Number(data.promotionalPrice) : existingProduct.promotionalPrice,
+      categoryId: data.categoryId ? Number(data.categoryId) : existingProduct.categoryId,
+      expiryDate: mergeExpiryDates(existingProduct.expiryDate, data.expiryDate),
       imageUrl: data.imageUrl || existingProduct.imageUrl,
     },
   });
