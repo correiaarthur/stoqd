@@ -1,6 +1,7 @@
 import { type Request, type Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import { getActivePrice } from "../lib/pricing.js";
+import { translatePrismaError } from "../lib/prismaErrors.js";
 
 async function createNewProduct(trimmedName: string, data: any) {
   return await prisma.product.create({
@@ -74,6 +75,11 @@ export async function upsert(req: Request, res: Response) {
     return res.status(201).json(newProduct);
 
   } catch (error) {
+    const translated = translatePrismaError(error, {
+      duplicate: "Já existe um produto com este nome."
+    });
+    if (translated) return res.status(translated.status).json({ error: translated.error });
+
     console.error("Erro no upsert:", error);
     return res.status(500).json({ error: "Erro ao processar produto" });
   }
@@ -169,7 +175,13 @@ export async function remove(req: Request, res: Response) {
     });
     return res.status(204).send();
   } catch (error) {
-    console.error(error);
+    const translated = translatePrismaError(error, {
+      inUse: "Este produto já foi vendido e não pode ser apagado — o histórico das vendas deixaria de fazer sentido. Se ele saiu de linha, zere o estoque.",
+      notFound: "Produto não encontrado."
+    });
+    if (translated) return res.status(translated.status).json({ error: translated.error });
+
+    console.error("Erro ao eliminar produto:", error);
     return res.status(500).json({ error: "Erro ao eliminar produto" });
   }
 }

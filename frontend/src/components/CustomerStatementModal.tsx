@@ -1,30 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
 import { formatCurrency } from '../utils/formatters';
-import { useProducts } from '../hooks/useProducts'; 
 import './CustomerStatementModal.css';
 
 interface Props {
-  activeCustomer: any;
+  customerId: number | null;
   onClose: () => void;
   onRefresh: () => void;
 }
 
-export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: Props) {
+export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props) {
   const [expandedSales, setExpandedSales] = useState<number[]>([]);
-  const { products } = useProducts(); 
+  const [activeCustomer, setActiveCustomer] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (activeCustomer) {
-      const pendingSaleIds = (activeCustomer.sales || [])
+  // O histórico é buscado só quando um cliente é aberto — a listagem não carrega
+  // as vendas de todo mundo.
+  const loadStatement = useCallback(async () => {
+    if (!customerId) { setActiveCustomer(null); return; }
+
+    try {
+      setLoading(true);
+      const res = await api.get(`/customers/${customerId}/statement`);
+      setActiveCustomer(res.data);
+
+      const pendingSaleIds = (res.data.sales || [])
         .filter((s: any) => s.installments?.some((i: any) => !i.paidAt))
         .map((s: any) => s.id);
       setExpandedSales(pendingSaleIds);
+    } catch (err) {
+      alert(getApiErrorMessage(err, 'Erro ao carregar o histórico do cliente.'));
+      onClose();
+    } finally {
+      setLoading(false);
     }
-  }, [activeCustomer]);
+  }, [customerId]);
 
-  if (!activeCustomer) return null;
+  useEffect(() => { loadStatement(); }, [loadStatement]);
+
+  if (!customerId) return null;
 
   const toggleSale = (saleId: number) => {
     setExpandedSales(prev =>
@@ -35,6 +50,7 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
   const handlePay = async (installmentId: number) => {
     try {
       await api.patch(`/installments/${installmentId}/pay`, { paidAt: new Date().toISOString() });
+      await loadStatement();
       onRefresh();
     } catch (err) {
       alert(getApiErrorMessage(err, 'Erro ao processar a baixa da parcela.'));
@@ -50,7 +66,7 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
     });
   };
 
-  const sortedSales = [...(activeCustomer.sales || [])].sort((a, b) =>
+  const sortedSales = [...(activeCustomer?.sales || [])].sort((a, b) =>
     new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime()
   );
 
@@ -59,7 +75,7 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
       <div className="modal-content statement-modal">
         
         <div className="statement-header">
-          <h2>Histórico: {activeCustomer.name}</h2>
+          <h2>Histórico: {activeCustomer?.name ?? ''}</h2>
           <button className="btn-secondary" onClick={onClose}>✕ Fechar</button>
         </div>
 
@@ -71,7 +87,9 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
         </div>
 
         <div className="statement-sales-list">
-          {sortedSales.length === 0 ? (
+          {loading ? (
+            <p className="empty-state" style={{ textAlign: 'center', padding: '2rem' }}>Carregando histórico...</p>
+          ) : sortedSales.length === 0 ? (
             <p className="empty-state" style={{ textAlign: 'center', padding: '2rem' }}>Nenhum histórico de compras.</p>
           ) : (
             sortedSales.map((sale: any) => {
@@ -82,11 +100,9 @@ export function CustomerStatementModal({ activeCustomer, onClose, onRefresh }: P
               );
 
               const productNames = sale.items && sale.items.length > 0
-                ? sale.items.map((i: any) => {
-                    const prod = products.find(p => p.id === i.productId);
-                    const name = prod?.name || i.product?.name || 'Produto Excluído/Desconhecido';
-                    return `${i.quantity > 1 ? i.quantity + 'x ' : ''}${name}`;
-                  }).join(', ')
+                ? sale.items.map((i: any) =>
+                    `${i.quantity > 1 ? i.quantity + 'x ' : ''}${i.product?.name || 'Produto desconhecido'}`
+                  ).join(', ')
                 : 'Produtos não especificados';
 
               return (

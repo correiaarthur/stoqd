@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { translatePrismaError } from '../lib/prismaErrors.js';
 
 export async function getAll(_req: Request, res: Response) {
   try {
@@ -57,7 +58,13 @@ export async function remove(req: Request, res: Response) {
     
     return res.status(204).send(); 
   } catch (error) {
-    console.error(error);
+    const translated = translatePrismaError(error, {
+      inUse: "Esta marca tem produtos que já foram vendidos, então não pode ser apagada. Apague antes os produtos que ainda não têm venda.",
+      notFound: "Marca não encontrada."
+    });
+    if (translated) return res.status(translated.status).json({ error: translated.error });
+
+    console.error("Erro ao deletar a marca:", error);
     return res.status(500).json({ error: "Erro ao deletar a marca" });
   }
 }

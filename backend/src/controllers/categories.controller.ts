@@ -1,5 +1,6 @@
 import { type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { translatePrismaError } from '../lib/prismaErrors.js';
 
 export async function getAll(_req: Request, res: Response) {
   try {
@@ -40,6 +41,10 @@ export async function remove(req: Request, res: Response) {
     await prisma.category.delete({ where: { id: Number(id) } });
     return res.status(204).send();
   } catch (error) {
+    const translated = translatePrismaError(error, { notFound: "Categoria não encontrada." });
+    if (translated) return res.status(translated.status).json({ error: translated.error });
+
+    console.error("Erro ao deletar categoria:", error);
     return res.status(500).json({ error: "Erro ao deletar categoria" });
   }
 }

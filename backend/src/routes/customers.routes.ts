@@ -7,6 +7,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/', CustomerController.getAll);
+router.get('/:id/statement', CustomerController.getStatement);
 router.post('/', CustomerController.create);
 router.put('/:id', CustomerController.update);
 router.delete('/:id', CustomerController.remove);

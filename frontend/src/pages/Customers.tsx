@@ -15,7 +15,6 @@ export function Customers() {
   const [customerToEdit, setCustomerToEdit] = useState<any | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
 
-  const activeCustomer = customers.find(c => c.id === selectedCustomerId);
   const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleDelete = async (id: number) => {
@@ -68,9 +67,9 @@ export function Customers() {
             <tbody>
               {filteredCustomers.length > 0 ? (
                 filteredCustomers.map(c => {
-                  const pendingSalesCount = c.sales?.filter((s: any) => s.installments.some((i: any) => !i.paidAt)).length || 0;
-                  const isOverdue = c.sales?.some((s: any) => s.installments.some((i: any) => !i.paidAt && new Date() > new Date(i.dueDate)));
-                  // totalDebt vem somado da API.
+                  // A API já devolve dívida, compras em aberto e atraso calculados.
+                  const pendingSalesCount = c.pendingSalesCount || 0;
+                  const isOverdue = c.hasOverdue;
                   const totalDebt = Number(c.totalDebt) || 0;
 
                   return (
@@ -115,7 +114,7 @@ export function Customers() {
       {isModalOpen && (
         <CustomerModal customerToEdit={customerToEdit} onClose={() => { setIsModalOpen(false); setCustomerToEdit(null); }} onSuccess={() => refetchCustomers()} />
       )}
-      <CustomerStatementModal activeCustomer={activeCustomer} onClose={() => setSelectedCustomerId(null)} onRefresh={refetchCustomers} />
+      <CustomerStatementModal customerId={selectedCustomerId} onClose={() => setSelectedCustomerId(null)} onRefresh={refetchCustomers} />
     </div>
   );
 }

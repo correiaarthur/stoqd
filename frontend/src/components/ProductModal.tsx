@@ -58,7 +58,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
     const name = items.find(i => i.id === id)?.name || 'este item';
 
     const message = resource === 'brands'
-      ? `Apagar a marca "${name}"?\n\nTODOS os produtos dessa marca serão apagados junto, junto com o histórico de itens vendidos. Esta ação não pode ser desfeita.`
+      ? `Apagar a marca "${name}"?\n\nTODOS os produtos dessa marca serão apagados junto. Produtos que já foram vendidos bloqueiam a exclusão — nesse caso nada é apagado e a marca continua.\n\nEsta ação não pode ser desfeita.`
       : `Apagar a categoria "${name}"?\n\nOs produtos continuam existindo, apenas ficam sem categoria.`;
 
     if (!confirm(message)) return;
