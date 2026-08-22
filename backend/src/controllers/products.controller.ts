@@ -1,5 +1,6 @@
 import { type Request, type Response } from "express";
 import { prisma } from "../lib/prisma.js";
+import { getActivePrice } from "../lib/pricing.js";
 
 async function createNewProduct(trimmedName: string, data: any) {
   return await prisma.product.create({
@@ -103,9 +104,7 @@ export async function getShowcase(_req: Request, res: Response) {
 
     const showcaseProducts = products.map((product) => ({
       ...product,
-      activePrice: product.promotionalPrice
-        ? product.promotionalPrice
-        : product.sellingPrice,
+      activePrice: getActivePrice(product),
     }));
 
     return res.json(showcaseProducts);
@@ -122,9 +121,7 @@ export async function getAll(_req: Request, res: Response) {
     });
 
     const productsWithAnalytics = products.map((product) => {
-      const activePrice = product.promotionalPrice
-        ? product.promotionalPrice
-        : product.sellingPrice;
+      const activePrice = getActivePrice(product);
 
       const unitProfit = activePrice - product.averageCost;
 

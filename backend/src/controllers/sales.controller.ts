@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { getActivePrice } from '../lib/pricing.js';
 
 // Regra de negócio que o operador precisa ler na tela, e não um erro interno.
 class SaleError extends Error {}
@@ -37,13 +38,13 @@ export async function create(req: Request, res: Response) {
           throw new SaleError(`Estoque insuficiente para ${product.name}. Restam ${product.quantity}.`);
         }
 
-        const itemTotal = product.sellingPrice * item.quantity;
-        grossTotal += itemTotal;
+        const unitPrice = getActivePrice(product);
+        grossTotal += unitPrice * item.quantity;
 
         saleItemsData.push({
           productId: product.id,
           quantity: item.quantity,
-          unitPrice: product.sellingPrice
+          unitPrice
         });
 
         await tx.product.update({
