@@ -57,7 +57,6 @@ export function Sales() {
     <div className="page-container">
       <div style={{ marginBottom: '2rem' }}>
         <h1 className="page-title" style={{ margin: 0 }}>Vendas</h1>
-        <p className="subtitle">Histórico completo, incluindo vendas sem cliente cadastrado</p>
       </div>
 
       <div className="sales-stats">

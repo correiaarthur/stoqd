@@ -168,8 +168,7 @@ export function Dashboard() {
   return (
     <div className="dashboard-container">
       <div className="dashboard-header" style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">Inteligência de Vendas (BI)</h1>
-        <p className="subtitle">Análise de Performance de Produtos</p>
+        <h1 className="page-title">Dashboard</h1>
       </div>
 
       {loading ? (
