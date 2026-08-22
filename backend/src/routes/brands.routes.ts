@@ -6,7 +6,7 @@ const router = Router();
 
 router.get('/', BrandController.getAll);
 router.post('/', authMiddleware, BrandController.create);
-router.put('/:id', BrandController.update);     
-router.delete('/:id', BrandController.remove);
+router.put('/:id', authMiddleware, BrandController.update);
+router.delete('/:id', authMiddleware, BrandController.remove);
 
 export default router;
