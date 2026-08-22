@@ -4,6 +4,7 @@ import helmet from 'helmet';
 
 import { limiter } from './middlewares/rateLimiter.js';
 
+import analyticsRoutes from './routes/analytics.routes.js';
 import authRouter from './routes/auth.routes.js';
 import brandsRouter from './routes/brands.routes.js'; 
 import categoriesRoutes from './routes/categories.routes.js';
@@ -25,6 +26,7 @@ app.use(limiter);
 
 app.use(express.json());
 
+app.use('/analytics', analyticsRoutes);
 app.use('/auth', authRouter);
 app.use('/brands', brandsRouter);
 app.use('/categories', categoriesRoutes);

@@ -1,9 +1,29 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useProducts } from '../hooks/useProducts';
-import { useSales } from '../hooks/useSales';
+import { useSalesReport } from '../hooks/useSalesReport';
 import { formatCurrency } from '../utils/formatters';
 import './Dashboard.css';
+
+type TimeRange = '1M' | '3M' | '6M' | '1Y';
+
+const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const MONTHS_BACK: Record<Exclude<TimeRange, '1M'>, number> = { '3M': 2, '6M': 5, '1Y': 11 };
+
+function getCutoffDate(timeRange: TimeRange) {
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+
+  if (timeRange === '1M') {
+    cutoff.setDate(cutoff.getDate() - 29);
+    return cutoff;
+  }
+
+  // Dia 1 antes de trocar o mês: em 31/12, voltar um mês daria 31/11, que o
+  // JavaScript normaliza para 01/12 e joga o corte no mês errado.
+  cutoff.setDate(1);
+  cutoff.setMonth(cutoff.getMonth() - MONTHS_BACK[timeRange]);
+  return cutoff;
+}
 
 function SearchableFilter({ label, options, value, onChange }: { label: string, options: string[], value: string, onChange: (val: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,82 +92,53 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function Dashboard() {
-  const { products, loading: loadingProducts } = useProducts();
-  const { sales, loading: loadingSales } = useSales();
-
-  const [timeRange, setTimeRange] = useState<'1M' | '3M' | '6M' | '1Y'>('1M');
+  const [timeRange, setTimeRange] = useState<TimeRange>('1M');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [selectedBrand, setSelectedBrand] = useState<string>('Todas');
 
-  const categories = useMemo(() => ['Todas', ...Array.from(new Set(products.map(p => p.category?.name).filter(Boolean)))], [products]);
-  const brands = useMemo(() => ['Todas', ...Array.from(new Set(products.map(p => p.brand?.name).filter(Boolean)))], [products]);
+  // Memorizado: uma data nova a cada render faria o hook refazer o fetch em loop.
+  const cutoffDate = useMemo(() => getCutoffDate(timeRange), [timeRange]);
+  const { soldItems, loading } = useSalesReport(cutoffDate);
 
-  const soldItems = useMemo(() => {
-    const items: any[] = [];
-    sales.forEach(sale => {
-      const date = new Date(sale.date || sale.createdAt || new Date());
-      (sale.items || []).forEach((item: any) => {
-        const product = products.find(p => p.id === item.productId);
-        items.push({
-          date, quantity: Number(item.quantity) || 0,
-          revenue: (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
-          productName: product ? product.name : 'Produto Excluído',
-          brand: product?.brand?.name || 'Sem Marca', category: product?.category?.name || 'Sem Categoria'
-        });
-      });
-    });
-    return items;
-  }, [sales, products]);
+  const categories = useMemo(() => ['Todas', ...Array.from(new Set(soldItems.map(i => i.categoryName)))], [soldItems]);
+  const brands = useMemo(() => ['Todas', ...Array.from(new Set(soldItems.map(i => i.brandName)))], [soldItems]);
 
   const filteredSoldItems = useMemo(() => {
     return soldItems.filter(item => {
-      const matchCat = selectedCategory === 'Todas' || item.category === selectedCategory;
-      const matchBrand = selectedBrand === 'Todas' || item.brand === selectedBrand;
+      const matchCat = selectedCategory === 'Todas' || item.categoryName === selectedCategory;
+      const matchBrand = selectedBrand === 'Todas' || item.brandName === selectedBrand;
       return matchCat && matchBrand;
     });
   }, [soldItems, selectedCategory, selectedBrand]);
 
+  const periodKeyFor = (date: Date) => (
+    timeRange === '1M'
+      ? `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`
+      : `${MONTH_NAMES[date.getMonth()]}/${String(date.getFullYear()).slice(-2)}`
+  );
+
   const temporalData = useMemo(() => {
     const groups: Record<string, { period: string, revenue: number, quantity: number, sortKey: string }> = {};
-    const today = new Date();
-    const cutoffDate = new Date();
-    cutoffDate.setHours(0,0,0,0);
 
-    if (timeRange === '1M') {
-      cutoffDate.setDate(today.getDate() - 29); 
-      for (let i = 0; i < 30; i++) {
-        const d = new Date(cutoffDate);
-        d.setDate(d.getDate() + i);
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const periodKey = `${day}/${month}`;
-        groups[periodKey] = { period: periodKey, revenue: 0, quantity: 0, sortKey: `${d.getFullYear()}-${month}-${day}` };
-      }
-    } else {
-      const monthsToGoBack = timeRange === '3M' ? 2 : timeRange === '6M' ? 5 : 11;
-      cutoffDate.setMonth(today.getMonth() - monthsToGoBack);
-      cutoffDate.setDate(1); 
-      for (let i = 0; i <= monthsToGoBack; i++) {
-        const d = new Date(cutoffDate);
-        d.setMonth(d.getMonth() + i);
-        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        const periodKey = `${monthNames[d.getMonth()]}/${d.getFullYear().toString().slice(-2)}`;
-        groups[periodKey] = { period: periodKey, revenue: 0, quantity: 0, sortKey: `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}` };
-      }
+    // Buckets vazios primeiro, para o gráfico mostrar o período inteiro
+    // mesmo nos dias/meses sem venda.
+    const bucketCount = timeRange === '1M' ? 30 : MONTHS_BACK[timeRange] + 1;
+
+    for (let i = 0; i < bucketCount; i++) {
+      const d = new Date(cutoffDate);
+      if (timeRange === '1M') d.setDate(d.getDate() + i);
+      else d.setMonth(d.getMonth() + i);
+
+      const periodKey = periodKeyFor(d);
+      const sortKey = timeRange === '1M'
+        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        : `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+
+      groups[periodKey] = { period: periodKey, revenue: 0, quantity: 0, sortKey };
     }
 
     filteredSoldItems.forEach(item => {
-      const d = new Date(item.date);
-      if (d < cutoffDate) return; 
-
-      let periodKey = '';
-      if (timeRange === '1M') {
-        periodKey = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-      } else {
-        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        periodKey = `${monthNames[d.getMonth()]}/${d.getFullYear().toString().slice(-2)}`;
-      }
-
+      const periodKey = periodKeyFor(new Date(item.date));
       if (groups[periodKey]) {
         groups[periodKey].revenue += item.revenue;
         groups[periodKey].quantity += item.quantity;
@@ -155,25 +146,19 @@ export function Dashboard() {
     });
 
     return Object.values(groups).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-  }, [filteredSoldItems, timeRange]);
+  }, [filteredSoldItems, timeRange, cutoffDate]);
 
+  // O relatório já vem limitado ao período, então não há segundo corte de data aqui.
   const topProductsData = useMemo(() => {
     const groups: Record<string, { name: string, quantity: number }> = {};
-    const cutoffDate = new Date();
-    if (timeRange === '1M') cutoffDate.setDate(cutoffDate.getDate() - 30);
-    if (timeRange === '3M') cutoffDate.setMonth(cutoffDate.getMonth() - 3);
-    if (timeRange === '6M') cutoffDate.setMonth(cutoffDate.getMonth() - 6);
-    if (timeRange === '1Y') cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
 
     filteredSoldItems.forEach(item => {
-      const d = new Date(item.date);
-      if (d >= cutoffDate) {
-        if (!groups[item.productName]) groups[item.productName] = { name: item.productName, quantity: 0 };
-        groups[item.productName].quantity += item.quantity;
-      }
+      if (!groups[item.productName]) groups[item.productName] = { name: item.productName, quantity: 0 };
+      groups[item.productName].quantity += item.quantity;
     });
+
     return Object.values(groups).sort((a, b) => b.quantity - a.quantity).slice(0, 10);
-  }, [filteredSoldItems, timeRange]);
+  }, [filteredSoldItems]);
 
   const totalRevenue = temporalData.reduce((acc, curr) => acc + curr.revenue, 0);
   const totalItemsSold = temporalData.reduce((acc, curr) => acc + curr.quantity, 0);
@@ -185,7 +170,7 @@ export function Dashboard() {
         <p className="subtitle">Análise de Performance de Produtos</p>
       </div>
 
-      {loadingProducts || loadingSales ? (
+      {loading ? (
         <div className="loading-state" style={{ marginTop: '4rem' }}>
           <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
           Analisando inteligência de dados...
@@ -219,8 +204,8 @@ export function Dashboard() {
               </div>
             </div>
 
-            <SearchableFilter label="Filtrar por Categoria" options={categories as string[]} value={selectedCategory} onChange={setSelectedCategory} />
-            <SearchableFilter label="Filtrar por Marca" options={brands as string[]} value={selectedBrand} onChange={setSelectedBrand} />
+            <SearchableFilter label="Filtrar por Categoria" options={categories} value={selectedCategory} onChange={setSelectedCategory} />
+            <SearchableFilter label="Filtrar por Marca" options={brands} value={selectedBrand} onChange={setSelectedBrand} />
           </div>
 
           <div className="charts-grid">
