@@ -2,11 +2,21 @@ import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 
 export async function create(req: Request, res: Response) { 
-  const { customerId, items, installmentsCount = 1, observation, discount = 0 } = req.body;
+  const { customerId, items, installmentsCount = 1, observation, discount = 0, paymentType = 'VISTA' } = req.body;
 
   if (!items || items.length === 0) {
     return res.status(400).json({ error: "A venda precisa ter pelo menos um item." });
   }
+
+  const isPaidUpfront = paymentType !== 'PRAZO';
+
+  if (!isPaidUpfront && !customerId) {
+    return res.status(400).json({ error: "Para vender a prazo, selecione um cliente." });
+  }
+
+  // À vista é sempre uma parcela só, mesmo que o caixa tenha escolhido um
+  // parcelamento antes de voltar para o pagamento à vista.
+  const totalInstallments = isPaidUpfront ? 1 : Number(installmentsCount) || 1;
 
   const discountValue = Number(discount) || 0;
 
@@ -44,10 +54,9 @@ export async function create(req: Request, res: Response) {
       const finalTotal = grossTotal - discountValue;
 
       const installmentsData = [];
-      const installmentValue = finalTotal / installmentsCount; 
-      const isPaidUpfront = installmentsCount === 1 && !customerId;
+      const installmentValue = finalTotal / totalInstallments;
 
-      for (let i = 1; i <= installmentsCount; i++) {
+      for (let i = 1; i <= totalInstallments; i++) {
         const dueDate = new Date();
         if (!isPaidUpfront) {
            dueDate.setMonth(dueDate.getMonth() + i);
