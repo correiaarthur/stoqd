@@ -1,0 +1,137 @@
+.account-page { max-width: 1000px; }
+
+.account-banner {
+  background: var(--success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--success-color);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+.account-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  align-items: start;
+}
+.account-layout .page-card { margin-bottom: 0; }
+
+.account-page h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.2rem;
+}
+
+.account-error {
+  background: var(--danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+.account-success {
+  background: var(--success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--success-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+.account-note {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.account-orders { margin-top: 2rem; }
+
+.account-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.account-order {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.25rem;
+  background: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.account-order.status-cancelled { opacity: 0.7; }
+
+.account-order header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.account-order header > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.account-order-total {
+  font-weight: 700;
+  color: var(--success-color);
+  white-space: nowrap;
+}
+
+.account-order-meta {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.account-order-items {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+.account-order-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.account-order-items span { color: var(--text-dim); white-space: nowrap; }
+
+.account-order-reason {
+  margin: 0.5rem 0 0 0;
+  color: var(--danger-color);
+  font-size: 0.85rem;
+}
+
+.account-installments {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.account-installments-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge-pending { background: rgba(139, 92, 246, 0.12); color: var(--accent-hover); }
+.badge-confirmed { background: var(--success-bg); color: var(--success-color); }
+.badge-cancelled { background: var(--danger-bg); color: var(--danger-color); }
+
+.account-danger { border-color: rgba(239, 68, 68, 0.25); }
+.account-danger p { margin: 0 0 1.5rem 0; max-width: 65ch; line-height: 1.6; }
+.account-danger-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
