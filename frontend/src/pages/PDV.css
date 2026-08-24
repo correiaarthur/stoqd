@@ -52,10 +52,13 @@
 }
 
 /* --- Cards de Produto no PDV --- */
+/* Sem space-between: quando o nome ocupa muitas linhas o espaço livre fica
+   negativo e o space-between empurra o rodapé para fora do card. O margin-top
+   auto do rodapé só desloca quando há espaço sobrando. */
 .pdv-item-card {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 1rem;
   min-width: 0;
   padding: 1.2rem;
   min-height: 110px;
@@ -86,7 +89,6 @@
 
 .item-card-info {
   text-align: left;
-  margin-bottom: 1rem;
   min-width: 0;
 }
 
@@ -107,6 +109,7 @@
    quando os dois não cabem lado a lado (ex.: "R$ 134,00" + "Esgotado") a linha
    precisa poder quebrar — senão transbordam para fora do card. */
 .item-card-footer {
+  margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
