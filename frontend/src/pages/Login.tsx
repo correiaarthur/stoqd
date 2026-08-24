@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
-import { TOKEN_KEY } from '../utils/auth';
+import { saveToken } from '../utils/auth';
+import { getApiErrorMessage } from '../utils/errors';
 import './Login.css';
 
 export function Login() {
-  const [email, setEmail] = useState('');
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get('next');
+
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
@@ -12,35 +17,37 @@ export function Login() {
     setError('');
 
     try {
-      const response = await api.post('/auth/login', { email, password });
-      
-      const { token } = response.data;
-      localStorage.setItem(TOKEN_KEY, token);
-      
-      window.location.href = '/dashboard';
+      const response = await api.post('/auth/login', { identifier, password });
+
+      saveToken(response.data.token);
+
+      // Admin cai no painel; cliente volta para onde estava — em geral o
+      // checkout que pediu o login.
+      const destination = next || (response.data.user?.role === 'admin' ? '/dashboard' : '/');
+      window.location.href = destination;
     } catch (err) {
-      setError('E-mail ou senha incorretos. Acesso negado.');
+      setError(getApiErrorMessage(err, 'Telefone ou senha incorretos.'));
     }
   };
 
   return (
     <div className="login-container">
       <div className="login-card base-card">
-        
+
         <div className="login-header">
-          <span className="brand-symbol">✦</span>
+          <span className="brand-symbol">▲</span>
           <h1 className="brand-name">stoqd</h1>
-          <p>Acesso restrito à administração.</p>
+          <p>Entre com sua conta de cliente ou de administração.</p>
         </div>
 
-        <form 
+        <form
           className="login-form"
           onSubmit={(e) => {
             e.preventDefault();
             handleLogin();
-          }} 
+          }}
         >
-          
+
           {error && (
             <div className="login-error">
               {error}
@@ -48,22 +55,26 @@ export function Login() {
           )}
 
           <div className="form-group">
-            <label>E-mail</label>
-            <input 
-              type="email" 
-              className="input-standard" 
-              placeholder="exemplo@email.com"
+            <label>Telefone</label>
+            {/* Um campo só para os dois tipos de conta: o cliente digita o
+                telefone, a administração digita o e-mail do .env — que nunca
+                vai casar com um número. */}
+            <input
+              type="text"
+              className="input-standard"
+              placeholder="(11) 90000-0000"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
             />
+            <small className="field-hint">A administração entra com o e-mail cadastrado.</small>
           </div>
 
           <div className="form-group">
             <label>Senha</label>
-            <input 
-              type="password" 
-              className="input-standard" 
+            <input
+              type="password"
+              className="input-standard"
               placeholder="••••••••"
               required
               value={password}
@@ -72,13 +83,13 @@ export function Login() {
           </div>
 
           <button type="submit" className="btn-primary login-btn">
-            Entrar no Sistema
+            Entrar
           </button>
 
         </form>
-        
+
         <div className="login-footer">
-          Não tem acesso? <a href="/">Voltar para a Vitrine</a>
+          Ainda não tem conta? <Link to={`/cadastro${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Criar conta</Link>
         </div>
 
       </div>

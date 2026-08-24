@@ -76,3 +76,19 @@
 .login-footer a:hover {
   color: var(--accent-hover);
 }
+/* Consentimento no cadastro: dado pessoal de terceiro pede uma linha dizendo
+   para que serve, e ela precisa ser legível — não uma nota de rodapé. */
+.login-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.login-consent input {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: var(--accent-color);
+}

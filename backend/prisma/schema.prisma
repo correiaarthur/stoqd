@@ -13,26 +13,28 @@ model Brand {
 }
 
 model Product {
-  id               Int       @id @default(autoincrement())
-  name             String    @unique
-  
-  brandId          Int
-  brand            Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  
-  categoryId       Int?      
-  category         Category? @relation(fields: [categoryId], references: [id])
-  
-  imageUrl         String?
-  quantity         Int       @default(0)
-  
-  averageCost      Float     @default(0)
-  sellingPrice     Float     @default(0)
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  brandId Int
+  brand   Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  imageUrl String?
+  quantity Int     @default(0)
+
+  averageCost      Float  @default(0)
+  sellingPrice     Float  @default(0)
   promotionalPrice Float?
-  
-  expiryDate       DateTime?
-  createdAt        DateTime  @default(now())
-  
-  saleItems        SaleItem[]
+
+  expiryDate DateTime?
+  createdAt  DateTime  @default(now())
+
+  saleItems    SaleItem[]
+  reservations Reservation[]
+  orderItems   OrderItem[]
 }
 
 model Category {
@@ -47,44 +49,221 @@ model Customer {
   phone     String?
   email     String?
   createdAt DateTime @default(now())
-  
-  sales     Sale[]
+
+  sales Sale[]
+
+  // Lado inverso do vínculo opcional com a conta de acesso. Um Customer pode
+  // existir por meses sem nunca ter conta — e ganhar uma depois.
+  user User?
 }
 
 model Sale {
   id          Int      @id @default(autoincrement())
   total       Float
   date        DateTime @default(now())
-  observation String? 
+  observation String?
 
-  customerId  Int?
-  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId Int?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  items       SaleItem[]
+  items        SaleItem[]
   installments Installment[]
-  discount    Float? @default(0)
+
+  /// Desconto concedido: cupom e desconto manual somados.
+  discount Float? @default(0)
+
+  /// Acréscimo do parcelamento. Fica separado do total para o faturamento não
+  /// confundir juros com venda de produto.
+  interest Float? @default(0)
+
+  /// Qual cupom foi usado, quando houve. Guardado para o cupom poder ser
+  /// auditado depois — sem isto, "por que esta venda saiu 10% mais barata?"
+  /// não tem resposta.
+  couponId Int?
+  coupon   Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  order Order?
 }
 
 model SaleItem {
-  id        Int      @id @default(autoincrement())
-  
-  saleId    Int
-  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade) 
+  id Int @id @default(autoincrement())
+
+  saleId Int
+  sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   productId Int
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
 
   quantity  Int
   unitPrice Float
 }
 
 model Installment {
-  id        Int       @id @default(autoincrement())
-  number    Int
-  value     Float
-  dueDate   DateTime
-  paidAt    DateTime?
+  id      Int       @id @default(autoincrement())
+  number  Int
+  value   Float
+  dueDate DateTime
+  paidAt  DateTime?
 
-  saleId    Int
-  sale      Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleId Int
+  sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+}
+
+/// Conta de acesso do cliente. Não guarda venda nenhuma — quem aparece nas
+/// vendas é o Customer. São entidades com tempos de vida diferentes: apagar a
+/// conta não pode apagar o histórico de compras.
+model User {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  /// Identificador de acesso. Guardado só com dígitos, para o mesmo número
+  /// digitado de três jeitos não virar três contas.
+  phone String @unique
+
+  /// Opcional: nem todo cliente tem e-mail à mão, e a loja fala por telefone.
+  /// Continua único quando informado — o Postgres não conta NULLs como
+  /// repetidos, então várias contas sem e-mail convivem sem conflito.
+  email String? @unique
+
+  passwordHash String
+  role         String   @default("customer")
+  createdAt    DateTime @default(now())
+
+  // Vínculo opcional, criado quando o admin reconhece a pessoa na confirmação
+  // do pedido. Nasce depois porque o Customer costuma existir antes da conta.
+  customerId Int?      @unique
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  orders       Order[]
+  reservations Reservation[]
+}
+
+/// Uma reserva de estoque com prazo. O disponível de um produto nunca é
+/// armazenado: é `quantity` menos a soma das reservas ativas, calculada na
+/// leitura. Reserva vencida deixa de contar no instante em que vence, sem
+/// nenhum processo em segundo plano precisar liberá-la.
+model Reservation {
+  id Int @id @default(autoincrement())
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity Int
+
+  cartToken String // carrinho do visitante, com ou sem conta
+  userId    Int? // preenchido quando a identidade entra
+  user      User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orderId Int? // presa ao pedido: só sai com ele
+  order   Order? @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([productId, expiresAt])
+  @@index([cartToken])
+  @@index([orderId])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+/// Pedido feito pela vitrine. Só vira venda quando o admin confirma.
+model Order {
+  id        Int         @id @default(autoincrement())
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Nasce na confirmação. Enquanto for null, nenhum estoque foi baixado.
+  saleId Int?  @unique
+  sale   Sale? @relation(fields: [saleId], references: [id], onDelete: SetNull)
+
+  cancelReason String?
+  observation  String?
+
+  /// Como o cliente PEDIU para pagar. É preferência, não decisão: vender a
+  /// prazo exige um Customer vinculado, e esse vínculo só nasce na
+  /// confirmação. A tela de confirmação abre com estes valores preenchidos e
+  /// deixa a loja mudar antes de fechar.
+  paymentType       PaymentType @default(VISTA)
+  installmentsCount Int         @default(1)
+
+  couponId Int?
+  coupon   Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  items        OrderItem[]
+  reservations Reservation[]
+
+  @@index([status, createdAt])
+}
+
+enum PaymentType {
+  VISTA
+  PRAZO
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+/// Cupom de desconto que o cliente digita no checkout.
+model Coupon {
+  id   Int    @id @default(autoincrement())
+  /// Sempre em maiúsculas: quem digita "ciclo10" espera que funcione.
+  code String @unique
+
+  type  CouponType
+  /// Percentual (10 = 10%) ou valor em reais, conforme `type`.
+  value Float
+
+  /// Piso do pedido para o cupom valer. Null = vale para qualquer valor.
+  minimumTotal Float?
+
+  /// Null = sem prazo / sem teto de usos.
+  expiresAt DateTime?
+  maxUses   Int?
+
+  /// Só sobe quando a venda é registrada de fato — um pedido pendente ainda
+  /// não gastou o cupom, e um pedido recusado não pode gastar.
+  usedCount Int     @default(0)
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  sales  Sale[]
+  orders Order[]
+
+  @@index([code, active])
+}
+
+/// Taxa de juros de cada opção de parcelamento, editável pela loja.
+///
+/// Uma linha por número de parcelas. À vista (1x) não tem linha: é sempre sem
+/// juros, e um acréscimo em pagamento à vista não seria juros, seria outro preço.
+model InstallmentPlan {
+  /// 2 a 12. É a chave: não existem duas taxas para o mesmo parcelamento.
+  installments Int @id
+
+  interestPercent Float   @default(0)
+  active          Boolean @default(true)
+}
+
+model OrderItem {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity  Int
+  unitPrice Float // preço no momento do pedido
 }
