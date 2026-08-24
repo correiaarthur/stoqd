@@ -96,3 +96,23 @@ button.nav-link.btn-logout:hover {
 button.nav-link.btn-logout:hover .nav-icon {
   color: #ff3b30;
 }
+/* Contador do carrinho, ancorado no ícone. O ícone vira o contexto de
+   posicionamento para o número não escapar do cabeçalho. */
+.nav-cart .nav-icon { position: relative; }
+
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}

@@ -1,0 +1,580 @@
+/* --- Checkout: a única tela de fechar compra, do visitante e do balcão --- */
+.checkout-page {
+  max-width: 1100px;
+}
+
+.checkout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.checkout-back {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.checkout-back:hover { color: var(--accent-color); }
+
+.checkout-empty {
+  padding: 4rem 3rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+.checkout-empty-icon { color: var(--border-color); }
+.checkout-empty-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.checkout-empty-text h2 {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-main);
+}
+.checkout-empty p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  max-width: 46ch;
+  line-height: 1.6;
+}
+.checkout-empty .btn-primary { text-decoration: none; }
+
+.checkout-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+/* --- Lista de itens --- */
+.checkout-items {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* O prazo da reserva. A barra encolhendo mostra o tempo passando de canto de
+   olho — o número sozinho só informa quando alguém para para ler. */
+.reservation-timer {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--accent-hover);
+}
+.reservation-timer.expired {
+  background: var(--danger-bg);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--danger-color);
+}
+
+.reservation-timer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.reservation-timer-head svg { flex-shrink: 0; }
+
+.reservation-timer-text { font-size: 0.9rem; flex: 1; min-width: 0; }
+
+.reservation-timer-clock {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.reservation-timer-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(139, 92, 246, 0.2);
+  overflow: hidden;
+}
+.reservation-timer-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-color);
+  transition: width 1s linear;
+}
+
+/* --- Decisão 4: um aviso só, que também resolve --- */
+.stock-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  background: var(--danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.stock-alert-icon { color: var(--danger-color); flex-shrink: 0; }
+
+.stock-alert-text {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.stock-alert-text strong { color: var(--danger-color); font-size: 0.9rem; font-weight: 600; }
+.stock-alert-text span { color: var(--text-dim); font-size: 0.85rem; }
+
+.stock-alert-fix {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* O botão travado explica o motivo em vez de só apagar. */
+.checkout-blocked {
+  display: block;
+  color: var(--danger-color);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.checkout-alert {
+  background: var(--danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+.checkout-success {
+  background: var(--success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--success-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* Três colunas fixas: miniatura | nome | controles. Com o nome na única coluna
+   flexível, quantidade, subtotal e a lixeira ficam na mesma altura em todas as linhas
+   por mais que o nome do produto quebre — que é o caso comum neste catálogo. */
+.checkout-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+.checkout-item.short {
+  border-color: rgba(239, 68, 68, 0.4);
+  border-left: 3px solid var(--danger-color);
+}
+.checkout-item.sold-out { opacity: 0.75; }
+.checkout-item.sold-out .checkout-item-main h3 {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-dim);
+}
+
+.checkout-item-image {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.checkout-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.checkout-item-placeholder { color: var(--border-color); }
+
+.checkout-item-main { min-width: 0; }
+/* O nome longo quebra dentro da própria coluna em vez de empurrar o preço. */
+.checkout-item-main h3 {
+  margin: 0 0 4px 0;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.checkout-item-price {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.checkout-item-warning {
+  display: block;
+  margin-top: 6px;
+  color: var(--danger-color);
+  font-size: 0.85rem;
+}
+
+.checkout-item-fix {
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.85rem;
+  padding: 0 0 0 6px;
+}
+
+.checkout-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.checkout-item-subtotal {
+  font-weight: 700;
+  color: var(--success-color);
+  white-space: nowrap;
+  min-width: 92px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Abaixo de 720px a linha vira duas: os controles descem para a coluna do
+   nome, que é o único arranjo em que os três ainda cabem lado a lado. */
+@media (max-width: 720px) {
+  .checkout-item { grid-template-columns: 72px minmax(0, 1fr); }
+  .checkout-item-controls {
+    grid-column: 2;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 12px;
+    margin-top: 10px;
+  }
+  .checkout-item-subtotal { min-width: 0; }
+}
+
+.qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--input-bg);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+.qty-controls button {
+  background: none;
+  border: none;
+  color: var(--text-main);
+  font-size: 1.2rem;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.qty-controls button:hover { background: rgba(255, 255, 255, 0.1); }
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+/* Cinza em repouso, vermelho ao passar o mouse: apagar é destrutivo, mas não
+   precisa gritar em toda linha do carrinho. */
+.btn-remove:hover {
+  color: var(--danger-color);
+  background: var(--danger-bg);
+}
+
+/* --- Coluna do resumo --- */
+.checkout-summary {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.checkout-summary h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.checkout-summary .form-group { margin: 0; }
+.checkout-summary .form-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.checkout-note {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* O valor da parcela desce sob o NÚMERO do total, não sob a palavra "TOTAL":
+   é a mesma quantia dita de outro jeito, e ler as duas na mesma coluna deixa
+   isso óbvio. */
+.total-installments {
+  display: block;
+  text-align: right;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  margin-top: -0.2rem;
+}
+
+.checkout-hint {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.btn-checkout {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  box-sizing: border-box;
+}
+
+.total-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+}
+.total-row-sub, .total-row-discount { font-size: 0.9rem; color: var(--text-dim); }
+.total-row-discount { color: var(--accent-color); }
+
+.total-label {
+  color: var(--text-dim);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Deixou de ser <h2>: uma quantia não é título de seção, e como <h2> ela
+   herdava o filete de `.checkout-summary h2` — que tem especificidade maior
+   que esta classe, então nem `border: none` aqui apagava a linha. Virando
+   <span>, o problema some na raiz em vez de ser abafado com !important. */
+.total-value {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--success-color);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Bloco de cliente, herdado do PDV --- */
+.checkout-customer {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  z-index: 100;
+}
+
+.custom-select-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.checkout-customer-select {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 12px 36px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.checkout-customer-select:focus { border-color: var(--accent-color); }
+
+.select-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.select-icon.user-icon { left: 12px; }
+.select-icon.chevron-icon { right: 12px; }
+.select-icon.clear-icon { right: 12px; cursor: pointer; pointer-events: auto; }
+.select-icon.clear-icon:hover { color: var(--danger-color); }
+
+.customer-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  z-index: 101;
+}
+
+.customer-dropdown-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  transition: background 0.2s;
+}
+.customer-dropdown-item:hover {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--accent-color);
+}
+
+.special-item {
+  color: var(--accent-color);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.customer-phone-dropdown {
+  font-size: 0.8rem;
+  margin-left: 8px;
+  color: var(--text-dim);
+}
+
+.btn-new-customer {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--accent-color);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  padding: 0 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-new-customer:hover {
+  background: var(--accent-color);
+  color: white;
+}
+
+.checkout-discount-group { display: flex; gap: 0.5rem; }
+.checkout-discount-group .input-standard { flex: 1; min-width: 0; }
+
+.checkout-discount-toggle {
+  display: flex;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.checkout-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.checkout-toggle-btn.active {
+  background: var(--accent-color);
+  color: white;
+}
+
+@media (max-width: 900px) {
+  .checkout-layout { grid-template-columns: 1fr; }
+  .checkout-summary { position: static; }
+}
+
+/* Aviso, não impedimento: o balcão vende o que está na prateleira mesmo quando
+   alguém no site reservou aquela unidade. */
+.checkout-item-reserved {
+  display: block;
+  margin-top: 6px;
+  color: var(--accent-color);
+  font-size: 0.85rem;
+}
+
+/* Bloco de totais: produtos, cupom, desconto, juros e o total — as linhas
+   precisam ficar coladas para lerem como uma conta, não como campos soltos. */
+.checkout-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Juros sobem o total, então sobem em cor diferente do desconto, que desce. */
+.total-row-interest {
+  font-size: 0.9rem;
+  color: var(--danger-color);
+}
+
+
+/* --- Decisão 3: o painel do admin em blocos --- */
+/* Seis campos empilhados numa coluna de 320px não têm hierarquia nenhuma.
+   Separados por título e filete, o olho encontra o que procura. */
+.checkout-summary-blocks {
+  padding: 0;
+  gap: 0;
+}
+
+.checkout-block {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.checkout-block + .checkout-block { border-top: 1px solid var(--border-color); }
+
+.checkout-block-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 700;
+}

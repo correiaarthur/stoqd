@@ -88,6 +88,13 @@ button, input, select, textarea, .value {
   color: var(--text-main);
 }
 
+/* Estado de carregamento, usado por mais de uma página. */
+.loading-state {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-dim);
+}
+
 /* --- Formulários --- */
 .standard-form { display: flex; flex-direction: column; gap: 1.5rem; }
 .form-row { display: flex; gap: 1.5rem; flex-wrap: wrap; }
@@ -321,3 +328,41 @@ button, input, select, textarea, .value {
    e o preço parece escapar do bloco: um item de grid/flex tem min-width auto,
    ou seja, se recusa a encolher abaixo do conteúdo. */
 h1, h2, h3, h4, p, td { overflow-wrap: break-word; }
+
+/* Ação destrutiva: excluir conta, recusar pedido. Vermelha por padrão, e não
+   só na hora do hover — quem clica precisa saber antes de encostar. */
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger-color);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-color);
+  color: white;
+}
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Marca o que é opcional dentro do próprio rótulo: quem preenche o formulário
+   não precisa descobrir por tentativa e erro qual campo pode ficar vazio. */
+.label-optional {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--text-dim);
+  opacity: 0.8;
+}
+
+.field-hint {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}

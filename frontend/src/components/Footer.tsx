@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
 import "./Footer.css";
-import { isTokenValid } from '../utils/auth';
+import { getRole } from '../utils/auth';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
   
-  const isAuthenticated = isTokenValid();
+  const role = getRole();
 
   return (
     <footer className="modern-footer">
@@ -22,14 +22,23 @@ export function Footer() {
             </p>
           </div>
 
-          {/* MOSTRA O MENU DO RODAPÉ APENAS SE ESTIVER LOGADO */}
-          {isAuthenticated && (
+          {/* O menu do rodapé segue o papel de quem está logado. */}
+          {role === 'admin' && (
             <nav className="footer-nav">
               <Link to="/">Vitrine</Link>
-              <Link to="/pdv">PDV</Link>
+              <Link to="/vendas">Vendas</Link>
               <Link to="/customers">Clientes</Link>
               <Link to="/dashboard">Dashboard</Link>
               <Link to="/estoque">Estoque</Link>
+              <Link to="/ajustes">Ajustes</Link>
+            </nav>
+          )}
+
+          {role === 'customer' && (
+            <nav className="footer-nav">
+              <Link to="/">Vitrine</Link>
+              <Link to="/checkout">Carrinho</Link>
+              <Link to="/minha-conta">Minha conta</Link>
             </nav>
           )}
         </div>

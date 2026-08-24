@@ -1,11 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useShowcase } from '../hooks/useShowcase';
+import { useCart } from '../contexts/cart';
+import { isAdmin } from '../utils/auth';
 import { formatCurrency } from '../utils/formatters';
 import './Home.css';
 
 export function Home() {
   const { products, loading } = useShowcase();
+  const { items, addItem } = useCart();
+
+  // A vitrine virou a única superfície de escolher produto — do visitante e de
+  // quem atende. Por isso ela mostra números diferentes para cada um.
+  const admin = isAdmin();
   const [selectedBrand, setSelectedBrand] = useState<string>('Todas');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [searchParams] = useSearchParams();
@@ -72,28 +79,54 @@ export function Home() {
         </h2>
 
         <div className="products-grid">
-          {filteredProducts.map(product => (
-            <div key={product.id} className="product-card base-card">
-              <div className="product-image-container">
-                {product.imageUrl ? (
-                  <img 
-                    src={product.imageUrl} 
-                    alt={`Imagem de ${product.name}`} 
-                    className="product-image" 
-                  />
-                ) : (
-                  <div className="product-image-placeholder">📦</div>
-                )}
+          {filteredProducts.map(product => {
+            const inCart = items.find(item => item.productId === product.id)?.quantity ?? 0;
+
+            // Para o visitante vale o disponível: o que outra pessoa reservou
+            // não é dele. Para o balcão vale o físico — quem está com o produto
+            // na mão vende (decisão D2), e a reserva vira só um aviso.
+            const sellable = admin ? product.quantity : product.available;
+            const reserved = product.quantity - product.available;
+            const soldOut = sellable - inCart < 1;
+
+            return (
+              <div key={product.id} className="product-card base-card">
+                <div className="product-image-container">
+                  {product.imageUrl ? (
+                    <img 
+                      src={product.imageUrl} 
+                      alt={`Imagem de ${product.name}`} 
+                      className="product-image" 
+                    />
+                  ) : (
+                    <div className="product-image-placeholder">📦</div>
+                  )}
+                </div>
+                <div className="product-info">
+                  <h3>{product.name}</h3>
+                  <span className={`badge ${sellable > 0 ? 'badge-success' : 'badge-danger'}`}>
+                    {sellable < 1
+                      ? 'Esgotado'
+                      : admin && reserved > 0
+                        ? `${product.quantity} un · ${reserved} reservada(s)`
+                        : `${sellable} disponível(is)`}
+                  </span>
+                  <span className="product-price">{formatCurrency(product.activePrice)}</span>
+
+                  <button
+                    type="button"
+                    className="btn-add-to-cart"
+                    disabled={soldOut}
+                    onClick={() => addItem(product)}
+                  >
+                    {soldOut
+                      ? (inCart > 0 ? `${inCart} no carrinho` : 'Esgotado')
+                      : (inCart > 0 ? `Adicionar (${inCart} no carrinho)` : 'Adicionar ao carrinho')}
+                  </button>
+                </div>
               </div>
-              <div className="product-info">
-                <h3>{product.name}</h3>
-                <span className={`badge ${product.quantity > 0 ? 'badge-success' : 'badge-danger'}`}>
-                  Estoque: {product.quantity}
-                </span>
-                <span className="product-price">{formatCurrency(product.activePrice)}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {filteredProducts.length === 0 && (
              <div style={{ color: 'var(--text-dim)', marginTop: '2rem' }}>Nenhum produto encontrado.</div>
           )}
