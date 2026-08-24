@@ -1,6 +1,6 @@
 # ▲ stoqd 
 
-O **stoqd** é um sistema *full-stack* de Gestão de Estoque e Ponto de Venda desenvolvido para automatizar e otimizar as operações de um negócio de varejo. O projeto centraliza o controle de produtos, fluxo de caixa e gestão de vendas a prazo.
+O **stoqd** é um sistema *full-stack* de Gestão de Estoque e Vendas desenvolvido para automatizar e otimizar as operações de um negócio de varejo. O projeto centraliza o controle de produtos, fluxo de caixa e gestão de vendas a prazo — e, pela vitrine pública, permite que o cliente monte o carrinho e envie um pedido que só vira venda quando a loja confirma.
 
 ## 🛠️ Arquitetura e Tecnologias
 
@@ -11,7 +11,7 @@ A aplicação foi projetada utilizando uma arquitetura **Cliente-Servidor (API R
 - **TypeScript** garantindo tipagem estática ponta a ponta e previsibilidade no fluxo de dados.
 - **Prisma ORM** para a modelagem relacional de dados, validação e versionamento seguro do banco via migrations.
 - **PostgreSQL** (Hospedado via **Supabase**) escolhido pela conformidade ACID, garantindo a integridade das transações de vendas e do registro de parcelas.
-- **Segurança:** Implementação de JWT (JSON Web Token) para rotas privadas, proteção de headers com **Helmet** e mitigação de ataques de força bruta com **Express Rate Limit**.
+- **Segurança:** JWT com **papel** (`admin` ou `customer`) verificado em cada rota — autenticar não é autorizar, e um token de cliente recebe 403 em qualquer rota de administração. Senhas em **bcrypt**, headers protegidos com **Helmet** e limites por rota com **Express Rate Limit** (cadastro, carrinho e pedido têm tetos próprios, por serem rotas públicas que escrevem).
 
 ### Frontend
 - **React 19** com **Vite** para um ambiente de desenvolvimento rápido e otimizado da SPA.
@@ -22,7 +22,11 @@ A aplicação foi projetada utilizando uma arquitetura **Cliente-Servidor (API R
 
 ## ✨ Funcionalidades Principais
 
-- **Frente de Caixa (PDV):** Interface reativa para registro de vendas, com suporte a múltiplos itens e baixa automática e transacional no estoque.
+- **Vitrine com carrinho:** A vitrine é a única superfície de escolher produto — do visitante e de quem atende. O checkout é uma página só com dois comportamentos: o cliente logado cria um **pedido pendente**; o admin fecha a **venda de balcão** direto, com cliente, desconto, forma de pagamento e parcelas.
+- **Reserva de estoque por 5 minutos:** O disponível nunca é armazenado, sempre derivado — quantidade física menos as reservas ativas, calculado na leitura. Não há job liberando reserva vencida: ela deixa de contar no instante em que vence. Depois do login o prazo passa a 30 minutos.
+- **Pedidos com confirmação manual:** O pedido não baixa estoque. Ao confirmar, a loja vincula (ou cria) o cliente, revalida o estoque e a venda nasce pelo mesmo caminho da venda de balcão. Se o item saiu na loja no intervalo, a confirmação recusa dizendo qual produto — **o balcão sempre ganha da reserva**, porque quem está com o produto na mão vende.
+- **Aviso de pedido novo:** Telegram e e-mail, os dois para a administração. Cada envio é isolado: um canal fora do ar não impede o outro, e falha de aviso nunca derruba o pedido.
+- **Área do cliente:** Dados da conta, troca de senha, histórico de compras com parcelas pagas e pendentes, e exclusão do perfil — que apaga a conta de acesso e preserva o cliente e as vendas, porque o histórico da loja é dela também.
 - **Gestão de Vendas a Prazo:** Controle rigoroso de parcelas atreladas a clientes, com status dinâmico de pendência e cruzamento de datas de vencimento.
 - **Dashboard de Analytics:** Visão financeira em tempo real do faturamento mensal, capital imobilizado em estoque e projeção de lucro.
 - **Gestão de Inventário:** CRUD completo de produtos com categorização por marcas e alertas automáticos de baixo estoque.
@@ -45,13 +49,14 @@ cd stoqd
 cd backend
 npm install
 ```
-Crie um arquivo `.env` na pasta `backend` seguindo o modelo:
-```env
-DATABASE_URL = "url_de_conexao_do_postgres"
-JWT_SECRET = "chave_jwt"
-ADMIN_EMAIL = "admin@email.com"
-ADMIN_PASSWORD = "senha"
+Crie um arquivo `.env` na pasta `backend` a partir de `.env.example` — ele documenta cada variável, incluindo as opcionais do aviso de pedido (Telegram e e-mail).
+
+A senha do admin é comparada por bcrypt. Gere o hash e guarde em `ADMIN_PASSWORD_HASH`:
+```bash
+npm run hash-password -- "sua-senha"
 ```
+Sem essa variável o servidor ainda sobe usando `ADMIN_PASSWORD`, gerando o hash na inicialização e avisando no log — funciona, mas mantém a senha em texto puro no ambiente.
+
 Rode as migrações para construir as tabelas no banco de dados e inicie o servidor:
 ```bash
 npx prisma migrate dev
