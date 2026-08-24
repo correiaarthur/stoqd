@@ -7,11 +7,17 @@ import { limiter } from './middlewares/rateLimiter.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import authRouter from './routes/auth.routes.js';
 import brandsRouter from './routes/brands.routes.js'; 
+import cartRoutes from './routes/cart.routes.js';
 import categoriesRoutes from './routes/categories.routes.js';
+import couponsRoutes from './routes/coupons.routes.js';
 import customersRoutes from './routes/customers.routes.js';
 import installmentsRoutes from './routes/installments.routes.js';
+import meRoutes from './routes/me.routes.js';
+import ordersRoutes from './routes/orders.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 import productsRouter from './routes/products.routes.js';
 import salesRoutes from './routes/sales.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 
 
 const app = express();
@@ -41,11 +47,17 @@ app.use(express.json());
 app.use('/analytics', analyticsRoutes);
 app.use('/auth', authRouter);
 app.use('/brands', brandsRouter);
+app.use('/cart', cartRoutes);
 app.use('/categories', categoriesRoutes);
+app.use('/coupons', couponsRoutes);
 app.use('/customers', customersRoutes);
 app.use('/installments', installmentsRoutes);
+app.use('/me', meRoutes);
+app.use('/orders', ordersRoutes);
+app.use('/payment', paymentRoutes);
 app.use('/products', productsRouter);
 app.use('/sales', salesRoutes);
+app.use('/settings', settingsRoutes);
 
 app.get('/', (_req: Request, res: Response) => {
   res.send('API do Estoque está rodando! 🚀');
