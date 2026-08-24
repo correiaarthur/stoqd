@@ -103,11 +103,15 @@
   color: var(--text-dim);
 }
 
+/* O preço não pode quebrar no meio do número e o selo não deve encolher, então
+   quando os dois não cabem lado a lado (ex.: "R$ 134,00" + "Esgotado") a linha
+   precisa poder quebrar — senão transbordam para fora do card. */
 .item-card-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 8px;
+  gap: 4px 8px;
 }
 
 .item-card-footer .price {
@@ -282,9 +286,10 @@
 
 .item-controls {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
 }
 .item-controls .btn-remove { flex-shrink: 0; }
 
@@ -344,8 +349,10 @@
 
 .total-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 4px 12px;
   margin-bottom: 1.5rem;
 }
 
