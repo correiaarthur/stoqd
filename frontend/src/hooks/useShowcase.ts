@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
+import { getCartToken } from '../utils/cartToken';
 
 export function useShowcase() {
   const [products, setProducts] = useState<any[]>([]);
@@ -8,7 +9,10 @@ export function useShowcase() {
   const fetchShowcase = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/products/showcase');
+      // O cartToken vai junto para a vitrine não descontar do disponível a
+      // reserva do próprio visitante — senão o carrinho dele esconderia dele
+      // mesmo o produto que ele acabou de escolher.
+      const res = await api.get('/products/showcase', { params: { cartToken: getCartToken() } });
       setProducts(res.data || []);
     } catch (err) {
       console.error("Erro ao buscar a vitrine:", err);

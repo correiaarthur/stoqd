@@ -1,6 +1,8 @@
 import { type Request, type Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import { getActivePrice } from "../lib/pricing.js";
+import { withAvailability } from "../lib/availability.js";
+import { parseCartToken } from "../lib/cartItems.js";
 import { translatePrismaError } from "../lib/prismaErrors.js";
 
 async function createNewProduct(trimmedName: string, data: any) {
@@ -111,7 +113,13 @@ export async function update(req: Request, res: Response) {
   }
 }
 
-export async function getShowcase(_req: Request, res: Response) {
+// A vitrine mostra o que dá para comprar agora, não o que existe na
+// prateleira: uma unidade reservada por outra pessoa não pode aparecer
+// disponível para esta. O carrinho de quem está olhando manda o próprio
+// cartToken para não competir consigo mesmo pela última unidade.
+export async function getShowcase(req: Request, res: Response) {
+  const cartToken = parseCartToken(req.query.cartToken);
+
   try {
     const products = await prisma.product.findMany({
       select: {
@@ -126,7 +134,9 @@ export async function getShowcase(_req: Request, res: Response) {
       },
     });
 
-    const showcaseProducts = products.map((product) => ({
+    const withStock = await withAvailability(products, cartToken ? { excludeCartToken: cartToken } : {});
+
+    const showcaseProducts = withStock.map((product) => ({
       ...product,
       activePrice: getActivePrice(product),
     }));
@@ -144,7 +154,11 @@ export async function getAll(_req: Request, res: Response) {
       include: { brand: true, category: true },
     });
 
-    const productsWithAnalytics = products.map((product) => {
+    // O estoque do admin mostra os dois números: `quantity` é o que está na
+    // prateleira, `available` é o que sobra depois das reservas do site.
+    const withStock = await withAvailability(products);
+
+    const productsWithAnalytics = withStock.map((product) => {
       const activePrice = getActivePrice(product);
 
       const unitProfit = activePrice - product.averageCost;
