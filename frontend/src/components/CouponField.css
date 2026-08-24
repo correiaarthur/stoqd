@@ -1,0 +1,85 @@
+.coupon-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.coupon-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.coupon-input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+.coupon-input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* Roxo da marca, no mesmo tom do "+ Novo": aplicar um cupom é uma ação que a
+   pessoa procura, e o cinza do btn-secondary fazia dele mais um campo. */
+.coupon-apply {
+  flex-shrink: 0;
+  padding: 12px 18px;
+  font-size: 0.9rem;
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--accent-color);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  font-weight: 700;
+}
+.coupon-apply:hover:not(:disabled) {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
+.coupon-apply:disabled {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.coupon-applied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  background: var(--success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.coupon-applied-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--success-color);
+  font-size: 0.9rem;
+  min-width: 0;
+}
+.coupon-applied-main strong { letter-spacing: 0.04em; }
+.coupon-applied-value { color: var(--text-main); font-weight: 700; }
+
+.coupon-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  padding: 0;
+}
+.coupon-remove:hover { color: var(--danger-color); }
+
+.coupon-error {
+  color: var(--danger-color);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}

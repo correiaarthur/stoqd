@@ -1,0 +1,179 @@
+.payment-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.payment-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.payment-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Uma linha inteira clicável por forma de pagamento. São duas escolhas de peso
+   igual — o número de parcelas vem depois, e não compete com elas. */
+.payment-mode {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-main);
+  font-family: inherit;
+}
+.payment-mode:hover:not(:disabled) { border-color: var(--text-dim); }
+.payment-mode:disabled { cursor: not-allowed; opacity: 0.45; }
+.payment-mode.selected {
+  border-color: var(--accent-color);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.payment-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.payment-mode.selected .payment-radio {
+  border-color: var(--accent-color);
+  box-shadow: inset 0 0 0 3px var(--accent-color);
+}
+
+.payment-mode-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.payment-mode-text strong { font-size: 0.92rem; font-weight: 600; }
+
+.payment-mode-note {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+
+.payment-mode-value {
+  font-weight: 700;
+  color: var(--success-color);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+/* --- A lista de parcelas, aberta sob o cabeçalho --- */
+/* A lista mostra 2x a 5x inteiras e corta o 6x ao meio. O corte no meio de uma
+   linha é o que diz "tem mais aqui embaixo" sem precisar de seta nem de texto:
+   uma lista que termina exatamente numa borda parece completa, mesmo com barra
+   de rolagem.
+   Cuidado ao mexer: a contagem é de LINHAS e a primeira é o 2x, então o número
+   da parcela cortada é sempre `--plan-visible + 1,5`. */
+.payment-plans {
+  --plan-row: 42px;
+  --plan-visible: 4.5;
+
+  display: flex;
+  flex-direction: column;
+  max-height: calc(var(--plan-row) * var(--plan-visible));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--accent-color);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: var(--input-bg);
+}
+
+/* Quando a lista está aberta, o "Parcelado" vira o cabeçalho dela: cantos de
+   baixo retos e sem borda dupla na emenda. */
+.payment-group.open .payment-mode-header {
+  border-radius: 10px 10px 0 0;
+  border-bottom-color: transparent;
+}
+
+.payment-plan {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  height: var(--plan-row);
+  padding: 0 14px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+.payment-plan:first-child { border-top: none; }
+.payment-plan:hover { background: rgba(255, 255, 255, 0.04); }
+.payment-plan.current { background: rgba(139, 92, 246, 0.16); }
+
+.payment-plan-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.payment-plan.current .payment-plan-count { color: var(--accent-hover); }
+
+.payment-plan-value {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mesmo cinza de "sem juros": a taxa é um dado da opção, não um aviso de
+   perigo — o vermelho gritava em nove das onze linhas e tirava o peso do que
+   realmente alerta na tela. */
+.payment-plan-interest {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.payment-plan-total {
+  color: var(--success-color);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 88px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Barra de rolagem discreta: a lista já tem borda, não precisa de mais peso. */
+.payment-plans::-webkit-scrollbar { width: 6px; }
+.payment-plans::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+.payment-plans::-webkit-scrollbar-track { background: transparent; }
+
+@media (max-width: 420px) {
+  /* Sem espaço para quatro colunas, o total sai — ele já aparece no cabeçalho. */
+  .payment-plan { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .payment-plan-total { display: none; }
+}
+
+.payment-hint {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
