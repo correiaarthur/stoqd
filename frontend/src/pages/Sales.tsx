@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useSalesList, type SaleListItem } from '../hooks/useSalesList';
+import { PendingOrders } from '../components/PendingOrders';
 import { formatCurrency } from '../utils/formatters';
 import './Sales.css';
 
@@ -28,7 +29,7 @@ export function Sales() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const startDate = useMemo(() => getStartDate(period), [period]);
-  const { sales, loading } = useSalesList(startDate);
+  const { sales, loading, refetch } = useSalesList(startDate);
 
   const filteredSales = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -58,6 +59,10 @@ export function Sales() {
       <div style={{ marginBottom: '2rem' }}>
         <h1 className="page-title" style={{ margin: 0 }}>Vendas</h1>
       </div>
+
+      {/* Um pedido confirmado vira venda: a lista abaixo precisa recarregar
+          junto, senão a venda que acabou de nascer não aparece. */}
+      <PendingOrders onConfirmed={refetch} />
 
       <div className="sales-stats">
         <div className="sales-stat base-card">

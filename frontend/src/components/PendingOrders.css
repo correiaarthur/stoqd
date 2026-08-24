@@ -1,0 +1,204 @@
+.pending-orders { border-color: rgba(139, 92, 246, 0.3); }
+
+.pending-orders-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.pending-orders-head h2 { margin: 0; font-size: 1.2rem; }
+
+.pending-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.pending-order {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.25rem;
+  background: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pending-order-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.pending-order-header > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.pending-order-meta { color: var(--text-dim); font-size: 0.85rem; }
+
+.pending-order-total {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--success-color);
+  white-space: nowrap;
+}
+
+.pending-order-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+.pending-order-contact a { color: var(--accent-color); text-decoration: none; }
+.pending-order-contact a:hover { text-decoration: underline; }
+
+.pending-order-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.pending-order-items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.pending-order-items th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+.pending-order-items td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: top;
+}
+.pending-order-items tr.no-stock td { color: var(--danger-color); }
+
+.price-changed {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.stock-reserved { color: var(--accent-color); font-size: 0.8rem; }
+.stock-missing { color: var(--danger-color); font-size: 0.8rem; }
+
+.pending-order-alert {
+  background: var(--danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.pending-order-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.pending-order-price-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pending-order-toggle {
+  display: flex;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pending-order-toggle button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.pending-order-toggle button.active {
+  background: var(--accent-color);
+  color: white;
+}
+
+.pending-order-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.pending-order-refuse {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pending-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* O que o cliente pediu, antes dos campos que a loja pode mudar: primeiro o
+   fato, depois a decisão. */
+.pending-order-requested {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
+}
+.pending-order-requested-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+.pending-order-coupon { color: var(--success-color); }
+
+.pending-order-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 12px 0;
+}
+.pending-order-check input { accent-color: var(--accent-color); }
+
+.pending-order-breakdown { grid-column: 1 / -1; }
+.pending-order-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.pending-order-lines b { color: var(--text-main); font-variant-numeric: tabular-nums; }
+.pending-order-lines .is-discount b { color: var(--accent-color); }
+.pending-order-lines .is-interest b { color: var(--danger-color); }
