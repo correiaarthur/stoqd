@@ -76,6 +76,12 @@ npm run dev
 
 ---
 
+## 📚 Documentação do código
+
+O [**mapa do código**](docs/MAPA-DO-CODIGO.md) descreve o que cada arquivo faz e por quê: as decisões que explicam o desenho (reserva derivada, balcão × pedido, conta ≠ cliente), o modelo de dados, o mapa das rotas com as permissões de cada uma e os fluxos ponta a ponta.
+
+---
+
 ## 👨‍💻 Autor
 
 [**Arthur Correia**](https://www.linkedin.com/in/arthur-correia-b7b883222/)
