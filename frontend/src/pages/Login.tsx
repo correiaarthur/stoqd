@@ -62,7 +62,7 @@ export function Login() {
             <input
               type="text"
               className="input-standard"
-              placeholder="(11) 90000-0000"
+              placeholder="(87) 90000-0000"
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
