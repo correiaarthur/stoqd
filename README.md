@@ -57,22 +57,37 @@ npm run hash-password -- "sua-senha"
 ```
 Sem essa variável o servidor ainda sobe usando `ADMIN_PASSWORD`, gerando o hash na inicialização e avisando no log — funciona, mas mantém a senha em texto puro no ambiente.
 
-Rode as migrações para construir as tabelas no banco de dados e inicie o servidor:
+Rode as migrações para construir as tabelas no banco de dados:
 ```bash
 npx prisma migrate dev
-npm run dev
 ```
 
 ### 3. Configurar o Frontend
-Em outro terminal, acesse a pasta do frontend e instale as dependências:
+Acesse a pasta do frontend e instale as dependências:
 ```bash
 cd ../frontend
 npm install
 ```
-Inicie o ambiente de desenvolvimento:
+
+### 4. Subir backend e frontend juntos
+Na raiz do projeto, instale as dependências do orquestrador e suba os dois de uma vez:
 ```bash
-npm run dev
+cd ..
+npm install
+npm start
 ```
+O `npm start` roda o backend (porta `3001`) e o frontend (porta `5173`) no mesmo terminal, com os logs prefixados por `[backend]` e `[frontend]`. Um `Ctrl+C` derruba os dois, e se um deles falhar ao subir o outro é encerrado junto.
+
+Atalhos disponíveis na raiz:
+
+| Comando | O que faz |
+| --- | --- |
+| `npm start` (ou `npm run dev`) | Sobe backend e frontend juntos |
+| `npm run dev:backend` | Sobe só o backend |
+| `npm run dev:frontend` | Sobe só o frontend |
+| `npm run install:all` | Instala as dependências das duas pastas |
+
+Se preferir terminais separados, os `npm run dev` dentro de `backend/` e `frontend/` continuam funcionando como antes.
 
 ---
 
