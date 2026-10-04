@@ -1,24 +1,25 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Mesma divisão do backend: pasta `tests` dentro de cada módulo para o que roda
- * em memória, `tests/` na raiz para o que precisa de navegador.
+ * Um ambiente só: jsdom.
  *
- * Hoje só o projeto `unit` tem conteúdo. Componente e hook pedem jsdom e
- * testing-library — e fazem mais sentido depois que Checkout (698 linhas),
- * Dashboard e Settings estiverem quebrados em pedaços testáveis. O e2e
- * (Playwright) moraria em `tests/e2e/`.
+ * Tentei separar "lógica pura em node" de "componente em jsdom", por simetria
+ * com o backend, e estava errado — a divisão era por extensão de arquivo, mas o
+ * que decide é o que o módulo precisa. `utils/auth.ts` não importa React e
+ * mesmo assim depende de `localStorage` e `atob`: é código de navegador. Separar
+ * por extensão fazia o teste cair no projeto errado por um detalhe invisível.
+ *
+ * Isto é frontend; o navegador é o ambiente. O custo é alguns milissegundos.
+ *
+ * O que NENHUM teste daqui pega: layout. Classe trocada, espaçamento, cor,
+ * sobreposição — nada disso aparece. Para refatoração de identidade visual o
+ * guarda é captura de tela (Playwright), que é uma decisão à parte.
  */
 export default defineConfig({
   test: {
-    projects: [
-      {
-        test: {
-          name: 'unit',
-          include: ['src/**/tests/**/*.test.ts'],
-          globals: false,
-        },
-      },
-    ],
+    environment: 'jsdom',
+    include: ['src/**/tests/**/*.test.{ts,tsx}'],
+    setupFiles: ['./src/tests/setup.ts'],
+    globals: false,
   },
 });
