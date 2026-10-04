@@ -83,7 +83,22 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('API do Estoque está rodando! 🚀');
 });
 
+/**
+ * O app montado, sem escutar porta.
+ *
+ * Exportado para o teste de autorização poder subi-lo numa porta efêmera: essa
+ * verificação mora na costura entre rota e middleware, então precisa do app
+ * inteiro — e importar um módulo que chama `listen` no topo deixaria um servidor
+ * pendurado em porta fixa a cada execução.
+ */
+export { app };
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+
+// `listen` só quando este arquivo é o ponto de entrada. Importado por um teste,
+// o app fica disponível e quem decide a porta é quem importou.
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+  });
+}

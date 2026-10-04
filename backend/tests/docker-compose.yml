@@ -1,0 +1,24 @@
+# Postgres descartável para os testes de integração.
+#
+# Porta 5433 e não 5432 de propósito: não briga com um Postgres que já esteja
+# rodando na máquina, e deixa claro que este banco é de teste.
+#
+# `tmpfs` em /var/lib/postgresql/data mantém tudo em memória — o banco é
+# recriado a cada `up` e nada sobrevive, que é exatamente o que se quer de um
+# banco que os testes truncam.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: stoqd-test-db
+    environment:
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: stoqd_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d stoqd_test"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
