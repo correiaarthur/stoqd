@@ -2,11 +2,8 @@ import { type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getActivePrice } from '../lib/pricing.js';
 import { lineTotal, sumLines } from '../lib/pricingRules.js';
+import { EXPIRY_WARNING_DAYS, expiryStatusOf } from '../lib/expiryWindow.js';
 
-// Janela de "vencendo em breve". O estoque tem 145 dos 185 produtos com uma
-// única unidade, então contar "estoque baixo" não distinguiria nada — o que
-// realmente exige ação aqui é validade e ruptura.
-const EXPIRY_WARNING_DAYS = 90;
 
 // Uma linha por item vendido, já com o desconto da venda rateado entre os itens.
 // O dashboard agrupa e filtra em cima disso.
@@ -79,11 +76,6 @@ export async function getDashboardSummary(_req: Request, res: Response) {
     let expiredItems = 0;
     let expiringSoonItems = 0;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const warningLimit = new Date(today);
-    warningLimit.setDate(warningLimit.getDate() + EXPIRY_WARNING_DAYS);
-
     products.forEach(p => {
       const activePrice = getActivePrice(p);
       totalStockValue += activePrice * p.quantity;
@@ -92,9 +84,15 @@ export async function getDashboardSummary(_req: Request, res: Response) {
       if (p.quantity === 0) outOfStockItems += 1;
 
       // Vencimento só interessa em item que ainda está em estoque.
-      if (p.expiryDate && p.quantity > 0) {
-        if (p.expiryDate < today) expiredItems += 1;
-        else if (p.expiryDate <= warningLimit) expiringSoonItems += 1;
+      //
+      // A classificação sai de `expiryStatusOf` e não de uma comparação local:
+      // `setHours(0,0,0,0)` dava meia-noite **local** contra uma data guardada em
+      // meia-noite **UTC**, e em UTC-3 o produto que vence hoje caía como
+      // vencido. O estoque tem 52 produtos com data — todos contados errado.
+      if (p.quantity > 0) {
+        const status = expiryStatusOf(p.expiryDate);
+        if (status === 'expired') expiredItems += 1;
+        else if (status === 'soon') expiringSoonItems += 1;
       }
     });
 
