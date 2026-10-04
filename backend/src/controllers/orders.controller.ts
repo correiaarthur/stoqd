@@ -357,6 +357,28 @@ export async function confirm(req: Request, res: Response) {
         );
       }
 
+      // Reivindica o pedido **agora**, não no fim.
+      //
+      // A checagem acima existe para a mensagem ser boa, mas ela não protege de
+      // nada: a versão anterior só virava `CONFIRMED` depois de registrar a
+      // venda, então dois cliques simultâneos passavam os dois pela checagem e
+      // nasciam duas vendas para um pedido — estoque baixado duas vezes,
+      // cliente cobrado em dobro. Medido: cinco confirmações simultâneas
+      // geravam cinco vendas.
+      //
+      // Com a condição dentro do UPDATE, o Postgres tranca a linha e reavalia
+      // `status = 'PENDING'` depois de a outra transação commitar. A segunda não
+      // afeta linha nenhuma e desiste. Mesmo padrão do decremento de estoque em
+      // `registerSale` e do `consumeCoupon`.
+      const reivindicado = await tx.order.updateMany({
+        where: { id: order.id, status: 'PENDING' },
+        data: { status: 'CONFIRMED' },
+      });
+
+      if (reivindicado.count !== 1) {
+        throw new OrderError("Este pedido já virou venda.", 409);
+      }
+
       // O vínculo acontece aqui, e não no cadastro: é o momento em que você já
       // vai falar com a pessoa para confirmar, e o sistema não precisa adivinhar
       // sozinho que duas pessoas são a mesma.
@@ -419,9 +441,11 @@ export async function confirm(req: Request, res: Response) {
         coupon,
       });
 
+      // O status já foi reivindicado no começo da transação; aqui só falta
+      // amarrar qual venda nasceu dele.
       await tx.order.update({
         where: { id: order.id },
-        data: { status: 'CONFIRMED', saleId: sale.id },
+        data: { saleId: sale.id },
       });
 
       // A reserva cumpriu o papel: virou venda, o estoque já baixou.
