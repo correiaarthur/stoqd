@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail } from '../lib/adminCredentials.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
+import { sumLines } from '../lib/pricingRules.js';
 import {
   normalizeName,
   normalizePhone,
@@ -192,7 +193,7 @@ export async function orders(req: Request, res: Response) {
         saleId: order.saleId,
         // Enquanto pendente o total é o do pedido; confirmado, é o que a venda
         // realmente cobrou — desconto, juros e mudança de preço já aplicados.
-        total: order.sale?.total ?? order.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
+        total: order.sale?.total ?? sumLines(order.items),
         discount: order.sale?.discount ?? 0,
         interest: order.sale?.interest ?? 0,
         couponCode: order.sale?.coupon?.code ?? null,

@@ -2,17 +2,14 @@ import type { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
-import { isValidCouponCode, normalizeCouponCode } from '../lib/coupons.js';
+import { type CouponRow, isValidCouponCode, normalizeCouponCode } from '../lib/coupons.js';
 
-type ParsedCoupon = {
-  code: string;
-  type: 'PERCENT' | 'FIXED';
-  value: number;
-  minimumTotal: number | null;
-  expiresAt: Date | null;
-  maxUses: number | null;
-  active: boolean;
-};
+/**
+ * O que o corpo da requisição pode definir: a linha inteira menos o que é do
+ * banco. `id` é do autoincremento e `usedCount` só sobe quando uma venda gasta
+ * o cupom — nenhum dos dois se aceita de fora.
+ */
+type ParsedCoupon = Omit<CouponRow, 'id' | 'usedCount'>;
 
 function parseBody(body: any): { ok: true; data: ParsedCoupon } | { ok: false; error: string } {
   const code = normalizeCouponCode(body?.code);

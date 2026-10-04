@@ -1,6 +1,7 @@
 import { type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getActivePrice } from '../lib/pricing.js';
+import { lineTotal, sumLines } from '../lib/pricingRules.js';
 
 // Janela de "vencendo em breve". O estoque tem 145 dos 185 produtos com uma
 // única unidade, então contar "estoque baixo" não distinguiria nada — o que
@@ -40,11 +41,11 @@ export async function getSalesReport(req: Request, res: Response) {
     });
 
     const soldItems = sales.flatMap((sale) => {
-      const grossTotal = sale.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+      const grossTotal = sumLines(sale.items);
       const discount = sale.discount || 0;
 
       return sale.items.map((item) => {
-        const itemGross = item.unitPrice * item.quantity;
+        const itemGross = lineTotal(item);
         // Rateio proporcional: um desconto de 10% na venda tira 10% de cada item,
         // senão a receita por marca/categoria não fecha com o total da venda.
         const itemDiscount = grossTotal > 0 ? discount * (itemGross / grossTotal) : 0;

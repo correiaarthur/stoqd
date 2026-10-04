@@ -11,6 +11,8 @@
  * o pedido**. Cada envio vive no seu try/catch, e um canal fora do ar não
  * impede o outro de sair.
  */
+import { lineTotal } from './pricingRules.js';
+import { formatBRL } from './format.js';
 
 const TELEGRAM_TIMEOUT_MS = 8000;
 
@@ -23,13 +25,10 @@ export type OrderNotification = {
   items: Array<{ name: string; quantity: number; unitPrice: number }>;
 };
 
-function formatBRL(value: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}
 
 function buildPlainText(order: OrderNotification) {
   const lines = order.items.map(item =>
-    `• ${item.quantity}x ${item.name} — ${formatBRL(item.unitPrice * item.quantity)}`
+    `• ${item.quantity}x ${item.name} — ${formatBRL(lineTotal(item))}`
   );
 
   return [

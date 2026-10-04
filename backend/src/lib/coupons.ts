@@ -1,3 +1,4 @@
+import { formatBRL } from './format.js';
 import type { Prisma$Tx } from './availability.js';
 import { prisma } from './prisma.js';
 import { toCents } from './pricingRules.js';
@@ -31,7 +32,15 @@ export function isValidCouponCode(code: string): boolean {
   return /^[A-Z0-9][A-Z0-9-]{2,23}$/.test(code);
 }
 
-type CouponRow = {
+/**
+ * A linha de cupom como o banco a guarda.
+ *
+ * Escrita à mão, e não derivada do client do Prisma, porque `checkCoupon`
+ * aceita tanto a linha vinda do banco quanto um objeto montado na mão nos
+ * testes. O que não se repete mais é a forma: quem precisa de um subconjunto
+ * tira dela com `Omit`/`Pick` em vez de redigitar os campos.
+ */
+export type CouponRow = {
   id: number;
   code: string;
   type: 'PERCENT' | 'FIXED';
@@ -132,6 +141,3 @@ export async function consumeCoupon(tx: Prisma$Tx, couponId: number): Promise<bo
   return count === 1;
 }
 
-function formatBRL(value: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}

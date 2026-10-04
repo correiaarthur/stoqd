@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
-import { getActivePrice } from '../lib/pricing.js';
+import { PRODUCT_STOCK_SELECT, getActivePrice } from '../lib/pricing.js';
 import { parseCartItems, parseCartToken } from '../lib/cartItems.js';
 import {
   ANONYMOUS_RESERVATION_MINUTES,
@@ -28,7 +28,7 @@ type ItemStatus = {
 async function loadProducts(productIds: number[]) {
   return prisma.product.findMany({
     where: { id: { in: productIds } },
-    select: { id: true, name: true, quantity: true, sellingPrice: true, promotionalPrice: true },
+    select: PRODUCT_STOCK_SELECT,
   });
 }
 

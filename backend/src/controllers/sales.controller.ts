@@ -4,7 +4,8 @@ import { parseCartItems } from '../lib/cartItems.js';
 import { MAX_LINES_PER_CART, MAX_UNITS_PER_CART } from '../lib/availability.js';
 import { SaleError, registerSale } from '../lib/sales.js';
 import { checkCoupon } from '../lib/coupons.js';
-import { getActivePrice } from '../lib/pricing.js';
+import { PRODUCT_PRICING_SELECT, getActivePrice } from '../lib/pricing.js';
+import { sumLines } from '../lib/pricingRules.js';
 
 export async function create(req: Request, res: Response) {
   const { customerId, items, installmentsCount = 1, observation, discount = 0, paymentType = 'VISTA' } = req.body;
@@ -89,7 +90,7 @@ export async function list(req: Request, res: Response) {
     });
 
     const withStatus = sales.map((sale) => {
-      const grossTotal = sale.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+      const grossTotal = sumLines(sale.items);
       const pending = sale.installments.filter((i) => !i.paidAt);
 
       return {
@@ -116,7 +117,7 @@ export async function subtotalFor(
 ) {
   const products = await tx.product.findMany({
     where: { id: { in: items.map(item => item.productId) } },
-    select: { id: true, sellingPrice: true, promotionalPrice: true },
+    select: PRODUCT_PRICING_SELECT,
   });
 
   const priceById = new Map(products.map(product => [product.id, getActivePrice(product)]));

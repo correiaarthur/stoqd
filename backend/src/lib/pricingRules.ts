@@ -52,6 +52,33 @@ export async function getInterestPercent(
   return plan.interestPercent;
 }
 
+/** Uma linha de venda: o que ela custa por si. */
+export type PricedLine = {
+  quantity: number;
+  unitPrice: number;
+};
+
+/**
+ * Quanto custa uma linha. Trivial de escrever à mão — e era escrita à mão em
+ * cinco telas, o que é justamente o problema: no dia em que a linha ganhar
+ * desconto próprio, cinco lugares precisam concordar sobre a nova fórmula.
+ */
+export function lineTotal(line: PricedLine) {
+  return line.unitPrice * line.quantity;
+}
+
+/**
+ * O bruto: soma das linhas, o primeiro passo do fluxo documentado acima.
+ *
+ * Esta é a conta que decide quanto o cliente paga, e estava copiada em doze
+ * lugares — venda, pedido, confirmação, extrato, carrinho, aviso de pedido
+ * novo. Todas concordavam. Bastava uma passar a considerar desconto de linha
+ * para o total da tela deixar de bater com o da venda, sem erro e sem log.
+ */
+export function sumLines(lines: readonly PricedLine[]) {
+  return lines.reduce((acc, line) => acc + lineTotal(line), 0);
+}
+
 /** Arredonda para centavos — Float acumula sobra em multiplicação. */
 export function toCents(value: number) {
   return Math.round(value * 100) / 100;

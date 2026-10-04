@@ -1,7 +1,7 @@
 import type { Prisma$Tx } from './availability.js';
 import { getActivePrice } from './pricing.js';
 import { consumeCoupon } from './coupons.js';
-import { computeTotals, getInterestPercent, toCents } from './pricingRules.js';
+import { computeTotals, getInterestPercent, sumLines, toCents } from './pricingRules.js';
 
 /** Regra de negócio que o operador precisa ler na tela, e não um erro interno. */
 export class SaleError extends Error {}
@@ -93,7 +93,6 @@ export async function registerSale(tx: Prisma$Tx, input: RegisterSaleInput) {
     throw new SaleError(`O parcelamento em ${totalInstallments}x não está disponível.`);
   }
 
-  let grossTotal = 0;
   const saleItemsData = [];
 
   for (const item of input.items) {
@@ -104,16 +103,23 @@ export async function registerSale(tx: Prisma$Tx, input: RegisterSaleInput) {
       throw new SaleError(`Estoque insuficiente para ${product.name}. Restam ${product.quantity}.`);
     }
 
-    const unitPrice = item.unitPrice ?? getActivePrice(product);
-    grossTotal += unitPrice * item.quantity;
-
-    saleItemsData.push({ productId: product.id, quantity: item.quantity, unitPrice });
+    saleItemsData.push({
+      productId: product.id,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice ?? getActivePrice(product),
+    });
 
     await tx.product.update({
       where: { id: product.id },
       data: { quantity: { decrement: item.quantity } },
     });
   }
+
+  // Somado depois do laço, e não acumulado dentro dele, para a conta do bruto
+  // ser a mesma função que o resto do sistema usa. A ordem das somas é a ordem
+  // dos itens nos dois casos, o que importa porque o total é Float e soma de
+  // Float não é associativa: trocar a ordem trocaria o centavo.
+  const grossTotal = sumLines(saleItemsData);
 
   const manualDiscount = toCents(Number(input.discount) || 0);
 

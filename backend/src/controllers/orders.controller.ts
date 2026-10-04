@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
-import { getActivePrice } from '../lib/pricing.js';
+import { PRODUCT_STOCK_SELECT, getActivePrice } from '../lib/pricing.js';
 import { parseCartItems, parseCartToken } from '../lib/cartItems.js';
 import {
   MAX_LINES_PER_CART,
@@ -13,7 +13,7 @@ import {
 import { SaleError, registerSale } from '../lib/sales.js';
 import { notifyNewOrder } from '../lib/notifications.js';
 import { checkCoupon, couponDiscountFor } from '../lib/coupons.js';
-import { computeTotals, getInterestPercent, previewInstallmentValue } from '../lib/pricingRules.js';
+import { computeTotals, getInterestPercent, previewInstallmentValue, sumLines } from '../lib/pricingRules.js';
 
 /** Um pedido pendente por vez já é bastante para quem atende sozinha. */
 const MAX_PENDING_ORDERS_PER_USER = 3;
@@ -66,7 +66,7 @@ export async function create(req: Request, res: Response) {
 
       const products = await tx.product.findMany({
         where: { id: { in: parsed.items.map(item => item.productId) } },
-        select: { id: true, name: true, quantity: true, sellingPrice: true, promotionalPrice: true },
+        select: PRODUCT_STOCK_SELECT,
       });
       const productById = new Map(products.map(product => [product.id, product]));
 
@@ -105,7 +105,7 @@ export async function create(req: Request, res: Response) {
         throw new OrderError(`O parcelamento em ${requestedInstallments}x não está disponível.`);
       }
 
-      const subtotal = itemsData.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+      const subtotal = sumLines(itemsData);
 
       // O cupom é conferido agora só para o pedido não nascer com um código
       // que já não vale. Quem gasta o uso é a venda, na confirmação — um
@@ -144,7 +144,7 @@ export async function create(req: Request, res: Response) {
       return created;
     });
 
-    const total = order.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+    const total = sumLines(order.items);
 
     // Depois do commit e sem await: o pedido já existe, e o aviso não pode
     // atrasar nem derrubar a resposta.
@@ -194,7 +194,7 @@ export async function list(req: Request, res: Response) {
         items: {
           include: {
             product: {
-              select: { id: true, name: true, quantity: true, sellingPrice: true, promotionalPrice: true },
+              select: PRODUCT_STOCK_SELECT,
             },
           },
         },
@@ -240,7 +240,7 @@ export async function list(req: Request, res: Response) {
         };
       });
 
-      const subtotal = items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+      const subtotal = sumLines(items);
 
       // O que o cliente pediu, já com as contas feitas — para a tela de
       // confirmação abrir preenchida em vez de fazer a loja recalcular.
@@ -296,7 +296,7 @@ export async function list(req: Request, res: Response) {
               (candidate.email !== null && order.user.email !== null && candidate.email === order.user.email)
             ),
         items,
-        total: items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
+        total: sumLines(items),
         hasStockForAll: items.every(item => item.hasStock),
       };
     });
@@ -396,7 +396,7 @@ export async function confirm(req: Request, res: Response) {
       let coupon: { id: number; discount: number } | null = null;
 
       if (keepCoupon !== false && order.couponId) {
-        const subtotal = saleItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+        const subtotal = sumLines(saleItems);
         const checked = await checkCoupon(tx, order.coupon?.code, subtotal);
 
         if (!checked.ok) {
