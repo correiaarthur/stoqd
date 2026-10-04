@@ -71,15 +71,34 @@ function SearchableFilter({ label, options, value, onChange }: { label: string, 
   );
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+/**
+ * O tooltip do Recharts recebe a fatia de dados da barra sob o cursor. Só estes
+ * campos são usados aqui — tipar o que se usa evita depender da forma interna
+ * da biblioteca.
+ */
+type TooltipEntry = {
+  dataKey?: string | number;
+  value?: number;
+  color?: string;
+};
+
+type CustomTooltipProps = {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string | number;
+};
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="custom-tooltip">
         <p className="label">{label}</p>
-        {payload.map((entry: any, index: number) => {
+        {payload.map((entry, index) => {
           const isRevenue = entry.dataKey === 'revenue';
           const name = isRevenue ? 'Receita Gerada' : 'Unidades Vendidas';
-          const val = isRevenue ? formatCurrency(entry.value) : `${entry.value} un`;
+          // Bucket sem venda no período vem sem `value`; ali o número é zero.
+          const value = entry.value ?? 0;
+          const val = isRevenue ? formatCurrency(value) : `${value} un`;
           return (
             <p key={index} className="item" style={{ color: entry.color }}>
               {name}: {val}
@@ -113,13 +132,15 @@ export function Dashboard() {
     });
   }, [soldItems, selectedCategory, selectedBrand]);
 
-  const periodKeyFor = (date: Date) => (
-    timeRange === '1M'
-      ? `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`
-      : `${MONTH_NAMES[date.getMonth()]}/${String(date.getFullYear()).slice(-2)}`
-  );
-
   const temporalData = useMemo(() => {
+    // Vive dentro do memo porque depende de `timeRange` e só é usada aqui —
+    // declarada fora, viraria uma dependência nova a cada render.
+    const periodKeyFor = (date: Date) => (
+      timeRange === '1M'
+        ? `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`
+        : `${MONTH_NAMES[date.getMonth()]}/${String(date.getFullYear()).slice(-2)}`
+    );
+
     const groups: Record<string, { period: string, revenue: number, quantity: number, sortKey: string }> = {};
 
     // Buckets vazios primeiro, para o gráfico mostrar o período inteiro

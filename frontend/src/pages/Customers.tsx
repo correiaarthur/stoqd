@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
-import { useCustomers } from '../hooks/useCustomers';
+import { useCustomers, type Customer } from '../hooks/useCustomers';
 import { formatCurrency } from '../utils/formatters';
 import { CustomerModal } from '../components/CustomerModal';
 import { CustomerStatementModal } from '../components/CustomerStatementModal';
@@ -12,7 +12,7 @@ export function Customers() {
   
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [customerToEdit, setCustomerToEdit] = useState<any | null>(null);
+  const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
 
   const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
@@ -26,7 +26,7 @@ export function Customers() {
     }
   };
 
-  const openEditModal = (customer: any) => {
+  const openEditModal = (customer: Customer) => {
     setCustomerToEdit(customer);
     setIsModalOpen(true);
   };

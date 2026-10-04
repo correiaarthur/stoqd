@@ -5,11 +5,12 @@ import { DropdownMenu } from './DropdownMenu';
 import { parseCurrencyInput, formatCurrency } from '../utils/formatters';
 import { formatExpiryDate } from '../utils/expiry';
 import { supabase } from '../lib/supabase';
+import type { Brand, Category, Product } from '../hooks/useProducts';
 import './ProductModal.css';
 
 interface ProductModalProps {
-  productToEdit: any | null;
-  existingProducts?: any[];
+  productToEdit: Product | null;
+  existingProducts?: Product[];
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -17,8 +18,8 @@ interface ProductModalProps {
 const MONEY_FIELDS = ['averageCost', 'sellingPrice', 'promotionalPrice'];
 
 export function ProductModal({ productToEdit, existingProducts = [], onClose, onSuccess }: ProductModalProps) {
-  const [brands, setBrands] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
@@ -29,7 +30,10 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
 
   const loadInitialData = async () => {
     try {
-      const [bRes, cRes] = await Promise.all([api.get('/brands'), api.get('/categories')]);
+      const [bRes, cRes] = await Promise.all([
+        api.get<Brand[]>('/brands'),
+        api.get<Category[]>('/categories'),
+      ]);
       setBrands(bRes.data || []);
       setCategories(cRes.data || []);
     } catch (err) { console.error(err); }
@@ -54,7 +58,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
 
   // Apagar uma marca leva junto todos os produtos dela (onDelete: Cascade no
   // schema). Categoria só desvincula. A confirmação precisa dizer qual é o caso.
-  const removeTaxonomy = async (resource: 'brands' | 'categories', id: number, items: any[]) => {
+  const removeTaxonomy = async (resource: 'brands' | 'categories', id: number, items: Array<Brand | Category>) => {
     const name = items.find(i => i.id === id)?.name || 'este item';
 
     const message = resource === 'brands'
@@ -182,11 +186,11 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
               de {duplicateProduct.quantity} {duplicateProduct.quantity === 1 ? 'unidade' : 'unidades'},
               e o custo médio será recalculado a partir de {formatCurrency(duplicateProduct.averageCost)}.
 
-              {expiryConflict && (
+              {expiryConflict && currentExpiry && keptExpiry && (
                 <div className="restock-warning">
                   A validade cadastrada hoje é <strong>{formatExpiryDate(currentExpiry)}</strong>, diferente
                   da que você digitou. O produto guarda uma única data, então ficará
-                  com <strong>{formatExpiryDate(keptExpiry!)}</strong> — a mais próxima, para o lote
+                  com <strong>{formatExpiryDate(keptExpiry)}</strong> — a mais próxima, para o lote
                   mais velho não passar despercebido.
                   <br />
                   Se são lotes que você precisa controlar separado, cadastre com um nome distinto.

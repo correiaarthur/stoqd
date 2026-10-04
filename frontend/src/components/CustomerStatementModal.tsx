@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
 import { formatCurrency } from '../utils/formatters';
+import type { CustomerStatement, Installment, StatementSale, StatementSaleItem } from '../hooks/useCustomers';
 import './CustomerStatementModal.css';
 
 interface Props {
@@ -12,7 +13,14 @@ interface Props {
 
 export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props) {
   const [expandedSales, setExpandedSales] = useState<number[]>([]);
-  const [activeCustomer, setActiveCustomer] = useState<any | null>(null);
+
+  // `onClose` chega como arrow inline do pai, então muda de identidade a cada
+  // render. Numa dependência do fetch isso viraria um laço de refetch; a ref
+  // guarda sempre a versão mais recente sem entrar na conta das dependências.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const [activeCustomer, setActiveCustomer] = useState<CustomerStatement | null>(null);
   const [loading, setLoading] = useState(false);
 
   // O histórico é buscado só quando um cliente é aberto — a listagem não carrega
@@ -22,16 +30,16 @@ export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props
 
     try {
       setLoading(true);
-      const res = await api.get(`/customers/${customerId}/statement`);
+      const res = await api.get<CustomerStatement>(`/customers/${customerId}/statement`);
       setActiveCustomer(res.data);
 
       const pendingSaleIds = (res.data.sales || [])
-        .filter((s: any) => s.installments?.some((i: any) => !i.paidAt))
-        .map((s: any) => s.id);
+        .filter(sale => sale.installments?.some(installment => !installment.paidAt))
+        .map(sale => sale.id);
       setExpandedSales(pendingSaleIds);
     } catch (err) {
       alert(getApiErrorMessage(err, 'Erro ao carregar o histórico do cliente.'));
-      onClose();
+      onCloseRef.current();
     } finally {
       setLoading(false);
     }
@@ -67,7 +75,7 @@ export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props
   };
 
   const sortedSales = [...(activeCustomer?.sales || [])].sort((a, b) =>
-    new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime()
+    new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   return (
@@ -92,15 +100,18 @@ export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props
           ) : sortedSales.length === 0 ? (
             <p className="empty-state" style={{ textAlign: 'center', padding: '2rem' }}>Nenhum histórico de compras.</p>
           ) : (
-            sortedSales.map((sale: any) => {
+            sortedSales.map((sale: StatementSale) => {
               const isExpanded = expandedSales.includes(sale.id);
+
+              // Venda antiga pode ter `discount` nulo em vez de zero.
+              const discount = sale.discount ?? 0;
 
               const sortedInstallments = [...(sale.installments || [])].sort((a, b) =>
                 new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
               );
 
               const productNames = sale.items && sale.items.length > 0
-                ? sale.items.map((i: any) =>
+                ? sale.items.map((i: StatementSaleItem) =>
                     `${i.quantity > 1 ? i.quantity + 'x ' : ''}${i.product?.name || 'Produto desconhecido'}`
                   ).join(', ')
                 : 'Produtos não especificados';
@@ -110,13 +121,13 @@ export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props
                   
                   <div className="sale-accordion-header" onClick={() => toggleSale(sale.id)}>
                     <div className="sale-info-left">
-                      <h4>Venda #{sale.id} - {formatDateBR(sale.createdAt || sale.date)}</h4>
+                      <h4>Venda #{sale.id} - {formatDateBR(sale.date)}</h4>
                       <span className="sale-products-label" title={productNames}>{productNames}</span>
                     </div>
                     <div className="sale-info-right">
                       <span className="sale-total">
-                        {sale.discount > 0 && (
-                          <s className="sale-gross">{formatCurrency(sale.total + sale.discount)}</s>
+                        {discount > 0 && (
+                          <s className="sale-gross">{formatCurrency(sale.total + discount)}</s>
                         )}
                         {formatCurrency(sale.total)}
                       </span>
@@ -132,12 +143,12 @@ export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props
                   {isExpanded && (
                     <div className="sale-accordion-body">
 
-                      {(sale.discount > 0 || sale.observation) && (
+                      {(discount > 0 || sale.observation) && (
                         <div className="sale-extra-info">
-                          {sale.discount > 0 && (
+                          {discount > 0 && (
                             <div className="sale-extra-row">
                               <span className="sale-extra-label">Desconto concedido</span>
-                              <span className="sale-extra-value">− {formatCurrency(sale.discount)}</span>
+                              <span className="sale-extra-value">− {formatCurrency(discount)}</span>
                             </div>
                           )}
                           {sale.observation && (
@@ -150,7 +161,7 @@ export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props
                       )}
 
                       <div className="installments-squares">
-                        {sortedInstallments.map((inst: any, idx: number) => {
+                        {sortedInstallments.map((inst: Installment, idx: number) => {
                           let statusClass = 'pending';
                           
                           if (inst.paidAt) {
@@ -187,10 +198,10 @@ export function CustomerStatementModal({ customerId, onClose, onRefresh }: Props
 
                       <div className="installments-list">
                         <h5 className="installments-title">Próximos pagamentos:</h5>
-                        {sortedInstallments.filter((i: any) => !i.paidAt).length === 0 ? (
+                        {sortedInstallments.filter(i => !i.paidAt).length === 0 ? (
                           <p className="text-dim" style={{ fontSize: '0.85rem' }}>Todas as parcelas pagas! 🎉</p>
                         ) : (
-                          sortedInstallments.map((inst: any, idx: number) => {
+                          sortedInstallments.map((inst: Installment, idx: number) => {
                             if (inst.paidAt) return null;
                             
                             return (

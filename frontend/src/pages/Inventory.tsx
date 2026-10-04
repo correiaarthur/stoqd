@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
-import { useProducts } from '../hooks/useProducts';
+import { useProducts, type Product } from '../hooks/useProducts';
 import { formatCurrency } from '../utils/formatters';
 import { ProductModal } from '../components/ProductModal';
 import { getExpiryStatus, formatExpiryDate } from '../utils/expiry';
@@ -12,7 +12,7 @@ export function Inventory() {
   const [search, setSearch] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [productToEdit, setProductToEdit] = useState<any | null>(null);
+  const [productToEdit, setProductToEdit] = useState<Product | null>(null);
 
   const handleDeleteProduct = async (id: number) => {
     if (confirm("Tem certeza que deseja apagar TODOS os itens deste produto?")) {
@@ -23,7 +23,7 @@ export function Inventory() {
     }
   };
 
-  const openEditModal = (product: any) => {
+  const openEditModal = (product: Product) => {
     setProductToEdit(product);
     setIsModalOpen(true);
   };
@@ -80,7 +80,7 @@ export function Inventory() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>Carregando estoque...</td></tr>
-              ) : filteredProducts.map((p: any) => {
+              ) : filteredProducts.map(p => {
                 const custo = Number(p.averageCost) || 0;
                 const venda = Number(p.activePrice ?? p.sellingPrice) || 0;
                 const qtd = Number(p.quantity) || 0;
@@ -109,7 +109,9 @@ export function Inventory() {
                     </td>
                     <td><span className={`badge ${qtd === 0 ? 'badge-danger' : 'badge-success'}`}>{qtd === 0 ? 'Esgotado' : `${qtd} un`}</span></td>
                     <td>
-                      {expiry === 'none'
+                      {/* `expiry === 'none'` já significa data ausente; testar
+                          o campo direto é o que faz o tipo estreitar. */}
+                      {expiry === 'none' || !p.expiryDate
                         ? <span className="text-dim">—</span>
                         : (
                           <span className={`badge badge-expiry-${expiry}`} title={formatExpiryDate(p.expiryDate)}>

@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
+import type { Customer, CustomerRecord } from '../hooks/useCustomers';
 
 interface CustomerModalProps {
-  customerToEdit?: any | null;
+  customerToEdit?: Customer | null;
   onClose: () => void;
-  onSuccess: (savedCustomer?: any) => void;
+  /**
+   * O cliente recém-criado volta preenchido para quem abriu o modal a partir de
+   * uma venda poder selecioná-lo na hora. Na edição não há o que devolver.
+   */
+  onSuccess: (savedCustomer?: CustomerRecord) => void;
 }
 
 export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerModalProps) {
@@ -31,7 +36,7 @@ export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerMo
         alert('Cliente atualizado com sucesso!');
         onSuccess();
       } else {
-        const res = await api.post('/customers', form);
+        const res = await api.post<CustomerRecord>('/customers', form);
         alert('Cliente adicionado com sucesso!');
         onSuccess(res.data);
       }

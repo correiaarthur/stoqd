@@ -680,7 +680,14 @@ function AdminPanel({
           onClose={() => setIsCustomerModalOpen(false)}
           onSuccess={(newCustomer) => {
             if (newCustomer) {
-              setCustomers([...customers, newCustomer]);
+              // O POST devolve só a linha criada; o resumo de dívida é
+              // calculado pelo GET da listagem. Para quem acabou de ser
+              // cadastrado ele é zerado — e sem preencher aqui, a lista
+              // ficaria com `totalDebt` indefinido até o próximo refetch.
+              setCustomers([
+                ...customers,
+                { ...newCustomer, totalDebt: 0, pendingSalesCount: 0, hasOverdue: false },
+              ]);
               selectCustomer(String(newCustomer.id), newCustomer.name);
             }
           }}
