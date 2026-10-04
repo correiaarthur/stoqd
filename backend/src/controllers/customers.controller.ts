@@ -134,11 +134,43 @@ export async function update(req: Request, res: Response) {
   }
 }
 
+/**
+ * Apaga um cliente — só quem nunca comprou.
+ *
+ * A venda é registro de faturamento, não detalhe do cadastro: ela entra no
+ * Dashboard, no relatório e na dívida em aberto. Deixar apagar um cliente com
+ * histórico é deixar o operador apagar o próprio faturamento por engano, e foi
+ * exatamente o que acontecia enquanto a FK estava em CASCADE.
+ *
+ * A FK hoje é SET NULL, então nem o pior caminho destrói venda. A recusa aqui
+ * existe porque uma venda sem cliente também é perda: a dívida em aberto deixa
+ * de ter a quem cobrar. Melhor dizer não e explicar por quê.
+ */
 export async function remove(req: Request, res: Response) {
-  const { id } = req.params;
+  const customerId = Number(req.params.id);
+
+  if (!Number.isInteger(customerId)) {
+    return res.status(400).json({ error: "Cliente inválido." });
+  }
 
   try {
-    const customerId = Number(id);
+    const salesCount = await prisma.sale.count({ where: { customerId } });
+
+    if (salesCount > 0) {
+      const openInstallments = await prisma.installment.count({
+        where: { sale: { customerId }, paidAt: null },
+      });
+
+      // O motivo muda o que a pessoa faz a seguir: com parcela em aberto há
+      // dinheiro a receber, e aí apagar seria abrir mão da cobrança.
+      const reason = openInstallments > 0
+        ? `tem ${openInstallments} ${openInstallments === 1 ? 'parcela' : 'parcelas'} em aberto`
+        : `tem ${salesCount} ${salesCount === 1 ? 'venda registrada' : 'vendas registradas'}`;
+
+      return res.status(409).json({
+        error: `Este cliente ${reason} e não pode ser apagado — o histórico de vendas depende do cadastro. Para corrigir os dados da pessoa, use Editar.`,
+      });
+    }
 
     await prisma.customer.delete({
       where: { id: customerId }

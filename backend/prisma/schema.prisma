@@ -63,8 +63,20 @@ model Sale {
   date        DateTime @default(now())
   observation String?
 
+  /// A venda aconteceu: ela não é filha do cliente e não morre com ele.
+  ///
+  /// `SetNull` e nunca `Cascade`. O `Cascade` esteve aqui por engano — entrou
+  /// por um `db push` e foi ratificado por `reconcile_schema_drift`, que só
+  /// descrevia o que o banco já tinha. Com ele, apagar um cliente levava junto
+  /// as vendas dele, os itens e as parcelas: o faturamento saía do Dashboard e
+  /// do relatório sem aviso e sem volta.
+  ///
+  /// Quem recusa a exclusão de um cliente com venda é o controller, com
+  /// mensagem. Este `SetNull` é a rede embaixo: se um dia a linha for apagada
+  /// por outro caminho — SQL na mão, um delete novo — a venda perde o dono,
+  /// não a existência.
   customerId Int?
-  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   items        SaleItem[]
   installments Installment[]

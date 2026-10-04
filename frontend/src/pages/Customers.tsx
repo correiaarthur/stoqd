@@ -17,10 +17,19 @@ export function Customers() {
 
   const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
-  const handleDelete = async (id: number) => {
-    if (confirm("Tem certeza? Isso apagará o cliente.")) {
+  // Quem decide se dá para apagar é o servidor: a lista traz `pendingSalesCount`,
+  // que conta só as vendas com parcela em aberto — um cliente com tudo pago
+  // aparece com zero e ainda assim tem histórico. Por isso a tela só nomeia a
+  // pessoa e avisa da regra; a recusa, com o motivo, vem na resposta.
+  const handleDelete = async (customer: Customer) => {
+    const confirmed = confirm(
+      `Apagar o cadastro de ${customer.name}?\n\n` +
+      "Clientes com venda registrada não podem ser apagados — nesse caso nada será alterado."
+    );
+
+    if (confirmed) {
       try {
-        await api.delete(`/customers/${id}`);
+        await api.delete(`/customers/${customer.id}`);
         refetchCustomers();
       } catch (err) { alert(getApiErrorMessage(err, "Erro ao excluir cliente.")); }
     }
@@ -97,7 +106,7 @@ export function Customers() {
                       <td>
                         <div className="action-buttons">
                           <button className="btn-edit-text" onClick={(e) => { e.stopPropagation(); openEditModal(c); }}>Editar</button>
-                          <button className="btn-delete-text" onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}>Remover</button>
+                          <button className="btn-delete-text" onClick={(e) => { e.stopPropagation(); handleDelete(c); }}>Remover</button>
                         </div>
                       </td>
                     </tr>
