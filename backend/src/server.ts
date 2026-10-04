@@ -1,3 +1,11 @@
+import { assertEnv, isProduction } from './lib/env.js';
+
+// Roda antes do Express ser montado e, principalmente, antes do `listen`:
+// nenhuma requisição é atendida por um processo mal configurado. (Não adianta
+// tentar rodar isto "antes dos imports" — em ESM os imports são içados e os
+// módulos avaliados primeiro; o que importa é chegar antes do `listen`.)
+assertEnv();
+
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -22,6 +30,22 @@ import settingsRoutes from './routes/settings.routes.js';
 
 const app = express();
 
+/**
+ * Atrás de um proxy (Render, Railway, Fly, Nginx), `req.ip` é o IP do proxy —
+ * o mesmo para todo mundo. Sem isto, o rate limit vira um balde único
+ * compartilhado: as 10 tentativas de login por 15 minutos passariam a valer
+ * para a internet inteira, e o primeiro a errar a senha trancaria os demais.
+ *
+ * O valor é o número de proxies à frente, nunca `true`: com `true` o Express
+ * confia no `X-Forwarded-For` inteiro, e aí qualquer um forja um IP por
+ * requisição e fura o limite de vez.
+ */
+const TRUST_PROXY_HOPS = Number(process.env.TRUST_PROXY ?? (isProduction ? 1 : 0));
+
+if (TRUST_PROXY_HOPS > 0) {
+  app.set('trust proxy', TRUST_PROXY_HOPS);
+}
+
 app.use(helmet());
 
 // Em produção, só as origens declaradas em CORS_ORIGINS (separadas por vírgula).
@@ -31,10 +55,6 @@ const allowedOrigins = process.env.CORS_ORIGINS
   ?.split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
-
-if (!allowedOrigins?.length && process.env.NODE_ENV === 'production') {
-  console.warn('[cors] CORS_ORIGINS não definido: a API está aceitando qualquer origem.');
-}
 
 app.use(cors({
   origin: allowedOrigins?.length ? allowedOrigins : true

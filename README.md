@@ -68,6 +68,7 @@ Acesse a pasta do frontend e instale as dependências:
 cd ../frontend
 npm install
 ```
+Crie um `.env` a partir de `.env.example`. Em desenvolvimento `VITE_API_URL` pode ficar em branco (o padrão é `http://localhost:3001`); as variáveis do Supabase são necessárias para o upload das fotos.
 
 ### 4. Subir backend e frontend juntos
 Na raiz do projeto, instale as dependências do orquestrador e suba os dois de uma vez:
@@ -86,8 +87,30 @@ Atalhos disponíveis na raiz:
 | `npm run dev:backend` | Sobe só o backend |
 | `npm run dev:frontend` | Sobe só o frontend |
 | `npm run install:all` | Instala as dependências das duas pastas |
+| `npm run build` | Compila os dois para produção |
+| `npm run lint` | Roda o ESLint no frontend |
 
 Se preferir terminais separados, os `npm run dev` dentro de `backend/` e `frontend/` continuam funcionando como antes.
+
+---
+
+## 🚀 Deploy
+
+O backend valida o ambiente ao subir: faltando `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL` ou a senha do admin, o processo encerra listando o que falta em vez de subir quebrado e falhar só no primeiro login.
+
+### Backend (Render, Railway, Fly...)
+| | |
+| --- | --- |
+| Build | `npm run build` (roda `prisma generate` e compila para `dist/`) |
+| Start | `npm start` (`node dist/server.js`) |
+| Migrações | `npm run migrate:deploy` antes do primeiro start |
+
+Variáveis obrigatórias: `DATABASE_URL`, `JWT_SECRET` (mínimo 32 caracteres em produção), `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `CORS_ORIGINS` e `NODE_ENV=production`. O `.env.example` documenta cada uma.
+
+`TRUST_PROXY` já assume `1` em produção, que é o certo para serviço gerenciado. Sem isso o rate limit enxergaria o IP do proxy no lugar do IP de quem chamou, e as tentativas de login de todos os visitantes cairiam no mesmo balde.
+
+### Frontend (Vercel)
+`VITE_API_URL` precisa estar configurada **no projeto da Vercel antes do build** — o Vite embute o valor no bundle, então definir depois não adianta e o site publicado sai chamando `localhost:3001`. As duas variáveis do Supabase seguem a mesma regra.
 
 ---
 
