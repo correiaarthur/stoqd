@@ -17,8 +17,6 @@ import { prisma } from './prisma.js';
 export const MIN_INSTALLMENTS = 2;
 export const MAX_INSTALLMENTS = 12;
 
-export type PaymentType = 'VISTA' | 'PRAZO';
-
 export type InstallmentPlanView = {
   installments: number;
   interestPercent: number;
