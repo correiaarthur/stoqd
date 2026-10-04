@@ -6,7 +6,7 @@ import {
   couponDiscountFor,
   isValidCouponCode,
   normalizeCouponCode,
-} from './coupons.js';
+} from '../coupons.js';
 
 /**
  * Cupons: zero usos em produção. Todo o caminho abaixo nunca rodou.

@@ -50,5 +50,5 @@
   // `declaration`, cada teste viraria um .js e um .d.ts dentro de dist/ — teste
   // empacotado junto do servidor em produção. Quem typecheca os testes é o
   // tsconfig.test.json.
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "src/**/tests/**"]
 }

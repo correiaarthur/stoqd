@@ -5,7 +5,7 @@ import {
   getStockView,
   reservationExpiry,
   withAvailability,
-} from './availability.js';
+} from '../availability.js';
 
 /**
  * A regra do módulo: **disponível nunca é armazenado, sempre é derivado**.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PRODUCT_PRICING_SELECT, PRODUCT_STOCK_SELECT, getActivePrice } from './pricing.js';
+import { PRODUCT_PRICING_SELECT, PRODUCT_STOCK_SELECT, getActivePrice } from '../pricing.js';
 
 /**
  * Qual preço o cliente paga. Zero produtos em promoção no banco hoje, então o

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatCurrency, parseCurrencyInput, parsePercentInput } from './formatters';
+import { formatCurrency, parseCurrencyInput, parsePercentInput } from '../formatters';
 
 /**
  * `parseCurrencyInput` e `parsePercentInput` são as duas únicas regras de

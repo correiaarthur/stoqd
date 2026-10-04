@@ -9,7 +9,7 @@ import {
   optionalEmail,
   validateAccountFields,
   validatePassword,
-} from './validation.js';
+} from '../validation.js';
 
 /**
  * O telefone é o identificador de acesso, então normalizá-lo é o que impede o

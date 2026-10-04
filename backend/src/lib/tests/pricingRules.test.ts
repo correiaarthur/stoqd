@@ -7,7 +7,7 @@ import {
   previewInstallmentValue,
   sumLines,
   toCents,
-} from './pricingRules.js';
+} from '../pricingRules.js';
 
 /**
  * Esta é a conta que decide quanto o cliente paga.

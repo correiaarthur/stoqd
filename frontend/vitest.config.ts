@@ -1,11 +1,24 @@
 import { defineConfig } from 'vitest/config';
 
+/**
+ * Mesma divisão do backend: pasta `tests` dentro de cada módulo para o que roda
+ * em memória, `tests/` na raiz para o que precisa de navegador.
+ *
+ * Hoje só o projeto `unit` tem conteúdo. Componente e hook pedem jsdom e
+ * testing-library — e fazem mais sentido depois que Checkout (698 linhas),
+ * Dashboard e Settings estiverem quebrados em pedaços testáveis. O e2e
+ * (Playwright) moraria em `tests/e2e/`.
+ */
 export default defineConfig({
   test: {
-    // Só as funções puras por enquanto: formatação, validade e leitura de erro
-    // da API. Testar componente pede jsdom e testing-library, que é uma decisão
-    // à parte — e as três telas maiores ainda vão ser quebradas em pedaços.
-    include: ['src/**/*.test.ts'],
-    globals: false,
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          include: ['src/**/tests/**/*.test.ts'],
+          globals: false,
+        },
+      },
+    ],
   },
 });

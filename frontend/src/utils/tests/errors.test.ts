@@ -1,7 +1,7 @@
 import { AxiosError } from 'axios';
 import { describe, expect, it } from 'vitest';
 
-import { getApiErrorMessage } from './errors';
+import { getApiErrorMessage } from '../errors';
 
 /**
  * Sem isto o operador só vê o texto genérico e nunca descobre que faltou

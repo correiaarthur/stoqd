@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildInstallments } from './sales.js';
+import { buildInstallments } from '../sales.js';
 
 /**
  * A divisão em centavos.

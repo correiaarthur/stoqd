@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCartItems, parseCartToken } from './cartItems.js';
+import { parseCartItems, parseCartToken } from '../cartItems.js';
 
 /**
  * A fronteira entre o que o navegador manda e o que o servidor acredita.

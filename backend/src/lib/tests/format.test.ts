@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatBRL } from './format.js';
+import { formatBRL } from '../format.js';
 
 /** Vai para dentro de mensagem que o cliente lê, então o formato importa. */
 describe('formatBRL', () => {

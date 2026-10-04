@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { EXPIRY_WARNING_DAYS, formatExpiryDate, getExpiryStatus } from './expiry';
+import { EXPIRY_WARNING_DAYS, formatExpiryDate, getExpiryStatus } from '../expiry';
 
 /**
  * O selo de validade no estoque. 52 produtos no banco têm data, então este é um
