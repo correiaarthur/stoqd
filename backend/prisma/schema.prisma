@@ -35,6 +35,11 @@ model Product {
   saleItems    SaleItem[]
   reservations Reservation[]
   orderItems   OrderItem[]
+
+  /// `brandId` tem CASCADE: apagar uma marca precisa achar os produtos dela, e
+  /// sem índice isso varre a tabela. `categoryId` serve ao filtro do Dashboard.
+  @@index([brandId])
+  @@index([categoryId])
 }
 
 model Category {
@@ -81,6 +86,12 @@ model Sale {
   items        SaleItem[]
   installments Installment[]
 
+  /// `customerId` serve ao extrato do cliente; `date`, ao relatório de vendas e
+  /// ao resumo do mês. Sem eles o Postgres varre a tabela inteira nas duas
+  /// consultas mais usadas do sistema — conferido com EXPLAIN: Seq Scan nas duas.
+  @@index([customerId])
+  @@index([date])
+
   /// Desconto concedido: cupom e desconto manual somados.
   discount Float? @default(0)
 
@@ -108,6 +119,12 @@ model SaleItem {
 
   quantity  Int
   unitPrice Float
+
+  /// `saleId` é percorrido em todo carregamento de venda; `productId`, pelo
+  /// RESTRICT que impede apagar produto já vendido — sem índice essa checagem
+  /// varre a tabela a cada tentativa de exclusão.
+  @@index([saleId])
+  @@index([productId])
 }
 
 model Installment {
@@ -119,6 +136,12 @@ model Installment {
 
   saleId Int
   sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  /// `saleId` para carregar as parcelas de uma venda. O par `(paidAt, dueDate)`
+  /// atende a pergunta que a listagem de clientes faz sobre toda parcela em
+  /// aberto: quais venceram.
+  @@index([saleId])
+  @@index([paidAt, dueDate])
 }
 
 /// Conta de acesso do cliente. Não guarda venda nenhuma — quem aparece nas
@@ -213,6 +236,8 @@ model Order {
   reservations Reservation[]
 
   @@index([status, createdAt])
+  /// O histórico da conta do cliente busca por aqui.
+  @@index([userId])
 }
 
 enum PaymentType {
