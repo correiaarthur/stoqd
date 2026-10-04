@@ -44,6 +44,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const cartToken = useMemo(() => getCartToken(), []);
   const reserveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Quantas linhas o carrinho tinha na última vez que o efeito rodou.
+   *
+   * Serve para distinguir "esvaziou agora" de "já estava vazio". Sem isso o
+   * efeito soltava reserva na montagem de toda página com carrinho vazio — que é
+   * o caso de todo visitante novo — gastando o limite de requisições para
+   * liberar reserva que nunca existiu.
+   */
+  const linhasAnteriores = useRef(items.length);
+
   useEffect(() => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
@@ -97,9 +107,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // uma chamada por clique no "+". Reservar é substituir a lista inteira, então
   // repetir a chamada não deixa reserva órfã para trás.
   useEffect(() => {
+    const esvaziouAgora = items.length === 0 && linhasAnteriores.current > 0;
+    linhasAnteriores.current = items.length;
+
     if (items.length === 0) {
-      // Sem itens não há o que reservar — e o que já estava reservado sai.
-      api.post('/cart/release', { cartToken }).catch(() => {});
+      // Só solta a reserva se o carrinho **passou** a ficar vazio. Carrinho que
+      // já estava vazio não tem reserva para liberar.
+      if (esvaziouAgora) {
+        api.post('/cart/release', { cartToken }).catch(() => {});
+      }
       return;
     }
 
