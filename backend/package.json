@@ -17,7 +17,8 @@
     "test:integration": "npm run test:db:up && NODE_ENV=test vitest run --project integration",
     "test:all": "npm test && npm run test:integration",
     "test:db:up": "docker compose -f tests/docker-compose.yml up -d --wait",
-    "test:db:down": "docker compose -f tests/docker-compose.yml down -v"
+    "test:db:down": "docker compose -f tests/docker-compose.yml down -v",
+    "seed:e2e": "tsx tests/helpers/seedE2e.ts"
   },
   "keywords": [],
   "author": "",
