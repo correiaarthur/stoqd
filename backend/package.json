@@ -8,10 +8,12 @@
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "postinstall": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
-    "hash-password": "tsx src/scripts/hash-password.ts"
+    "hash-password": "tsx src/scripts/hash-password.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -38,6 +40,7 @@
     "@types/node": "^25.2.1",
     "prisma": "^7.3.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
   }
 }

@@ -1,0 +1,12 @@
+{
+  // Mesmas regras estritas do build, mas enxergando os testes e sem emitir
+  // nada. Existe para que `*.test.ts` não seja a única parte do projeto que o
+  // compilador nunca olha.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

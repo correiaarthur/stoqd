@@ -46,5 +46,9 @@
   // Só o código do servidor. `prisma.config.ts` fica de fora: quem o lê é a CLI
   // do Prisma, que transpila por conta própria.
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  // `*.test.ts` fica fora do build de propósito: com `rootDir: src` e
+  // `declaration`, cada teste viraria um .js e um .d.ts dentro de dist/ — teste
+  // empacotado junto do servidor em produção. Quem typecheca os testes é o
+  // tsconfig.test.json.
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
 }
