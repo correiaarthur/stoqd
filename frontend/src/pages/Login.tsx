@@ -67,7 +67,6 @@ export function Login() {
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
             />
-            <small className="field-hint">A administração entra com o e-mail cadastrado.</small>
           </div>
 
           <div className="form-group">
