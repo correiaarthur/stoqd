@@ -99,9 +99,6 @@ export async function registerSale(tx: Prisma$Tx, input: RegisterSaleInput) {
     const product = await tx.product.findUnique({ where: { id: item.productId } });
 
     if (!product) throw new SaleError(`Produto ID ${item.productId} não encontrado.`);
-    if (product.quantity < item.quantity) {
-      throw new SaleError(`Estoque insuficiente para ${product.name}. Restam ${product.quantity}.`);
-    }
 
     saleItemsData.push({
       productId: product.id,
@@ -109,10 +106,35 @@ export async function registerSale(tx: Prisma$Tx, input: RegisterSaleInput) {
       unitPrice: item.unitPrice ?? getActivePrice(product),
     });
 
-    await tx.product.update({
-      where: { id: product.id },
+    // Checar e escrever são a **mesma** operação, de propósito.
+    //
+    // A versão anterior lia a quantidade, comparava, e só então decrementava.
+    // Entre a leitura e a escrita cabia outra transação fazendo o mesmo: as duas
+    // viam "1 disponível", as duas passavam, e o estoque terminava negativo —
+    // produto vendido duas vezes, uma pessoa sem receber. Medido: cinco vendas
+    // simultâneas da última unidade deixavam o estoque em −2.
+    //
+    // Com a condição dentro do UPDATE, o Postgres tranca a linha e reavalia o
+    // `quantity >= n` depois de a transação anterior commitar. A segunda não
+    // encontra linha para afetar e `count` vem 0. É o mesmo padrão de
+    // `consumeCoupon`, pela mesma razão.
+    const { count } = await tx.product.updateMany({
+      where: { id: product.id, quantity: { gte: item.quantity } },
       data: { quantity: { decrement: item.quantity } },
     });
+
+    if (count !== 1) {
+      // A quantidade da leitura acima já está velha neste ponto; quem perdeu a
+      // corrida precisa ver o número de agora, não o de antes.
+      const atual = await tx.product.findUnique({
+        where: { id: product.id },
+        select: { quantity: true },
+      });
+
+      throw new SaleError(
+        `Estoque insuficiente para ${product.name}. Restam ${atual?.quantity ?? 0}.`
+      );
+    }
   }
 
   // Somado depois do laço, e não acumulado dentro dele, para a conta do bruto
