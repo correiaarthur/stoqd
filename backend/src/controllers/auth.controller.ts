@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail, isAdminPassword } from '../lib/adminCredentials.js';
-import { findLinkableCustomer } from '../lib/customerLink.js';
 import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
 import {
   normalizeEmail,
@@ -46,11 +45,12 @@ export async function register(req: Request, res: Response) {
   try {
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-    // Quem já era cliente da loja entra na conta com o histórico que já tinha.
-    const existingCustomer = await findLinkableCustomer(phone);
-
+    // A conta nasce sem vínculo com nenhum cliente da loja. Ligar pelo telefone
+    // digitado seria entregar o histórico de compras de quem tem aquele número a
+    // qualquer pessoa que o digite: o telefone não é segredo e não é verificado.
+    // O vínculo é decisão da loja, tomada ao confirmar um pedido.
     const user = await prisma.user.create({
-      data: { name, email, phone, passwordHash, customerId: existingCustomer?.id ?? null },
+      data: { name, email, phone, passwordHash },
       select: { id: true, name: true, email: true, phone: true },
     });
 

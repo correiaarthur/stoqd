@@ -8,8 +8,12 @@ import { criarProduto } from '../helpers/factories.js';
 import { aplicarMigrations, fecharBanco, limparBanco, testPrisma } from '../helpers/testDb.js';
 
 /**
- * Quem já era cliente da loja cria a conta com o telefone de sempre e encontra
- * o próprio histórico. E um telefone com conta não abre outra.
+ * A conta nunca é ligada ao cliente da loja pelo telefone digitado.
+ *
+ * O telefone não é segredo nem é verificado: ligar por ele entregaria o
+ * histórico de compras, os valores e as parcelas em aberto de um cliente a
+ * qualquer pessoa que digitasse o número dele no cadastro. O vínculo é feito
+ * pela loja, ao confirmar um pedido.
  */
 
 beforeAll(() => {
@@ -42,19 +46,48 @@ async function clienteComVenda(phone: string) {
 }
 
 describe('vínculo da conta com o cliente da loja', () => {
-  it('criar conta com o telefone de um cliente liga os dois, mesmo com pontuação diferente', async () => {
-    const { cliente } = await clienteComVenda('(87) 99641-5746');
+  it('criar conta com o telefone de um cliente NÃO liga os dois, mesmo com pontuação diferente', async () => {
+    await clienteComVenda('(87) 99641-5746');
 
     const { status, body } = await cadastrar('87996415746');
     expect(status).toBe(201);
 
     const user = await testPrisma.user.findUniqueOrThrow({ where: { id: body.user!.id } });
-    expect(user.customerId).toBe(cliente.id);
+    expect(user.customerId).toBeNull();
   });
 
-  it('o histórico da conta mostra as vendas de balcão do cliente', async () => {
-    const { venda } = await clienteComVenda('87996415746');
+  it('o histórico da conta não mostra as vendas de balcão de quem tem o mesmo telefone', async () => {
+    await clienteComVenda('87996415746');
     const { body } = await cadastrar('87996415746');
+
+    const historico = await chamar<{ linkedToCustomer: boolean; orders: unknown[] }>(
+      orders, { auth: { role: 'customer', userId: body.user!.id } } as Partial<Request>,
+    );
+
+    expect(historico.body.linkedToCustomer).toBe(false);
+    expect(historico.body.orders).toEqual([]);
+  });
+
+  it('ler o histórico também não liga a conta a um cliente criado depois', async () => {
+    const { body } = await cadastrar('87996415746');
+    await clienteComVenda('87996415746');
+
+    const historico = await chamar<{ linkedToCustomer: boolean; orders: unknown[] }>(
+      orders, { auth: { role: 'customer', userId: body.user!.id } } as Partial<Request>,
+    );
+
+    expect(historico.body.linkedToCustomer).toBe(false);
+    expect(historico.body.orders).toEqual([]);
+
+    const user = await testPrisma.user.findUniqueOrThrow({ where: { id: body.user!.id } });
+    expect(user.customerId).toBeNull();
+  });
+
+  it('quando a LOJA liga a conta ao cliente, o histórico de balcão aparece', async () => {
+    const { cliente, venda } = await clienteComVenda('87996415746');
+    const { body } = await cadastrar('87996415746');
+
+    await testPrisma.user.update({ where: { id: body.user!.id }, data: { customerId: cliente.id } });
 
     const historico = await chamar<{ linkedToCustomer: boolean; orders: Array<{ source: string; saleId: number; items: Array<{ name: string }> }> }>(
       orders, { auth: { role: 'customer', userId: body.user!.id } } as Partial<Request>,
@@ -66,31 +99,11 @@ describe('vínculo da conta com o cliente da loja', () => {
     expect(historico.body.orders[0]!.items[0]!.name).toBe('Sabonete');
   });
 
-  it('conta criada antes do cliente existir é ligada na primeira leitura do histórico', async () => {
-    const { body } = await cadastrar('87996415746');
-    await clienteComVenda('87996415746');
-
-    const historico = await chamar<{ linkedToCustomer: boolean; orders: unknown[] }>(
-      orders, { auth: { role: 'customer', userId: body.user!.id } } as Partial<Request>,
-    );
-
-    expect(historico.body.linkedToCustomer).toBe(true);
-    expect(historico.body.orders).toHaveLength(1);
-  });
-
   it('um telefone que já tem conta não abre outra', async () => {
     await cadastrar('87996415746');
 
     const segunda = await cadastrar('(87) 99641-5746', 'Outra pessoa');
     expect(segunda.status).toBe(409);
     expect(segunda.body.error).toMatch(/telefone/i);
-  });
-
-  it('um cliente que já tem dono não é ligado a uma segunda conta', async () => {
-    await clienteComVenda('87996415746');
-    await cadastrar('87996415746');
-
-    const outra = await testPrisma.user.create({ data: { name: 'Outra', phone: '87000000000', passwordHash: 'x' } });
-    expect(outra.customerId).toBeNull();
   });
 });

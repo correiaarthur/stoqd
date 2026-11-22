@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
 import { customerUserId } from '../middlewares/auth.js';
 import { BCRYPT_ROUNDS, isAdminEmail } from '../lib/adminCredentials.js';
-import { linkAccountToCustomer } from '../lib/customerLink.js';
 import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
 import { sumLines } from '../lib/pricingRules.js';
 import {
@@ -182,13 +181,14 @@ export async function orders(req: Request, res: Response) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { customerId: true, phone: true },
+      select: { customerId: true },
     });
 
     if (!user) return res.status(404).json({ error: "Conta não encontrada." });
 
-    // Conta anterior à regra de vínculo: tenta ligar ao cliente pelo telefone.
-    const customerId = user.customerId ?? await linkAccountToCustomer(userId, user.phone);
+    // Só o vínculo feito pela loja (ao confirmar um pedido) abre as vendas de
+    // balcão. Nunca se deduz do telefone da conta.
+    const customerId = user.customerId;
 
     const orderList = await prisma.order.findMany({
       where: { userId },
