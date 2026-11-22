@@ -1,142 +1,174 @@
-.settings-page { max-width: 1100px; }
+/* Ajustes — Caatinga II: uma página só, regras da loja em cima e cupons embaixo. */
+.st { padding: 40px 48px 64px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+.st-head { display: flex; flex-direction: column; gap: 10px; border-bottom: 3px solid var(--tinta); padding-bottom: 22px; }
+.st-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--coroa); }
+.st-title { margin: 0; font-size: clamp(44px, 6vw, 72px); line-height: 0.95; font-weight: 400; letter-spacing: -0.035em; }
+.st-h2 { margin: 0; font-size: 40px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.05; }
 
-.settings-head { margin-bottom: 2rem; }
-.settings-head h2 {
-  font-family: var(--font-heading);
-  font-size: 1.3rem;
-  margin: 0 0 0.5rem 0;
-}
-.settings-head p {
-  margin: 0;
-  max-width: 72ch;
-  line-height: 1.6;
-  font-size: 0.9rem;
-}
+.settings-error { background: #FBE9E4; border: 1px solid #B8584D; color: #7E2F22; padding: 12px 16px; font-size: 14px; line-height: 1.5; }
+.settings-success { background: #E2EFD8; border: 1px solid #6E8B3D; color: #1F4D12; padding: 12px 16px; font-size: 14px; }
 
-.settings-error {
-  background: var(--danger-bg);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--danger-color);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-.settings-success {
-  background: var(--success-bg);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: var(--success-color);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
-}
-
-/* --- Parcelamento --- */
-.plans-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.plan-row {
-  display: grid;
-  grid-template-columns: 110px 140px minmax(0, 1fr);
-  align-items: center;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-}
-.plan-row.off { opacity: 0.5; }
-
-.plan-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-.plan-toggle input { accent-color: var(--accent-color); }
-.plan-name {
-  font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: 1.05rem;
-}
-
-.plan-rate {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.plan-rate .input-standard {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  padding: 10px 12px;
-}
-.plan-unit { color: var(--text-dim); font-weight: 700; }
-
-.plan-example {
-  color: var(--text-dim);
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-}
-
-/* --- Cupons --- */
-.coupon-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1.25rem;
-  padding-bottom: 2rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid var(--border-color);
-  align-items: end;
-}
-.coupon-code-input {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
-.coupon-form-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-.coupon-code {
-  letter-spacing: 0.06em;
-  font-family: var(--font-body);
-}
-
-.data-table tr.row-off { opacity: 0.55; }
-
-.badge-coupon-active { background: var(--success-bg); color: var(--success-color); }
-.badge-coupon-inactive { background: rgba(147, 147, 165, 0.12); color: var(--text-dim); }
-.badge-coupon-expired,
-.badge-coupon-exhausted { background: var(--danger-bg); color: var(--danger-color); }
-
-.coupon-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: flex-end;
-}
-.coupon-actions button {
-  background: none;
+/* --- Parcelamento: o texto à esquerda, as faixas à direita --- */
+.st-plans { display: grid; grid-template-columns: minmax(260px, 380px) minmax(0, 1fr); gap: 56px; align-items: start; }
+.st-plans-intro { display: flex; flex-direction: column; gap: 14px; }
+.st-plans-intro p { margin: 0; font-size: 15px; line-height: 1.65; color: var(--tinta-suave); }
+.st-field { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.st-field label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-apagada); }
+.st-field select {
+  width: 200px; min-height: 44px; padding: 8px 40px 8px 18px;
+  background-color: color-mix(in srgb, #C9983F 24%, var(--bg-color));
+  /* A seta é minha, e não a do navegador, para ficar perto do texto. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E1A14' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  appearance: none;
   border: none;
-  color: var(--accent-color);
-  cursor: pointer;
-  font-size: 0.82rem;
-  text-decoration: underline;
-  padding: 0;
+  /* A folha: tudo redondo, menos a quina de baixo à esquerda. */
+  border-radius: 12px 12px 12px 0;
+  color: var(--tinta); font-size: 17px; outline: none; cursor: pointer;
 }
-.coupon-actions button:hover { color: var(--accent-hover); }
-.coupon-actions button.is-danger { color: var(--danger-color); }
+.st-field select:focus-visible { outline: 2px solid var(--coroa); outline-offset: 2px; }
+.st-plans-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
-@media (max-width: 700px) {
-  .plan-row { grid-template-columns: 1fr 1fr; }
-  .plan-example { grid-column: 1 / -1; }
+/* Simulação: o campo é a cor da página, sombreada, e os atalhos são pílulas. */
+.sim-bar { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 10px; }
+.sim-field { display: flex; flex-direction: column; gap: 6px; width: 220px; max-width: 100%; }
+.sim-field label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-apagada); }
+.sim-field input {
+  min-height: 44px; padding: 8px 0;
+  background: transparent;
+  border: none; border-bottom: 1.5px solid var(--tinta); border-radius: 0;
+  color: var(--tinta); font-size: 17px; outline: none;
 }
+.sim-field input:focus { border-bottom-color: var(--coroa); }
+.sim-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.sim-preset { min-height: 36px; padding: 6px 14px; background: transparent; border: 1px solid var(--fio); border-radius: 0; color: var(--tinta); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.sim-preset:hover { background: color-mix(in srgb, var(--tinta) 6%, transparent); }
+.sim-preset[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); }
+
+/* As faixas: três por linha, sobre um fio de tinta. */
+.plans-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 2px solid var(--tinta); }
+.plan-cell { padding: 16px 18px 16px 0; border-bottom: 1px solid var(--fio); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.plan-cell.off { opacity: 0.45; }
+.plan-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.plan-times { font-family: var(--font-serif); font-style: italic; font-size: 30px; line-height: 1; }
+.plan-note { font-size: 12px; font-weight: 600; color: var(--tinta-apagada); }
+.plan-note.free { color: var(--mandacaru); }
+.plan-note.muted { color: #6E604F; }
+.plan-example { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; font-family: var(--font-num); font-size: 12.5px; color: var(--tinta-suave); font-variant-numeric: tabular-nums lining-nums; }
+.plan-example strong { font-weight: 600; color: var(--tinta); }
+.plan-was { color: var(--coroa); }
+.plan-rate { display: flex; align-items: center; gap: 6px; border-bottom: 1.5px solid var(--tinta); flex-shrink: 0; }
+.plan-rate input { width: 48px; min-height: 44px; padding: 8px 0; background: transparent; border: none; outline: none; text-align: right; color: var(--tinta); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.plan-rate:focus-within { border-bottom-color: var(--coroa); }
+.plan-unit { font-size: 15px; color: var(--tinta-apagada); }
+.st-plans-foot { display: flex; justify-content: flex-end; }
+.st-save { min-height: 44px; padding: 13px 22px; background: var(--mandacaru); border: none; color: var(--papel); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.st-save:hover:not(:disabled) { background: #244A3A; }
+.st-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* --- Cupons: a tabela à esquerda, o formulário terracota à direita --- */
+/* O fio do topo é desenhado pelo DockingLabel, para poder dobrar em volta da palavra. */
+.st-coupons { display: flex; flex-direction: column; gap: 20px; padding-top: 40px; }
+.st-coupons-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; }
+.st-count { font-size: 14px; color: var(--tinta-apagada); }
+.st-coupons-text { margin: 0; max-width: 640px; font-size: 15px; line-height: 1.65; color: var(--tinta-suave); }
+.cp-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 460px); gap: 40px; align-items: start; }
+.cp-table-wrap { overflow-x: auto; }
+.cp-table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 520px; }
+.cp-table thead tr { border-bottom: 2px solid var(--tinta); }
+.cp-table th { text-align: left; padding: 0 12px 12px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
+.cp-table th:first-child, .cp-table td:first-child { padding-left: 0; }
+.cp-table th:last-child, .cp-table td:last-child { padding-right: 0; }
+.cp-table .num { text-align: right; }
+.cp-table td { padding: 12px; border-bottom: 1px solid var(--fio); vertical-align: middle; }
+.cp-row { cursor: pointer; transition: background 0.15s; }
+.cp-row:hover { background: color-mix(in srgb, var(--tinta) 4%, transparent); }
+.cp-row.is-selected { background: color-mix(in srgb, var(--mandacaru) 10%, transparent); }
+.cp-open { display: flex; flex-direction: column; gap: 3px; min-height: 44px; justify-content: center; background: none; border: none; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.cp-open strong { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; }
+.cp-open span { font-size: 13px; color: var(--tinta-apagada); }
+.cp-discount { font-family: var(--font-serif); font-size: 20px; font-variant-numeric: tabular-nums lining-nums; }
+.cp-uses { white-space: nowrap; font-size: 14px; color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+.cp-status { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.cp-dot { width: 8px; height: 8px; border-radius: 999px; background: #6E8B3D; }
+.cp-status-active { color: var(--mandacaru); }
+.cp-status-inactive { color: var(--tinta-suave); }
+.cp-status-inactive .cp-dot { background: #C6D6CA; }
+.cp-status-expired, .cp-status-exhausted { color: #7E2F22; }
+.cp-status-expired .cp-dot, .cp-status-exhausted .cp-dot { background: var(--coroa); }
+.cp-row-inactive { opacity: 0.75; }
+
+/* O cupom recém-criado: um clarão mostarda que se acalma sozinho, mais a
+   etiqueta "Novo" — o bastante para o olho achar a linha nova no topo. */
+.cp-row.is-new td { animation: cupom-novo 1.8s ease-out 2; background: #F3D98B; }
+.cp-open .cp-new-tag { margin-left: 10px; padding: 2px 8px; background: var(--coroa); color: var(--papel); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; vertical-align: middle; }
+@keyframes cupom-novo { 0% { background: #F2B93B; } 100% { background: #F3D98B; } }
+@media (prefers-reduced-motion: reduce) { .cp-row.is-new td { animation: none; } }
+
+/* Ações de cada cupom: lápis, olho e lixeira. */
+.coupon-actions { text-align: right; white-space: nowrap; }
+.coupon-actions button + button { margin-left: 4px; }
+.coupon-actions button { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: none; border: 1px solid transparent; border-radius: 10px 10px 10px 0; color: var(--tinta); cursor: pointer; padding: 0; transition: background 0.15s, color 0.15s; }
+.coupon-actions button:hover { background: color-mix(in srgb, var(--tinta) 10%, transparent); }
+.coupon-actions button.is-danger { color: #B3261E; }
+.coupon-actions button.is-danger:hover { background: #FBE9E4; }
+
+/* --- O formulário de cupom, como no desenho: um bloco terracota (barro) com
+   campos de fio claro, o tipo em duas opções e o botão creme com seta. --- */
+.cf-panel { position: sticky; top: 24px; align-self: start; }
+.cf { background: var(--barro); color: #FBF5EA; padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+.cf-title { margin: 0; font-family: var(--font-serif); font-size: 28px; font-weight: 400; letter-spacing: -0.01em; }
+.cf-field { display: flex; flex-direction: column; gap: 6px; }
+.cf-field label, .cf-type legend { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; padding: 0; }
+.cf-field label span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.cf-field input {
+  min-height: 44px;
+  padding: 8px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid #FBF5EA;
+  border-radius: 0;
+  color: #FBF5EA;
+  font-size: 16px;
+  outline: none;
+}
+.cf-field input::placeholder { color: #E9C9B4; }
+.cf-field input:focus { border-bottom-color: var(--rosa); box-shadow: 0 1.5px 0 var(--rosa); }
+.cf-field input[type="date"] { color-scheme: dark; }
+.cf-code { font-size: 20px !important; font-weight: 700; letter-spacing: 0.08em; }
+.cf-type { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cf-type legend { margin-bottom: 8px; }
+.cf-type-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.cf-type-option { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; box-sizing: border-box; border: 1px solid #FBF5EA; font-size: 14px; font-weight: 500; cursor: pointer; }
+.cf-type-option input { margin: 0; accent-color: #FBF5EA; }
+.cf-type-option.is-on { background: var(--tinta); border-color: var(--tinta); font-weight: 600; }
+.cf-type-option.is-on input { accent-color: var(--barro); }
+.cf-type-option:focus-within { outline: 2px solid var(--rosa); outline-offset: 2px; }
+.cf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.cf-error { margin: 0; padding: 12px 14px; background: #FBF5EA; color: #7E2F22; font-size: 14px; font-weight: 600; }
+.cf-actions { display: flex; gap: 10px; }
+.cf-submit { flex: 1; min-height: 44px; padding: 15px 22px; display: flex; justify-content: space-between; align-items: center; background: #FBF5EA; border: none; color: var(--tinta); font-size: 16px; font-weight: 600; cursor: pointer; }
+.cf-submit:hover:not(:disabled) { background: #fff; }
+.cf-cancel { min-height: 44px; padding: 15px 20px; background: transparent; border: 1px solid #FBF5EA; color: #FBF5EA; font-size: 15px; font-weight: 600; cursor: pointer; }
+.cf-cancel:hover:not(:disabled) { background: color-mix(in srgb, #FBF5EA 14%, transparent); }
+.cf-submit:disabled, .cf-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
+@media (max-width: 1100px) { .cf-panel { position: static; } }
+
+@media (max-width: 1100px) {
+  .st-plans { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .cp-body { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .st { padding: 28px 20px 48px; }
+  .plans-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) { .plans-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* O lugar da palavra "Cupons" no título: a mesma palavra, em tinta transparente,
+   enquanto o rótulo flutuante não chega e se encaixa ali. */
+.st-slot { color: transparent; }
+.st-coupons { scroll-margin-top: 24px; }
+
+.cp-skeleton { display: flex; flex-direction: column; gap: 8px; }
+.st-plans-intro .skeleton { display: block; margin-bottom: 12px; }
