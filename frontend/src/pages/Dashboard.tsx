@@ -1,356 +1,317 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useSalesReport } from '../hooks/useSalesReport';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
 import { formatCurrency } from '../utils/formatters';
+import {
+  MONTH_LONG, MONTH_SHORT, lastMonths, startOf, itemsOfPeriod, revenueByDay,
+  unitsByWeek, totalsByMonth, topProducts, type MonthRef, type Bucket,
+} from '../utils/dashboardMonth';
 import './Dashboard.css';
 
-type TimeRange = '1M' | '3M' | '6M' | '1Y';
+/** Os períodos, sempre contados para trás a partir do mês atual. */
+const PERIODS = [
+  { id: 1, label: 'Mês', title: null },
+  { id: 3, label: '3 meses', title: 'Últimos 3 meses' },
+  { id: 6, label: '6 meses', title: 'Últimos 6 meses' },
+  { id: 12, label: '1 ano', title: 'Último ano' },
+] as const;
+const LONGEST = 12;
+// Só no mês o caixa e o volume mostram dia e semana; acima disso, mês a mês.
+const DETAILED_UP_TO = 1;
+const pad = (n: number) => String(n).padStart(2, '0');
 
-const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const MONTHS_BACK: Record<Exclude<TimeRange, '1M'>, number> = { '3M': 2, '6M': 5, '1Y': 11 };
+/**
+ * A visão geral por período: o mês atual, os últimos 3, 6 ou 12 meses — os
+ * mesmos períodos de Vendas. O relatório vem uma vez só, do período mais longo; trocar
+ * de período só refaz as contas — não vai ao servidor.
+ */
+export function Dashboard() {
+  const [count, setCount] = useState<number>(1);
+  // Calculado uma vez: uma data nova a cada render faria o hook refazer o fetch em loop.
+  const now = useMemo(() => new Date(), []);
+  const period = PERIODS.find(p => p.id === count) ?? PERIODS[0];
+  const months = useMemo(() => lastMonths(count, now), [count, now]);
+  const detailed = count <= DETAILED_UP_TO;
 
-function getCutoffDate(timeRange: TimeRange) {
-  const cutoff = new Date();
-  cutoff.setHours(0, 0, 0, 0);
+  const cutoff = useMemo(() => startOf(lastMonths(LONGEST, now)[0]), [now]);
+  const { soldItems, loading } = useSalesReport(cutoff);
+  const { summary } = useDashboardSummary();
 
-  if (timeRange === '1M') {
-    cutoff.setDate(cutoff.getDate() - 29);
-    return cutoff;
-  }
+  const periodItems = useMemo(() => itemsOfPeriod(soldItems, months), [soldItems, months]);
+  const revenue = periodItems.reduce((sum, i) => sum + i.revenue, 0);
+  const units = periodItems.reduce((sum, i) => sum + i.quantity, 0);
+  const salesCount = new Set(periodItems.map(i => i.saleId)).size;
 
-  // Dia 1 antes de trocar o mês: em 31/12, voltar um mês daria 31/11, que o
-  // JavaScript normaliza para 01/12 e joga o corte no mês errado.
-  cutoff.setDate(1);
-  cutoff.setMonth(cutoff.getMonth() - MONTHS_BACK[timeRange]);
-  return cutoff;
-}
+  const days = useMemo(() => revenueByDay(periodItems, months), [periodItems, months]);
+  const monthTotals = useMemo(() => totalsByMonth(periodItems, months), [periodItems, months]);
+  const volume: Bucket[] = useMemo(
+    () => detailed
+      ? unitsByWeek(periodItems, months)
+      : monthTotals.map(t => ({ label: MONTH_SHORT[t.month.month], units: t.units })),
+    [detailed, periodItems, months, monthTotals],
+  );
+  const ranking = useMemo(() => topProducts(periodItems, 10), [periodItems]);
 
-function SearchableFilter({ label, options, value, onChange }: { label: string, options: string[], value: string, onChange: (val: string) => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
+  const first = months[0];
+  const last = months[months.length - 1];
+  const rangeText = count === 1
+    ? String(last.year)
+    : `${MONTH_SHORT[first.month].toLowerCase()}/${first.year} – ${MONTH_SHORT[last.month].toLowerCase()}/${last.year}`;
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+  const inventory = summary?.inventory;
 
   return (
-    <div className="filter-group" ref={ref}>
-      <label>{label}</label>
-      <div className="custom-select-wrapper">
-        <div className="filter-select" onClick={() => { setIsOpen(!isOpen); setSearch(''); }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+    <div className="dash">
+      <header className="dash-head">
+        <div className="dash-head-text">
+          <span className="dash-kicker">Visão geral · {rangeText}</span>
+          <h1 className="dash-title">{period.title ?? MONTH_LONG[last.month]} <em>em números</em></h1>
         </div>
-        {isOpen && (
-          <div className="filter-dropdown-menu">
-            <div style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>
-              <input 
-                type="text" className="input-standard" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} 
-                placeholder="Pesquisar..." autoFocus value={search} onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="filter-dropdown-list">
-              {filtered.map(opt => (
-                <div key={opt} className={`filter-dropdown-item ${value === opt ? 'selected' : ''}`} onClick={() => { onChange(opt); setIsOpen(false); }}>
-                  {opt}
-                </div>
-              ))}
-              {filtered.length === 0 && <div className="filter-dropdown-item" style={{ color: 'var(--text-dim)', textAlign: 'center' }}>Nenhum encontrado</div>}
+        <div role="group" aria-label="Período" className="period-group">
+          {PERIODS.map(p => (
+            <button
+              key={p.id}
+              type="button"
+              className="period-btn"
+              aria-pressed={count === p.id}
+              onClick={() => setCount(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {loading ? (
+        <DashboardSkeleton />
+      ) : (
+        <>
+          <div className="dash-hero">
+            <section className="dash-card dash-revenue" aria-label="Receita líquida">
+              <span className="dash-label">Receita líquida</span>
+              <strong className="dash-big">{formatCurrency(revenue)}</strong>
+              <span className="dash-note">
+                Já descontados os abatimentos
+                {inventory && (
+                  <> · <strong className="dash-profit">{formatCurrency(inventory.totalExpectedProfit)} de lucro previsto no estoque</strong></>
+                )}
+              </span>
+            </section>
+            <div className="dash-side">
+              <section className="dash-card dash-stat" aria-label="Unidades vendidas">
+                <span className="dash-label">Unidades vendidas</span>
+                <strong className="dash-mid">{units}</strong>
+                <span className="dash-note">em {salesCount} {salesCount === 1 ? 'venda' : 'vendas'}</span>
+              </section>
+              <section className="dash-card dash-stat" aria-label="Ticket médio por item">
+                <span className="dash-label">Ticket médio por item</span>
+                <strong className="dash-mid">{formatCurrency(units > 0 ? revenue / units : 0)}</strong>
+                <span className="dash-note">receita ÷ unidades</span>
+              </section>
             </div>
           </div>
-        )}
-      </div>
+
+          {inventory && (
+            <section className="dash-card dash-block" aria-labelledby="sit-titulo">
+              <div className="dash-block-head">
+                <h2 id="sit-titulo" className="dash-h2">Situação <em>do estoque</em></h2>
+                <Link to="/estoque" className="dash-link">Ver estoque</Link>
+              </div>
+              <div className="dash-situation">
+                <Situation label="Valor em estoque" value={formatCurrency(inventory.totalStockValue)} tone="ink" />
+                <Situation label="Lucro previsto" value={formatCurrency(inventory.totalExpectedProfit)} tone="good" />
+                <Situation label="Vencidos" value={String(inventory.expiredItems)} tone={inventory.expiredItems > 0 ? 'bad' : 'ink'} />
+                <Situation label={`Vencem em ${inventory.expiryWarningDays} dias`} value={String(inventory.expiringSoonItems)} tone={inventory.expiringSoonItems > 0 ? 'warn' : 'ink'} />
+                <Situation label="Esgotados" value={String(inventory.outOfStockItems)} tone={inventory.outOfStockItems > 0 ? 'bad' : 'ink'} />
+              </div>
+            </section>
+          )}
+
+          <div className="dash-pair">
+            <CashFlow days={days} monthTotals={monthTotals} detailed={detailed} />
+            <Volume buckets={volume} detailed={detailed} />
+          </div>
+
+          <section className="dash-card dash-block" aria-labelledby="mais-titulo">
+            <h2 id="mais-titulo" className="dash-h2">Mais <em>vendidos</em></h2>
+            {ranking.length === 0 ? (
+              <p className="dash-empty">Nenhuma venda neste período.</p>
+            ) : (
+              <ol className="dash-ranking">
+                {ranking.map((r, i) => (
+                  <li key={r.name} className="dash-rank">
+                    <div className="dash-rank-top">
+                      <span className="dash-rank-n">{i + 1}º</span>
+                      <strong>{r.units} un</strong>
+                    </div>
+                    <span className="dash-rank-name">{r.name}</span>
+                    <span className="dash-rank-track">
+                      <span className="dash-rank-fill" style={{ width: `${Math.round((r.units / ranking[0].units) * 100)}%` }} />
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
 
-/**
- * O tooltip do Recharts recebe a fatia de dados da barra sob o cursor. Só estes
- * campos são usados aqui — tipar o que se usa evita depender da forma interna
- * da biblioteca.
- */
-type TooltipEntry = {
-  dataKey?: string | number;
-  value?: number;
-  color?: string;
-};
+function Situation({ label, value, tone }: { label: string; value: string; tone: 'ink' | 'good' | 'bad' | 'warn' }) {
+  return (
+    <div className={`dash-sit dash-sit-${tone}`}>
+      <span className="dash-label">{label}</span>
+      <strong className="dash-sit-value">{value}</strong>
+    </div>
+  );
+}
 
-type CustomTooltipProps = {
-  active?: boolean;
-  payload?: TooltipEntry[];
-  label?: string | number;
-};
+/** O caixa: uma barra por dia (até dois meses) ou por mês (períodos maiores). */
+function CashFlow({ days, monthTotals, detailed }: {
+  days: { date: Date; value: number }[];
+  monthTotals: { month: MonthRef; revenue: number }[];
+  detailed: boolean;
+}) {
+  const bars = detailed
+    ? days.map(d => ({ value: d.value, title: `${pad(d.date.getDate())}/${pad(d.date.getMonth() + 1)}`, label: '' }))
+    : monthTotals.map(t => ({ value: t.revenue, title: `${MONTH_LONG[t.month.month]}/${t.month.year}`, label: MONTH_SHORT[t.month.month] }));
+  const max = Math.max(...bars.map(b => b.value), 0);
+  const total = bars.reduce((sum, b) => sum + b.value, 0);
 
-const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="custom-tooltip">
-        <p className="label">{label}</p>
-        {payload.map((entry, index) => {
-          const isRevenue = entry.dataKey === 'revenue';
-          const name = isRevenue ? 'Receita Gerada' : 'Unidades Vendidas';
-          // Bucket sem venda no período vem sem `value`; ali o número é zero.
-          const value = entry.value ?? 0;
-          const val = isRevenue ? formatCurrency(value) : `${value} un`;
-          return (
-            <p key={index} className="item" style={{ color: entry.color }}>
-              {name}: {val}
-            </p>
-          );
-        })}
-      </div>
-    );
-  }
-  return null;
-};
-
-export function Dashboard() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('1M');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
-  const [selectedBrand, setSelectedBrand] = useState<string>('Todas');
-
-  // Memorizado: uma data nova a cada render faria o hook refazer o fetch em loop.
-  const cutoffDate = useMemo(() => getCutoffDate(timeRange), [timeRange]);
-  const { soldItems, loading } = useSalesReport(cutoffDate);
-  const { summary } = useDashboardSummary();
-
-  const categories = useMemo(() => ['Todas', ...Array.from(new Set(soldItems.map(i => i.categoryName)))], [soldItems]);
-  const brands = useMemo(() => ['Todas', ...Array.from(new Set(soldItems.map(i => i.brandName)))], [soldItems]);
-
-  const filteredSoldItems = useMemo(() => {
-    return soldItems.filter(item => {
-      const matchCat = selectedCategory === 'Todas' || item.categoryName === selectedCategory;
-      const matchBrand = selectedBrand === 'Todas' || item.brandName === selectedBrand;
-      return matchCat && matchBrand;
-    });
-  }, [soldItems, selectedCategory, selectedBrand]);
-
-  const temporalData = useMemo(() => {
-    // Vive dentro do memo porque depende de `timeRange` e só é usada aqui —
-    // declarada fora, viraria uma dependência nova a cada render.
-    const periodKeyFor = (date: Date) => (
-      timeRange === '1M'
-        ? `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`
-        : `${MONTH_NAMES[date.getMonth()]}/${String(date.getFullYear()).slice(-2)}`
-    );
-
-    const groups: Record<string, { period: string, revenue: number, quantity: number, sortKey: string }> = {};
-
-    // Buckets vazios primeiro, para o gráfico mostrar o período inteiro
-    // mesmo nos dias/meses sem venda.
-    const bucketCount = timeRange === '1M' ? 30 : MONTHS_BACK[timeRange] + 1;
-
-    for (let i = 0; i < bucketCount; i++) {
-      const d = new Date(cutoffDate);
-      if (timeRange === '1M') d.setDate(d.getDate() + i);
-      else d.setMonth(d.getMonth() + i);
-
-      const periodKey = periodKeyFor(d);
-      const sortKey = timeRange === '1M'
-        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-        : `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
-
-      groups[periodKey] = { period: periodKey, revenue: 0, quantity: 0, sortKey };
-    }
-
-    filteredSoldItems.forEach(item => {
-      const periodKey = periodKeyFor(new Date(item.date));
-      if (groups[periodKey]) {
-        groups[periodKey].revenue += item.revenue;
-        groups[periodKey].quantity += item.quantity;
-      }
-    });
-
-    return Object.values(groups).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-  }, [filteredSoldItems, timeRange, cutoffDate]);
-
-  // O relatório já vem limitado ao período, então não há segundo corte de data aqui.
-  const topProductsData = useMemo(() => {
-    const groups: Record<string, { name: string, quantity: number }> = {};
-
-    filteredSoldItems.forEach(item => {
-      if (!groups[item.productName]) groups[item.productName] = { name: item.productName, quantity: 0 };
-      groups[item.productName].quantity += item.quantity;
-    });
-
-    return Object.values(groups).sort((a, b) => b.quantity - a.quantity).slice(0, 10);
-  }, [filteredSoldItems]);
-
-  const totalRevenue = temporalData.reduce((acc, curr) => acc + curr.revenue, 0);
-  const totalItemsSold = temporalData.reduce((acc, curr) => acc + curr.quantity, 0);
+  // Dia a dia, cinco marcas espaçadas por igual; mês a mês, o nome de cada mês.
+  const ticks = detailed
+    ? [0, 0.25, 0.5, 0.75, 1].map(f => {
+        const d = days[Math.round(f * (days.length - 1))].date;
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+      })
+    : null;
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-header" style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">Dashboard</h1>
+    <section className="dash-card dash-block" aria-labelledby="fluxo-titulo">
+      <div className="dash-block-head">
+        <h2 id="fluxo-titulo" className="dash-h2">Fluxo <em>de caixa</em></h2>
+        <span className="dash-hint">{detailed ? 'receita por dia' : 'receita por mês'}</span>
+      </div>
+      <div className="dash-bars" role="img" aria-label={`Receita do período: ${formatCurrency(total)} no total`}>
+        {bars.map((b, i) => (
+          <div
+            key={i}
+            className={`dash-bar ${b.value === 0 ? 'is-zero' : ''}`}
+            style={{ height: b.value === 0 || max === 0 ? undefined : `${Math.max(4, (b.value / max) * 100)}%` }}
+            title={`${b.title} · ${formatCurrency(b.value)}`}
+          />
+        ))}
+      </div>
+      <div className={detailed ? 'dash-ticks' : 'dash-ticks dash-ticks-bars'} aria-hidden="true">
+        {ticks
+          ? ticks.map((t, i) => <span key={i}>{t}</span>)
+          : bars.map((b, i) => <span key={i}>{b.label}</span>)}
+      </div>
+    </section>
+  );
+}
+
+function Volume({ buckets, detailed }: { buckets: Bucket[]; detailed: boolean }) {
+  const max = Math.max(...buckets.map(b => b.units), 0);
+  return (
+    <section className="dash-card dash-block" aria-labelledby="vol-titulo">
+      <div className="dash-block-head">
+        <h2 id="vol-titulo" className="dash-h2">Volume <em>de vendas</em></h2>
+        <span className="dash-hint">{detailed ? 'unidades por semana' : 'unidades por mês'}</span>
+      </div>
+      <div className="dash-weeks">
+        {buckets.map((b, i) => (
+          <div key={i} className="dash-week">
+            <span className="dash-week-value">{b.units === 0 ? '—' : `${b.units} un`}</span>
+            <div
+              className={`dash-week-bar ${b.units === 0 ? 'is-zero' : ''}`}
+              style={{ height: b.units === 0 || max === 0 ? undefined : `${Math.round((b.units / max) * 80)}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="dash-week-labels">
+        {buckets.map((b, i) => <span key={i}>{b.label}</span>)}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * O esqueleto dos números: as mesmas caixas da tela pronta, no mesmo lugar e
+ * com a mesma altura, para nada pular quando os dados chegam. O cabeçalho e os
+ * meses já estão na tela, então ficam de fora.
+ */
+function DashboardSkeleton() {
+  return (
+    <div role="status" aria-busy="true" aria-label="Carregando a visão geral" className="dash-skeleton">
+      <div className="dash-hero">
+        <section className="dash-card dash-revenue">
+          <span className="skeleton skeleton-line" style={{ width: 130, height: 16 }} />
+          <span className="skeleton" style={{ width: 'min(100%, 460px)', height: 99 }} />
+          <span className="skeleton skeleton-line" style={{ width: 'min(100%, 380px)', height: 21 }} />
+        </section>
+        <div className="dash-side">
+          {[0, 1].map(i => (
+            <section key={i} className="dash-card dash-stat">
+              <span className="skeleton skeleton-line" style={{ width: 150, height: 16 }} />
+              <span className="skeleton" style={{ width: 150, height: 48 }} />
+              <span className="skeleton skeleton-line" style={{ width: 110, height: 21 }} />
+            </section>
+          ))}
+        </div>
       </div>
 
-      {loading ? (
-        <div className="loading-state" style={{ marginTop: '4rem' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
-          Analisando inteligência de dados...
+      <section className="dash-card dash-block">
+        <div className="dash-block-head" style={{ height: 46 }}>
+          <span className="skeleton" style={{ width: 280, height: 34 }} />
+          <span className="skeleton skeleton-line" style={{ width: 90, height: 16 }} />
         </div>
-      ) : (
-        <>
-          <div className="stats-grid">
-            <div className="stat-card base-card profit">
-              <span className="label">Receita Líquida Gerada</span>
-              <h2 className="value">{formatCurrency(totalRevenue)}</h2>
-              <span className="stat-note">já descontados os abatimentos</span>
+        <div className="dash-situation">
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className="dash-sit dash-sit-ink">
+              <span className="skeleton skeleton-line" style={{ width: '70%', height: 16 }} />
+              <span className="skeleton" style={{ width: '55%', height: 48 }} />
             </div>
-            <div className="stat-card base-card">
-              <span className="label">Unidades Vendidas</span>
-              <h2 className="value">{totalItemsSold}</h2>
-            </div>
-            <div className="stat-card base-card">
-              <span className="label">Ticket Médio (Por Item)</span>
-              <h2 className="value">{formatCurrency(totalItemsSold > 0 ? totalRevenue / totalItemsSold : 0)}</h2>
-            </div>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          {summary && (
-            <div className="inventory-panel base-card">
-              <div className="inventory-panel-header">
-                <h3>Situação do Estoque</h3>
-                <span className="text-dim">{summary.inventory.totalProducts} produtos cadastrados</span>
+      <div className="dash-pair">
+        {[0, 1].map(i => (
+          <section key={i} className="dash-card dash-block">
+            <div className="dash-block-head" style={{ height: 42 }}>
+              <span className="skeleton" style={{ width: 220, height: 34 }} />
+              <span className="skeleton skeleton-line" style={{ width: 110, height: 16 }} />
+            </div>
+            <div className="dash-bars dash-bars-skeleton">
+              {Array.from({ length: i === 0 ? 30 : 5 }, (_, k) => (
+                <span key={k} className="skeleton" style={{ flex: '1 1 0', height: `${25 + ((k * 37) % 60)}%` }} />
+              ))}
+            </div>
+            <span className="skeleton skeleton-line" style={{ width: '100%', height: 18 }} />
+          </section>
+        ))}
+      </div>
+
+      <section className="dash-card dash-block">
+        <span className="skeleton" style={{ width: 230, height: 42 }} />
+        <div className="dash-ranking">
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className="dash-rank">
+              <div className="dash-rank-top">
+                <span className="skeleton" style={{ width: 34, height: 36 }} />
+                <span className="skeleton skeleton-line" style={{ width: 46, height: 18 }} />
               </div>
-
-              <div className="inventory-metrics">
-                <div className="inventory-metric">
-                  <span className="label">Valor em estoque</span>
-                  <strong>{formatCurrency(summary.inventory.totalStockValue)}</strong>
-                </div>
-                <div className="inventory-metric">
-                  <span className="label">Lucro previsto</span>
-                  <strong className="text-success">{formatCurrency(summary.inventory.totalExpectedProfit)}</strong>
-                </div>
-                <div className={`inventory-metric ${summary.inventory.expiredItems > 0 ? 'is-alert' : ''}`}>
-                  <span className="label">Vencidos em estoque</span>
-                  <strong>{summary.inventory.expiredItems}</strong>
-                </div>
-                <div className={`inventory-metric ${summary.inventory.expiringSoonItems > 0 ? 'is-warning' : ''}`}>
-                  <span className="label">Vencem em {summary.inventory.expiryWarningDays} dias</span>
-                  <strong>{summary.inventory.expiringSoonItems}</strong>
-                </div>
-                <div className={`inventory-metric ${summary.inventory.outOfStockItems > 0 ? 'is-warning' : ''}`}>
-                  <span className="label">Esgotados</span>
-                  <strong>{summary.inventory.outOfStockItems}</strong>
-                </div>
-                <div className="inventory-metric">
-                  <span className="label">Vendas do mês</span>
-                  <strong>{formatCurrency(summary.sales.currentMonthTotal)} <span className="text-dim">({summary.sales.currentMonthCount})</span></strong>
-                </div>
-              </div>
+              <span className="skeleton skeleton-line" style={{ width: '85%', height: 22 }} />
+              <span className="skeleton" style={{ width: '100%', height: 6 }} />
             </div>
-          )}
-
-          <div className="dashboard-filters" style={{ alignItems: 'flex-end' }}>
-            
-            <div className="filter-group">
-              <label>Período de Análise</label>
-              <div className="time-pills">
-                <button className={`time-pill ${timeRange === '1M' ? 'active' : ''}`} onClick={() => setTimeRange('1M')}>Mês</button>
-                <button className={`time-pill ${timeRange === '3M' ? 'active' : ''}`} onClick={() => setTimeRange('3M')}>3 Meses</button>
-                <button className={`time-pill ${timeRange === '6M' ? 'active' : ''}`} onClick={() => setTimeRange('6M')}>6 Meses</button>
-                <button className={`time-pill ${timeRange === '1Y' ? 'active' : ''}`} onClick={() => setTimeRange('1Y')}>1 Ano</button>
-              </div>
-            </div>
-
-            <SearchableFilter label="Filtrar por Categoria" options={categories} value={selectedCategory} onChange={setSelectedCategory} />
-            <SearchableFilter label="Filtrar por Marca" options={brands} value={selectedBrand} onChange={setSelectedBrand} />
-          </div>
-
-          <div className="charts-grid">
-            
-            <div className="charts-left-column">
-              
-              <div className="chart-card base-card">
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3 style={{ margin: 0 }}>
-                    Fluxo de Caixa 
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginLeft: '8px', fontWeight: 'normal' }}>
-                      (R$)
-                    </span>
-                  </h3>
-                </div>
-                
-                <div className="chart-container" style={{ width: '100%', height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={temporalData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                      <XAxis dataKey="period" stroke="var(--text-dim)" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis 
-                        stroke="var(--text-dim)" fontSize={12} tickLine={false} axisLine={false} 
-                        tickFormatter={(v) => `R$${v}`} 
-                        domain={[0, (dataMax: number) => Math.max(100, dataMax)]} 
-                      />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                      <Line type="monotone" dataKey="revenue" stroke="var(--success-color)" strokeWidth={3} dot={{ r: 3, fill: 'var(--success-color)' }} activeDot={{ r: 6 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="chart-card base-card">
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3 style={{ margin: 0 }}>
-                    Volume de Vendas 
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginLeft: '8px', fontWeight: 'normal' }}>
-                      (Unidades)
-                    </span>
-                  </h3>
-                </div>
-                
-                <div className="chart-container" style={{ width: '100%', height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={temporalData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                      <XAxis dataKey="period" stroke="var(--text-dim)" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis 
-                        stroke="var(--text-dim)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} 
-                        domain={[0, (dataMax: number) => Math.max(3, dataMax)]} 
-                      />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                      <Bar dataKey="quantity" fill="var(--accent-color)" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-            </div>
-
-            <div className="chart-card base-card">
-              <h3>Ranking: Top 10 Produtos</h3>
-              
-              <div className="chart-container" style={{ width: '100%', height: 500, marginTop: '1.5rem' }}>
-                {topProductsData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart layout="vertical" data={topProductsData} margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false} />
-                      <XAxis type="number" stroke="var(--text-dim)" fontSize={12} hide />
-                      <YAxis type="category" dataKey="name" stroke="var(--text-dim)" fontSize={11} tickLine={false} axisLine={false} width={120} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                      <Bar dataKey="quantity" fill="#00f2ff" radius={[0, 4, 4, 0]} barSize={20} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="empty-cart" style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
-                    Nenhuma venda neste período.
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </>
-      )}
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
