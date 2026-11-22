@@ -35,7 +35,7 @@
 }
 .box { width: 14px; height: 14px; border-radius: 4px; }
 .box.paid { background-color: var(--success-color); }
-.box.paid-late { background-color: #f59e0b; }
+.box.paid-late { background-color: var(--warning-color); }
 .box.pending { background-color: var(--border-color); }
 .box.overdue { background-color: var(--danger-color); }
 
@@ -55,7 +55,7 @@
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.sale-accordion-card:hover { border-color: rgba(139, 92, 246, 0.4); }
+.sale-accordion-card:hover { border-color: color-mix(in oklch, var(--accent-color) 40%, transparent); }
 
 .sale-accordion-header {
   display: flex;
@@ -66,7 +66,7 @@
   background: transparent;
   transition: background 0.2s;
 }
-.sale-accordion-header:hover { background: rgba(255, 255, 255, 0.02); }
+.sale-accordion-header:hover { background: color-mix(in oklch, var(--text-main) 2%, transparent); }
 
 /* --- Informações da Venda --- */
 .sale-info-left h4 {
@@ -110,7 +110,7 @@
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: white;
+  color: var(--on-accent);
 }
 .inst-square.paid { background-color: var(--success-color); }
 .inst-square.pending { background-color: var(--border-color); color: var(--text-dim); }
@@ -131,7 +131,7 @@
   padding: 12px 14px;
   background: var(--input-bg);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid color-mix(in oklch, var(--text-main) 5%, transparent);
 }
 .inst-name { font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
 .inst-actions { display: flex; align-items: center; gap: 16px; }
@@ -139,9 +139,9 @@
 
 /* --- Botão de Baixa --- */
 .btn-pay {
-  background: rgba(16, 185, 129, 0.15);
+  background: color-mix(in oklch, var(--success-color) 15%, transparent);
   color: var(--success-color);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid color-mix(in oklch, var(--success-color) 30%, transparent);
   padding: 6px 16px;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -149,7 +149,7 @@
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-pay:hover { background: var(--success-color); color: white; }
+.btn-pay:hover { background: var(--success-color); color: var(--on-accent); }
 /* --- Desconto e observação da venda --- */
 .sale-gross {
   color: var(--text-dim);
@@ -164,7 +164,7 @@
   padding: 10px 12px;
   margin-bottom: 14px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in oklch, var(--text-main) 3%, transparent);
   border: 1px solid var(--border-color);
 }
 .sale-extra-row {
@@ -186,3 +186,128 @@
   text-align: right;
   font-style: italic;
 }
+
+/* --- Extrato — Caatinga II: o painel verde ao lado da lista ---
+   Fica colado ao topo enquanto a lista rola; as contas vêm primeiro, as
+   compras depois, e a legenda das parcelas fecha o painel. */
+.statement-panel { position: sticky; top: 24px; align-self: start; }
+.statement-modal {
+  --painel-fio: #4C7A66;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100vh - 48px);
+  padding: 30px;
+  gap: 0;
+  background: var(--mandacaru);
+  color: var(--areia);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-y: auto;
+}
+
+.statement-header { align-items: flex-start; margin-bottom: 1.25rem; gap: 16px; }
+.statement-title { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.statement-kicker { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: #CFE0D5; }
+.statement-header h2 { margin: 0; font-family: var(--font-serif); font-size: 36px; font-weight: 400; letter-spacing: -0.02em; line-height: 1; color: var(--areia); overflow-wrap: anywhere; }
+.statement-contact { font-size: 14px; color: #DCE6DE; font-variant-numeric: tabular-nums; }
+.statement-close { width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid #5C8A75; color: var(--areia); border-radius: 0; flex-shrink: 0; cursor: pointer; }
+.statement-close:hover { background: color-mix(in srgb, var(--areia) 10%, transparent); }
+
+.statement-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--painel-fio); border-bottom: 1px solid var(--painel-fio); margin-bottom: 1.25rem; }
+.statement-totals > div { padding: 16px 16px 16px 0; display: flex; flex-direction: column; gap: 4px; }
+.statement-totals > div + div { padding: 16px 0 16px 16px; border-left: 1px solid var(--painel-fio); }
+.statement-totals span { font-size: 12px; color: #DCE6DE; }
+.statement-totals strong { font-family: var(--font-num); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
+
+.statement-overdue { background: #F06B60; color: var(--tinta); padding: 16px 18px; margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.statement-overdue > span { display: flex; flex-direction: column; gap: 2px; }
+.statement-overdue strong { font-size: 15px; font-weight: 600; }
+.statement-overdue > span > span { font-size: 14px; font-variant-numeric: tabular-nums; }
+.statement-pay { min-height: 44px; padding: 12px 18px; background: var(--tinta); border: none; color: var(--papel); font-size: 14px; font-weight: 600; cursor: pointer; }
+.statement-pay:hover { background: #000; }
+
+.statement-legend { order: 9; margin: 1.25rem 0 0; padding: 14px 0 0; border-bottom: none; border-top: 1px solid var(--painel-fio); gap: 14px 20px; }
+.statement-legend .legend-item { color: #DCE6DE; font-size: 12px; }
+.statement-legend .box { border-radius: 0; width: 10px; height: 10px; }
+.statement-legend .box.paid { background: #8FCB6B; }
+.statement-legend .box.paid-late { background: #E8B931; }
+.statement-legend .box.overdue { background: #F06B60; }
+.statement-legend .box.pending { background: transparent; border: 1px solid #CFE0D5; box-sizing: border-box; }
+
+.statement-sales-list { overflow: visible; padding-right: 0; gap: 10px; }
+.statement-modal .sale-accordion-card { background: transparent; border: 1.5px solid #8FB8A2; border-radius: 0; }
+.statement-modal .sale-accordion-card:hover { border-color: var(--areia); }
+.statement-modal .sale-accordion-header { padding: 14px 16px; }
+.statement-modal .sale-accordion-header:hover { background: color-mix(in srgb, var(--areia) 8%, transparent); }
+.statement-modal .sale-info-left h4 { color: #CFE0D5; font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.statement-modal .sale-products-label { color: var(--areia); font-size: 15px; max-width: 240px; }
+.statement-modal .sale-total { color: var(--areia); font-size: 16px; font-variant-numeric: tabular-nums; }
+.statement-modal .sale-gross { color: #CFE0D5; }
+.statement-modal .chevron-icon { color: #CFE0D5; }
+.statement-modal .chevron-icon.expanded { color: var(--areia); }
+.statement-modal .sale-accordion-body { background: transparent; border-top: 1px solid var(--painel-fio); }
+.statement-modal .inst-square { border-radius: 0; color: var(--tinta); }
+.statement-modal .inst-square.paid { background: #8FCB6B; }
+.statement-modal .inst-square.paid-late { background: #E8B931; }
+.statement-modal .inst-square.overdue { background: #F06B60; }
+.statement-modal .inst-square.pending { background: transparent; border: 1px solid #CFE0D5; color: var(--areia); }
+.statement-modal .installments-title { color: #CFE0D5; }
+.statement-modal .installment-row { background: transparent; border: 1px solid var(--painel-fio); border-radius: 0; }
+.statement-modal .inst-name { color: var(--areia); }
+.statement-modal .inst-date { color: #DCE6DE; }
+.statement-modal .sale-extra-info { background: transparent; border: 1px solid var(--painel-fio); border-radius: 0; }
+.statement-modal .sale-extra-label { color: #CFE0D5; }
+.statement-modal .sale-extra-value { color: #8FCB6B; }
+.statement-modal .btn-pay { background: var(--tinta); color: var(--papel); border: none; border-radius: 0; min-height: 44px; padding: 10px 18px; }
+.statement-modal .btn-pay:hover { background: #000; }
+.statement-modal .empty-state, .statement-modal .text-dim { color: #DCE6DE; }
+
+/* --- Edição do cadastro, no lugar do cabeçalho --- */
+.edit-header { display: flex; flex-direction: column; gap: 18px; margin-bottom: 1.25rem; }
+.edit-field { display: flex; flex-direction: column; gap: 6px; }
+.edit-field label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: #CFE0D5; }
+.edit-field label span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+/* Campo escuro sobre o verde: avisa que ali se escreve. */
+.edit-field input {
+  min-height: 44px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, #000 28%, var(--mandacaru));
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  border-radius: 0;
+  color: var(--areia);
+  font-size: 17px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.edit-field input.edit-name { font-family: var(--font-serif); font-size: 26px; min-height: 52px; }
+.edit-field input::placeholder { color: #8FB0A0; }
+.edit-field input:focus { border-bottom-color: var(--rosa); }
+.edit-add-email { align-self: flex-start; min-height: 44px; padding: 10px 0; background: none; border: none; color: var(--areia); font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.edit-add-email:hover { color: var(--rosa); }
+.edit-error { margin: 0; padding: 12px 14px; background: #F06B60; color: var(--tinta); font-size: 14px; font-weight: 600; }
+.edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.edit-cancel, .edit-save { min-height: 44px; padding: 12px 22px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.edit-cancel { background: transparent; border: 1px solid #5C8A75; color: var(--areia); }
+.edit-cancel:hover:not(:disabled) { background: color-mix(in srgb, var(--areia) 10%, transparent); }
+.edit-save { background: var(--areia); border: none; color: var(--tinta); }
+.edit-save:hover:not(:disabled) { background: var(--papel); }
+.edit-cancel:disabled, .edit-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Os quadradinhos no cabeçalho da compra: dá para ver, sem abrir, qual tem
+   parcela atrasada ou a vencer. */
+.sale-mini { display: flex; gap: 4px; margin-top: 8px; }
+.sale-mini-square { width: 14px; height: 8px; border: 1px solid #CFE0D5; box-sizing: border-box; }
+.sale-mini-square.paid { background: #8FCB6B; border-color: #8FCB6B; }
+.sale-mini-square.paid-late { background: #E8B931; border-color: #E8B931; }
+.sale-mini-square.overdue { background: #F06B60; border-color: #F06B60; }
+.statement-modal .sale-accordion-header:focus-visible { outline: 2px solid var(--rosa); outline-offset: -2px; }
+
+/* O lápis ao lado do nome, no cabeçalho do extrato. */
+.statement-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.statement-edit { width: 44px; height: 44px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: #CFE0D5; cursor: pointer; }
+.statement-edit:hover { color: var(--rosa); }
+.statement-edit:focus-visible { outline: 2px solid var(--rosa); outline-offset: -2px; }

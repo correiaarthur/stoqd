@@ -1,19 +1,26 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { getApiErrorMessage } from '../utils/errors';
 import { useCustomers, type Customer } from '../hooks/useCustomers';
 import { formatCurrency } from '../utils/formatters';
 import { CustomerModal } from '../components/CustomerModal';
-import { CustomerStatementModal } from '../components/CustomerStatementModal';
+import { CustomerStatementPanel } from '../components/CustomerStatementPanel';
 import './Customers.css';
 
 export function Customers() {
-  const { customers, refetchCustomers } = useCustomers();
+  const { customers, loading, refetchCustomers } = useCustomers();
+  // Esqueleto só na primeira carga; recarregar depois de salvar não pisca a tela.
+  const firstLoad = loading && customers.length === 0;
   
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  // O extrato fica ao lado da lista. Sem escolha, mostra o primeiro cliente que
+  // tem parcela atrasada (ou o primeiro da lista); "fechar" recolhe o painel.
+  const [pickedId, setPickedId] = useState<number | null>(null);
+  const [panelOpen, setPanelOpen] = useState(true);
+  // O lápis troca o extrato pelos campos de edição, no mesmo painel.
+  const [editing, setEditing] = useState(false);
 
   const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -35,95 +42,177 @@ export function Customers() {
     }
   };
 
-  const openEditModal = (customer: Customer) => {
-    setCustomerToEdit(customer);
-    setIsModalOpen(true);
+  const startEditing = (customer: Customer) => {
+    setPickedId(customer.id);
+    setPanelOpen(true);
+    setEditing(true);
   };
 
+  const selectCustomer = (id: number) => {
+    setPickedId(id);
+    setPanelOpen(true);
+    setEditing(false);
+  };
+
+  const defaultId = (filteredCustomers.find(c => c.hasOverdue) ?? filteredCustomers[0])?.id ?? null;
+  const selectedId = filteredCustomers.some(c => c.id === pickedId) ? pickedId : defaultId;
+  const selectedCustomer = customers.find(c => c.id === selectedId) ?? null;
+  const showPanel = panelOpen && selectedId !== null;
+
+  const summary = useMemo(() => ({
+    total: customers.length,
+    open: customers.filter(c => (c.pendingSalesCount || 0) > 0).length,
+    receivable: customers.reduce((sum, c) => sum + (Number(c.totalDebt) || 0), 0),
+    overdue: customers.filter(c => c.hasOverdue).length,
+  }), [customers]);
+
   return (
-    <div className="page-container">
-      <div className="customers-header" style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Clientes</h1>
+    <div className="cu">
+      <header className="cu-head">
+        <div className="cu-head-text">
+          <span className="cu-kicker">Operação · caderneta</span>
+          <h1 className="cu-title">Clientes</h1>
+        </div>
+        <div className="cu-actions">
+          <div className="input-with-icon cu-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              aria-label="Buscar cliente pelo nome"
+              placeholder="Buscar pelo nome"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <button type="button" className="cu-new" onClick={() => { setCustomerToEdit(null); setIsModalOpen(true); }}>
+            + Novo cliente
+          </button>
+        </div>
+      </header>
+
+      <div className="cu-summary">
+        <div className="cu-stat">
+          <span className="cu-label">Clientes</span>
+          {firstLoad ? <span className="skeleton cu-sk-stat" /> : <strong className="cu-stat-value">{summary.total}</strong>}
+        </div>
+        <div className="cu-stat">
+          <span className="cu-label">Com conta aberta</span>
+          {firstLoad ? <span className="skeleton cu-sk-stat" /> : <strong className="cu-stat-value">{summary.open}</strong>}
+        </div>
+        <div className="cu-stat">
+          <span className="cu-label">A receber</span>
+          {firstLoad ? <span className="skeleton cu-sk-stat" /> : <strong className="cu-stat-value">{formatCurrency(summary.receivable)}</strong>}
+        </div>
+        <div className="cu-stat">
+          <span className="cu-label">Em atraso</span>
+          {firstLoad ? <span className="skeleton cu-sk-stat" /> : (
+            <strong className={`cu-stat-value ${summary.overdue > 0 ? 'cu-bad' : ''}`}>
+              {summary.overdue} {summary.overdue === 1 ? 'cliente' : 'clientes'}
+            </strong>
+          )}
+        </div>
       </div>
 
-      <section className="page-card base-card">
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-          
-          <div style={{ flex: 1, maxWidth: '400px' }}>
-            <div className="input-with-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input 
-                type="text" 
-                placeholder="Buscar cliente pelo nome..." 
-                value={search} 
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
+      <div className={`cu-body ${showPanel ? 'has-panel' : ''}`}>
+      <div className="cu-table-wrap">
+        <table className="cu-table">
+          <thead>
+            <tr>
+              <th scope="col">Cliente</th>
+              <th scope="col">Pendências</th>
+              <th scope="col" className="num">Deve</th>
+              <th scope="col" className="num"><span className="sr-only">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody aria-busy={firstLoad}>
+            {firstLoad ? (
+              [0, 1, 2, 3, 4, 5].map(i => (
+                <tr key={i} aria-hidden="true">
+                  <td><span className="skeleton cu-sk-line" style={{ width: `${150 + (i % 3) * 30}px` }} /></td>
+                  <td><span className="skeleton cu-sk-line" style={{ width: 80 }} /></td>
+                  <td className="num"><span className="skeleton cu-sk-line" style={{ width: 70 }} /></td>
+                  <td className="num"><span className="skeleton cu-sk-line" style={{ width: 56 }} /></td>
+                </tr>
+              ))
+            ) : filteredCustomers.length > 0 ? (
+              filteredCustomers.map(c => {
+                // A API já devolve dívida, compras em aberto e atraso calculados.
+                const pendingSalesCount = c.pendingSalesCount || 0;
+                const isOverdue = c.hasOverdue;
+                const totalDebt = Number(c.totalDebt) || 0;
+                const tone = isOverdue ? 'late' : pendingSalesCount > 0 ? 'open' : 'ok';
 
-          <button className="btn-primary" onClick={() => { setCustomerToEdit(null); setIsModalOpen(true); }} style={{ whiteSpace: 'nowrap' }}>
-            + Novo Cliente
-          </button>
+                return (
+                  <tr
+                    key={c.id}
+                    className={`cu-row cu-row-${tone} ${showPanel && c.id === selectedId ? 'is-selected' : ''}`}
+                    onClick={() => selectCustomer(c.id)}
+                  >
+                    <td>
+                      <button type="button" className="cu-open" aria-pressed={showPanel && c.id === selectedId}>
+                        <strong>{c.name}</strong>
+                        <span>{c.phone || c.email || 'Sem contato'}</span>
+                      </button>
+                    </td>
+                    <td>
+                      <span className={`cu-pending cu-pending-${tone}`}>
+                        <span className="cu-dot" aria-hidden="true" />
+                        {isOverdue
+                          ? 'Parcela atrasada'
+                          : pendingSalesCount > 0
+                            ? `${pendingSalesCount} ${pendingSalesCount === 1 ? 'compra ativa' : 'compras ativas'}`
+                            : 'Em dia'}
+                      </span>
+                    </td>
+                    <td className={`num cu-debt ${isOverdue ? 'cu-bad' : ''}`}>
+                      {totalDebt > 0 ? formatCurrency(totalDebt) : '—'}
+                    </td>
+                    <td className="num">
+                      <div className="cu-row-actions">
+                        <button type="button" className="cu-icon" aria-label={`Editar ${c.name}`} title="Editar" onClick={e => { e.stopPropagation(); startEditing(c); }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                          </svg>
+                        </button>
+                        <button type="button" className="cu-icon cu-remove" aria-label={`Remover ${c.name}`} title="Remover" onClick={e => { e.stopPropagation(); handleDelete(c); }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr><td colSpan={4} className="cu-empty">Nenhum cliente encontrado.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        </div>
-
-        <div className="table-container">
-          <table className="data-table">
-            <thead><tr><th>Nome</th><th>Contato</th><th>Pendências</th><th className="highlight-col">Deve</th><th>Ações</th></tr></thead>
-            <tbody>
-              {filteredCustomers.length > 0 ? (
-                filteredCustomers.map(c => {
-                  // A API já devolve dívida, compras em aberto e atraso calculados.
-                  const pendingSalesCount = c.pendingSalesCount || 0;
-                  const isOverdue = c.hasOverdue;
-                  const totalDebt = Number(c.totalDebt) || 0;
-
-                  return (
-                    <tr key={c.id} onClick={() => setSelectedCustomerId(c.id)} className={`customer-row ${isOverdue ? 'is-overdue' : ''}`}>
-                      <td><strong>{c.name}</strong></td>
-                      <td>
-                        {c.phone || c.email ? (
-                          <>
-                            {c.phone}
-                            {c.phone && c.email && <br />}
-                            {c.email && <small className="text-dim">{c.email}</small>}
-                          </>
-                        ) : <span className="text-dim">Sem contato</span>}
-                      </td>
-                      <td>
-                        <span className={`pending-count ${pendingSalesCount > 0 ? 'active' : 'inactive'}`}>
-                          {pendingSalesCount} {pendingSalesCount === 1 ? 'compra ativa' : 'compras ativas'}
-                        </span>
-                      </td>
-                      <td className="highlight-cell">
-                        {totalDebt > 0
-                          ? <strong className={isOverdue ? 'text-danger' : ''}>{formatCurrency(totalDebt)}</strong>
-                          : <span className="text-dim">—</span>}
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          <button className="btn-edit-text" onClick={(e) => { e.stopPropagation(); openEditModal(c); }}>Editar</button>
-                          <button className="btn-delete-text" onClick={(e) => { e.stopPropagation(); handleDelete(c); }}>Remover</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr><td colSpan={5} className="empty-state">Nenhum cliente encontrado.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {showPanel && (
+        <CustomerStatementPanel
+          customerId={selectedId}
+          name={selectedCustomer?.name}
+          contact={selectedCustomer ? (selectedCustomer.phone || selectedCustomer.email || 'Sem contato') : undefined}
+          editing={editing && selectedCustomer
+            ? { customer: selectedCustomer, onCancel: () => setEditing(false), onSaved: () => { setEditing(false); refetchCustomers(); } }
+            : undefined}
+          onEdit={selectedCustomer ? () => startEditing(selectedCustomer) : undefined}
+          onClose={() => setPanelOpen(false)}
+          onRefresh={refetchCustomers}
+        />
+      )}
+      </div>
 
       {isModalOpen && (
         <CustomerModal customerToEdit={customerToEdit} onClose={() => { setIsModalOpen(false); setCustomerToEdit(null); }} onSuccess={() => refetchCustomers()} />
       )}
-      <CustomerStatementModal customerId={selectedCustomerId} onClose={() => setSelectedCustomerId(null)} onRefresh={refetchCustomers} />
     </div>
   );
 }
