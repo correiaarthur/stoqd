@@ -10,6 +10,8 @@ type Props = {
   subtotal: number;
   applied: AppliedCoupon | null;
   onChange: (coupon: AppliedCoupon | null) => void;
+  /** `line`: campo sublinhado, para sobre a página; o padrão é o campo de caixa do painel. */
+  variant?: 'box' | 'line';
 };
 
 /**
@@ -22,7 +24,7 @@ type Props = {
  * O que esta tela diz é informativo. Quem decide é a venda, que revalida o
  * cupom e consome o uso dentro da própria transação.
  */
-export function CouponField({ subtotal, applied, onChange }: Props) {
+export function CouponField({ subtotal, applied, onChange, variant = 'box' }: Props) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isChecking, setIsChecking] = useState(false);
@@ -69,7 +71,7 @@ export function CouponField({ subtotal, applied, onChange }: Props) {
 
   if (applied) {
     return (
-      <div className="coupon-field">
+      <div className={`coupon-field ${variant === 'line' ? 'is-line' : ''}`}>
         <span className="coupon-label">Cupom</span>
         <div className="coupon-applied">
           <div className="coupon-applied-main">
@@ -88,13 +90,14 @@ export function CouponField({ subtotal, applied, onChange }: Props) {
   }
 
   return (
-    <div className="coupon-field">
-      <span className="coupon-label">Cupom de desconto</span>
+    <div className={`coupon-field ${variant === 'line' ? 'is-line' : ''}`}>
+      <label className="coupon-label" htmlFor="coupon-code">Cupom de desconto</label>
       <div className="coupon-input-group">
         <input
+          id="coupon-code"
           type="text"
           className="input-standard coupon-input"
-          placeholder="Tem um código?"
+          placeholder={variant === 'line' ? 'Digite o código' : 'Tem um código?'}
           value={code}
           autoCapitalize="characters"
           onChange={e => { setCode(e.target.value.toUpperCase()); setError(''); }}

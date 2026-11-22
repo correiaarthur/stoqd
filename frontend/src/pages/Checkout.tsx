@@ -12,6 +12,7 @@ import { CustomerModal } from '../components/CustomerModal';
 import { CouponField, type AppliedCoupon } from '../components/CouponField';
 import { PaymentPicker, type PaymentChoice } from '../components/PaymentPicker';
 import { usePaymentOptions, totalsFor } from '../hooks/usePaymentOptions';
+import { LazyImage } from '../components/LazyImage';
 import './Checkout.css';
 
 /**
@@ -35,6 +36,8 @@ export function Checkout() {
   const customer = isCustomer();
 
   const [isProcessing, setIsProcessing] = useState(false);
+  // O cupom do visitante mora na coluna dos produtos e mexe no total do resumo.
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -42,11 +45,16 @@ export function Checkout() {
 
   // Ao entrar no checkout o servidor responde a disponibilidade de agora: é o
   // caso do carrinho que sobreviveu no navegador enquanto a reserva vencia.
+  //
+  // Os itens já estão na tela (vêm do navegador); o que ainda não se sabe é o
+  // estoque de cada um. Enquanto essa resposta não chega, só o lugar dela vira
+  // esqueleto — esconder a sacola inteira seria esconder o que já se sabe.
   const checkedOnMount = useRef(false);
+  const [checkingStock, setCheckingStock] = useState(items.length > 0);
   useEffect(() => {
     if (checkedOnMount.current) return;
     checkedOnMount.current = true;
-    refreshAvailability();
+    Promise.resolve(refreshAvailability()).finally(() => setCheckingStock(false));
   }, [refreshAvailability]);
 
   // O que barra o admin não é o que barra o visitante. Quem está com o produto
@@ -71,6 +79,8 @@ export function Checkout() {
     }
   };
 
+  const unitCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
   const canFinish = items.length > 0 && blockingItems.length === 0 && !isProcessing;
 
   const blockedReason = blockingItems.length === 0
@@ -81,9 +91,22 @@ export function Checkout() {
 
   return (
     <div className="page-container checkout-page">
+      <Link to="/" className="checkout-back">← Continuar escolhendo</Link>
+
       <div className="checkout-head">
-        <h1 className="page-title" style={{ margin: 0 }}>{admin ? 'Fechar venda' : 'Seu carrinho'}</h1>
-        <Link to="/" className="checkout-back">← Continuar escolhendo</Link>
+        <div className="checkout-head-text">
+          <span className="checkout-kicker">
+            {items.length === 0
+              ? (admin ? 'Balcão' : 'Sacola')
+              : `${admin ? 'Balcão' : 'Sacola'} · ${items.length} ${items.length === 1 ? 'produto' : 'produtos'}, ${unitCount} ${unitCount === 1 ? 'unidade' : 'unidades'}`}
+          </span>
+          <h1 className="checkout-title">
+            {admin ? <>Fechar <em>venda.</em></> : <>Seu pedido, <em>reservado.</em></>}
+          </h1>
+        </div>
+        {items.length > 0 && secondsLeft !== null && !admin && (
+          <ReservationTimer secondsLeft={secondsLeft} totalMinutes={reservationMinutes} />
+        )}
       </div>
 
       {items.length === 0 ? (
@@ -106,30 +129,10 @@ export function Checkout() {
         </div>
       ) : (
         <div className="checkout-layout">
-          <section className="checkout-items base-card">
-            {secondsLeft !== null && !admin && (
-              <ReservationTimer secondsLeft={secondsLeft} totalMinutes={reservationMinutes} />
-            )}
-
-            {blockingItems.length > 0 && (
-              <div className="stock-alert">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="stock-alert-icon">
-                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                  <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-
-                <div className="stock-alert-text">
-                  <strong>
-                    {secondsLeft === 0 && !admin ? 'Sua reserva venceu e o estoque ' : 'O estoque '}
-                    {blockingItems.length === 1 ? 'de um item mudou' : `de ${blockingItems.length} itens mudou`}
-                  </strong>
-                  <span>Os itens continuam no carrinho. Ajuste ou remova os marcados para continuar.</span>
-                </div>
-
-                <button type="button" className="btn-secondary stock-alert-fix" onClick={fixAllBlocking}>
-                  Ajustar tudo
-                </button>
-              </div>
+          <div className="checkout-main">
+          <section className="checkout-items" aria-label="Produtos da sacola">
+            {checkingStock && (
+              <p className="stock-checking" role="status">Conferindo o estoque de cada item…</p>
             )}
 
             {items.map(item => {
@@ -143,7 +146,11 @@ export function Checkout() {
                 <div key={item.productId} className={`checkout-item ${short ? 'short' : ''} ${soldOut ? 'sold-out' : ''}`}>
                   <div className="checkout-item-image">
                     {item.imageUrl
-                      ? <img src={item.imageUrl} alt={`Imagem de ${item.name}`} />
+                      ? (
+                        <div className="checkout-item-photo skeleton">
+                          <LazyImage src={item.imageUrl} alt={`Imagem de ${item.name}`} />
+                        </div>
+                      )
                       : (
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="checkout-item-placeholder">
                           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
@@ -153,8 +160,32 @@ export function Checkout() {
                   </div>
 
                   <div className="checkout-item-main">
-                    <h3>{item.name}</h3>
-                    <span className="checkout-item-price">{formatCurrency(item.unitPrice)} cada</span>
+                    <div className="checkout-item-top">
+                      <h3>{item.name}</h3>
+                      <strong className="checkout-item-subtotal">{formatCurrency(item.unitPrice * item.quantity)}</strong>
+                    </div>
+
+                    <div className="checkout-item-controls">
+                      <div className="qty-controls">
+                        <button type="button" aria-label="Diminuir quantidade" onClick={() => setQuantity(item.productId, item.quantity - 1)}>−</button>
+                        <span>{item.quantity}</span>
+                        <button type="button" aria-label="Aumentar quantidade" onClick={() => setQuantity(item.productId, item.quantity + 1)}>+</button>
+                      </div>
+                      {item.quantity > 1 && (
+                        <span className="checkout-item-price">{formatCurrency(item.unitPrice)} cada</span>
+                      )}
+                      <button type="button" className="btn-remove" aria-label={`Remover ${item.name}`} title="Remover" onClick={() => removeItem(item.productId)}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {checkingStock && !status && (
+                      <span className="skeleton skeleton-line checkout-item-skeleton" aria-hidden="true" />
+                    )}
 
                     {short && (
                       <span className="checkout-item-warning">
@@ -164,7 +195,7 @@ export function Checkout() {
                           className="checkout-item-fix"
                           onClick={() => (soldOut ? removeItem(item.productId) : setQuantity(item.productId, left!))}
                         >
-                          {soldOut ? 'remover do carrinho' : `ajustar para ${left}`}
+                          {soldOut ? 'remover da sacola' : `ajustar para ${left}`}
                         </button>
                       </span>
                     )}
@@ -177,27 +208,32 @@ export function Checkout() {
                       </span>
                     )}
                   </div>
-
-                  <div className="checkout-item-controls">
-                    <div className="qty-controls">
-                      <button type="button" onClick={() => setQuantity(item.productId, item.quantity - 1)}>−</button>
-                      <span>{item.quantity}</span>
-                      <button type="button" onClick={() => setQuantity(item.productId, item.quantity + 1)}>+</button>
-                    </div>
-                    <span className="checkout-item-subtotal">{formatCurrency(item.unitPrice * item.quantity)}</span>
-                    <button type="button" className="btn-remove" title="Remover" aria-label={`Remover ${item.name}`} onClick={() => removeItem(item.productId)}>
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                      </svg>
-                    </button>
-                  </div>
                 </div>
               );
             })}
           </section>
+
+          {blockingItems.length > 0 && (
+            <aside className="stock-alert" role="alert">
+              <p className="stock-alert-text">
+                <strong>
+                  {secondsLeft === 0 && !admin ? 'Sua reserva venceu e o estoque ' : 'O estoque '}
+                  {blockingItems.length === 1 ? 'de um item mudou.' : `de ${blockingItems.length} itens mudou.`}
+                </strong>{' '}
+                Os itens continuam na sacola. Ajuste ou remova os marcados para continuar.
+              </p>
+              <button type="button" className="stock-alert-fix" onClick={fixAllBlocking}>
+                Ajustar tudo
+              </button>
+            </aside>
+          )}
+
+          {!admin && customer && (
+            <div className="checkout-coupon">
+              <CouponField variant="line" subtotal={total} applied={coupon} onChange={setCoupon} />
+            </div>
+          )}
+          </div>
 
           {admin ? (
             <AdminPanel
@@ -218,6 +254,7 @@ export function Checkout() {
               canFinish={canFinish}
               blockedReason={blockedReason}
               isCustomer={customer}
+              coupon={coupon}
               isProcessing={isProcessing}
               setIsProcessing={setIsProcessing}
               error={error}
@@ -251,23 +288,14 @@ function ReservationTimer({ secondsLeft, totalMinutes }: { secondsLeft: number; 
     : null;
 
   return (
-    <div className={`reservation-timer ${expired ? 'expired' : ''}`}>
-      <div className="reservation-timer-head">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-
-        <span className="reservation-timer-text">
-          {expired
-            ? 'Sua reserva venceu — os itens continuam no carrinho'
-            : 'Estoque reservado para você'}
-        </span>
-
-        {!expired && <span className="reservation-timer-clock">{formatCountdown(secondsLeft)}</span>}
-      </div>
+    <div className={`reservation-timer ${expired ? 'expired' : ''}`} role="timer">
+      <span className="reservation-timer-text">
+        {expired ? 'Reserva vencida' : 'Reservado por mais'}
+      </span>
+      <span className="reservation-timer-clock">{expired ? '00:00' : formatCountdown(secondsLeft)}</span>
 
       {percent !== null && !expired && (
-        <div className="reservation-timer-track">
+        <div className="reservation-timer-track" aria-hidden="true">
           <div className="reservation-timer-fill" style={{ width: `${percent}%` }}></div>
         </div>
       )}
@@ -288,11 +316,10 @@ type PanelBase = {
 
 /** O que o visitante vê: total, e um botão que depende de estar logado. */
 function CustomerPanel({
-  itemsTotal, canFinish, blockedReason, isCustomer: logged, isProcessing, setIsProcessing, error, setError, onOrdered,
-}: PanelBase & { isCustomer: boolean; onOrdered: () => void }) {
+  itemsTotal, canFinish, blockedReason, isCustomer: logged, coupon, isProcessing, setIsProcessing, error, setError, onOrdered,
+}: PanelBase & { isCustomer: boolean; coupon: AppliedCoupon | null; onOrdered: () => void }) {
   const { items, cartToken } = useCart();
   const [observation, setObservation] = useState('');
-  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [choice, setChoice] = useState<PaymentChoice>({ paymentType: 'VISTA', installmentsCount: 1 });
 
   const netTotal = Math.max(itemsTotal - (coupon?.discount ?? 0), 0);
@@ -324,47 +351,39 @@ function CustomerPanel({
   };
 
   return (
-    <aside className="checkout-summary base-card">
-      <h2>Resumo</h2>
-
-      {logged && (
-        <>
-          <PaymentPicker
-            netTotal={netTotal}
-            installmentOptions={installmentOptions}
-            loading={loading}
-            value={choice}
-            onChange={setChoice}
-          />
-
-          {/* Última coisa antes do valor: o cupom mexe no total, então fica
-              colado nele em vez de aberto lá em cima. */}
-          <CouponField subtotal={itemsTotal} applied={coupon} onChange={setCoupon} />
-        </>
+    <aside className="checkout-summary checkout-summary-green" aria-label="Pagamento">
+      {logged ? (
+        <PaymentPicker
+          netTotal={netTotal}
+          installmentOptions={installmentOptions}
+          loading={loading}
+          value={choice}
+          onChange={setChoice}
+        />
+      ) : (
+        <h2 className="checkout-summary-title">Falta só <em>a conta.</em></h2>
       )}
 
       <div className="checkout-totals">
         <div className="total-row total-row-sub">
-          <span>Produtos</span>
+          <span>Subtotal</span>
           <span>{formatCurrency(itemsTotal)}</span>
         </div>
 
-        {coupon && (
-          <div className="total-row total-row-discount">
-            <span>Cupom {coupon.code}</span>
-            <span>− {formatCurrency(coupon.discount)}</span>
-          </div>
-        )}
+        <div className="total-row total-row-sub total-row-discount">
+          <span>{coupon ? `Cupom ${coupon.code}` : 'Desconto'}</span>
+          <span>{coupon ? `− ${formatCurrency(coupon.discount)}` : '—'}</span>
+        </div>
 
         {totals.interest > 0 && (
-          <div className="total-row total-row-interest">
+          <div className="total-row total-row-sub total-row-interest">
             <span>Juros do parcelamento ({totals.interestPercent}%)</span>
             <span>+ {formatCurrency(totals.interest)}</span>
           </div>
         )}
 
-        <div className="total-row">
-          <span className="total-label">TOTAL</span>
+        <div className="total-row total-row-final">
+          <span className="total-label">Total</span>
           <span className="total-value">{formatCurrency(totals.total)}</span>
         </div>
 
@@ -378,8 +397,9 @@ function CustomerPanel({
       {logged ? (
         <>
           <div className="form-group">
-            <label>Observação (opcional)</label>
+            <label htmlFor="co-obs">Observação (opcional)</label>
             <input
+              id="co-obs"
               type="text"
               className="input-standard"
               placeholder="Ex: retiro no sábado"
@@ -390,16 +410,16 @@ function CustomerPanel({
 
           {error && <div className="checkout-alert">{error}</div>}
 
-          <button className="btn-primary btn-checkout" disabled={!canFinish} onClick={sendOrder}>
+          <button type="button" className="checkout-cta" disabled={!canFinish} onClick={sendOrder}>
             {isProcessing ? 'Enviando...' : 'Enviar pedido'}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
           </button>
 
           {blockedReason && <span className="checkout-blocked">{blockedReason}</span>}
 
           <p className="checkout-note">
-            O pedido fica aguardando a confirmação da loja — inclusive a forma de pagamento,
-            que a loja confirma junto com você. Nada é cobrado agora, e o estoque só sai
-            quando a loja confirmar.
+            A loja confirma por telefone antes de separar — inclusive a forma de pagamento.
+            Nada é cobrado agora, e o estoque só sai quando a loja confirmar.
           </p>
         </>
       ) : (
@@ -408,8 +428,11 @@ function CustomerPanel({
             Para escolher a forma de pagamento, usar cupom e enviar o pedido é preciso ter
             uma conta — é assim que a loja sabe com quem falar para combinar entrega e pagamento.
           </p>
-          <Link to="/cadastro?next=/checkout" className="btn-primary btn-checkout">Criar conta</Link>
-          <Link to="/login?next=/checkout" className="btn-secondary btn-checkout">Já tenho conta</Link>
+          <Link to="/cadastro?next=/checkout" className="checkout-cta">
+            Criar conta
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+          </Link>
+          <Link to="/login?next=/checkout" className="checkout-cta checkout-cta-ghost">Já tenho conta</Link>
         </>
       )}
     </aside>
@@ -435,7 +458,6 @@ function AdminPanel({
   const [observation, setObservation] = useState('');
   const [discountInput, setDiscountInput] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
-  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [choice, setChoice] = useState<PaymentChoice>({ paymentType: 'VISTA', installmentsCount: 1 });
 
   const typedDiscount = Number(discountInput) || 0;
@@ -444,11 +466,10 @@ function AdminPanel({
     ? itemsTotal * (typedDiscount / 100)
     : typedDiscount;
 
-  // Cupom e desconto manual somam, e o total nunca fica negativo — é a mesma
-  // regra que o servidor aplica, repetida aqui só para a tela não prometer um
-  // número diferente do que a venda vai cobrar.
-  const couponDiscount = coupon?.discount ?? 0;
-  const finalDiscountInReais = Math.min(rawDiscountInReais + couponDiscount, itemsTotal);
+  // No balcão o desconto é o que a pessoa digita (em R$ ou %); o cupom é coisa
+  // da sacola do visitante. O total nunca fica negativo — mesma regra do
+  // servidor, repetida aqui só para a tela não prometer outro número.
+  const finalDiscountInReais = Math.min(rawDiscountInReais, itemsTotal);
   const netTotal = itemsTotal - finalDiscountInReais;
 
   const { options, loading: loadingPayment } = usePaymentOptions(netTotal);
@@ -492,10 +513,7 @@ function AdminPanel({
       const res = await api.post('/sales', {
         customerId: selectedCustomer ? Number(selectedCustomer) : null,
         observation: observation.trim() || null,
-        // O cupom vai pelo código: o servidor reconfere e desconta por conta
-        // própria, então aqui só mandamos o desconto digitado à mão.
-        discount: Math.min(rawDiscountInReais, itemsTotal - couponDiscount),
-        couponCode: coupon?.code ?? null,
+        discount: Math.min(rawDiscountInReais, itemsTotal),
         installmentsCount: choice.installmentsCount,
         paymentType: choice.paymentType,
         items: items.map(item => ({ productId: item.productId, quantity: item.quantity })),
@@ -508,7 +526,6 @@ function AdminPanel({
       setObservation('');
       setDiscountInput('');
       setDiscountType('fixed');
-      setCoupon(null);
       setChoice({ paymentType: 'VISTA', installmentsCount: 1 });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Erro ao registrar venda.'));
@@ -518,7 +535,7 @@ function AdminPanel({
   };
 
   return (
-    <aside className="checkout-summary checkout-summary-blocks base-card">
+    <aside className="checkout-summary checkout-summary-green checkout-summary-blocks">
 
       <div className="checkout-block">
         <span className="checkout-block-title">Cliente</span>
@@ -532,7 +549,7 @@ function AdminPanel({
           <input
             type="text"
             className="checkout-customer-select"
-            placeholder="Consumidor final (sem cadastro)"
+            placeholder="Consumidor final"
             value={customerSearchText}
             onChange={e => {
               setCustomerSearchText(e.target.value);
@@ -555,7 +572,7 @@ function AdminPanel({
           {isDropdownOpen && (
             <div className="customer-dropdown-menu">
               <div className="customer-dropdown-item special-item" onClick={() => selectCustomer('', '')}>
-                👤 Consumidor final (sem cadastro)
+                Consumidor final
               </div>
               {filteredCustomers.map(c => (
                 <div key={c.id} className="customer-dropdown-item" onClick={() => selectCustomer(String(c.id), c.name)}>
@@ -569,12 +586,12 @@ function AdminPanel({
         <button type="button" className="btn-new-customer" onClick={() => setIsCustomerModalOpen(true)}>+ Novo</button>
       </div>
 
-      <div className="form-group">
+      <div className="form-group checkout-block-obs">
         <label>Observação (opcional)</label>
         <input
           type="text"
           className="input-standard"
-          placeholder="Ex: desconto do ciclo..."
+          placeholder="Adicione aqui uma anotação! ;)"
           value={observation}
           onChange={e => setObservation(e.target.value)}
         />
@@ -582,10 +599,10 @@ function AdminPanel({
       </div>
 
       <div className="checkout-block">
-        <span className="checkout-block-title">Pagamento</span>
+        <span className="checkout-block-title">Desconto e pagamento</span>
 
       <div className="form-group">
-        <label>Desconto</label>
+        <label className="sr-only">Desconto</label>
         <div className="checkout-discount-group">
           <div className="checkout-discount-toggle">
             <button
@@ -621,8 +638,6 @@ function AdminPanel({
         {...(selectedCustomer ? {} : { installmentsDisabledReason: 'Para vender a prazo, selecione um cliente.' })}
       />
 
-      <CouponField subtotal={itemsTotal} applied={coupon} onChange={setCoupon} />
-
       </div>
 
       <div className="checkout-block">
@@ -633,16 +648,10 @@ function AdminPanel({
           <span>Produtos</span><span>{formatCurrency(itemsTotal)}</span>
         </div>
 
-        {coupon && (
-          <div className="total-row total-row-discount">
-            <span>Cupom {coupon.code}</span><span>− {formatCurrency(couponDiscount)}</span>
-          </div>
-        )}
-
         {rawDiscountInReais > 0 && (
           <div className="total-row total-row-discount">
             <span>Desconto</span>
-            <span>− {formatCurrency(Math.min(rawDiscountInReais, itemsTotal - couponDiscount))}</span>
+            <span>− {formatCurrency(Math.min(rawDiscountInReais, itemsTotal))}</span>
           </div>
         )}
 
@@ -654,7 +663,7 @@ function AdminPanel({
         )}
 
         <div className="total-row">
-          <span className="total-label">TOTAL A PAGAR</span>
+          <span className="total-label">Total a pagar</span>
           <span className="total-value">{formatCurrency(finalTotal)}</span>
         </div>
 
@@ -668,8 +677,9 @@ function AdminPanel({
       {error && <div className="checkout-alert">{error}</div>}
       {success && <div className="checkout-success">{success}</div>}
 
-      <button className="btn-primary btn-checkout" disabled={!canFinish} onClick={registerSale}>
+      <button type="button" className="checkout-cta" disabled={!canFinish} onClick={registerSale}>
         {isProcessing ? 'Processando...' : 'Registrar venda'}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
       </button>
 
       {blockedReason && <span className="checkout-blocked">{blockedReason}</span>}

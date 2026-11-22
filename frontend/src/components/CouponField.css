@@ -28,15 +28,14 @@
   flex-shrink: 0;
   padding: 12px 18px;
   font-size: 0.9rem;
-  background: rgba(139, 92, 246, 0.12);
-  color: var(--accent-color);
-  border: 1px solid rgba(139, 92, 246, 0.25);
+  background: var(--accent-color);
+  color: var(--on-accent);
+  border: 1px solid var(--accent-color);
   font-weight: 700;
 }
 .coupon-apply:hover:not(:disabled) {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
-  color: white;
+  background: var(--coroa-escura);
+  border-color: var(--coroa-escura);
 }
 .coupon-apply:disabled {
   background: transparent;
@@ -52,7 +51,7 @@
   justify-content: space-between;
   gap: 8px 12px;
   background: var(--success-bg);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid color-mix(in oklch, var(--success-color) 30%, transparent);
   border-radius: 10px;
   padding: 12px 14px;
 }
@@ -83,3 +82,35 @@
   font-size: 0.82rem;
   line-height: 1.4;
 }
+
+/* Variante sobre a página: rótulo pequeno, fio embaixo e "Aplicar" em texto. */
+.coupon-field.is-line { gap: 10px; max-width: 460px; }
+.coupon-field.is-line .coupon-label { letter-spacing: 0.14em; color: var(--tinta-suave); }
+.coupon-field.is-line .coupon-input-group { gap: 0; border-bottom: 1.5px solid var(--tinta); }
+.coupon-field.is-line .coupon-input {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 12px 0;
+  min-height: 44px;
+  font-size: 17px;
+  box-shadow: none;
+}
+.coupon-field.is-line .coupon-apply,
+.coupon-field.is-line .coupon-apply:hover:not(:disabled) {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--tinta);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 0 12px 16px;
+  min-height: 44px;
+}
+.coupon-field.is-line .coupon-apply:hover:not(:disabled) { color: var(--mandacaru); }
+.coupon-field.is-line .coupon-apply:disabled { color: var(--tinta-apagada); background: transparent; }
+.coupon-field.is-line .coupon-applied { background: var(--papel); border: 1.5px solid var(--tinta); border-radius: 0; }
+.coupon-field.is-line .coupon-applied-main { color: var(--mandacaru); }
+
+.coupon-field.is-line .coupon-input { text-transform: none; letter-spacing: 0; }
+.coupon-field.is-line .coupon-input:not(:placeholder-shown) { text-transform: uppercase; letter-spacing: 0.04em; }

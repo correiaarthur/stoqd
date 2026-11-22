@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { InstallmentOption } from '../hooks/usePaymentOptions';
 import { formatCurrency } from '../utils/formatters';
 import './PaymentPicker.css';
@@ -43,10 +44,43 @@ export function PaymentPicker({
   const selected = installmentOptions.find(option => option.installments === value.installmentsCount);
   const hasOptions = installmentOptions.length > 0;
 
-  const pickUpfront = () => onChange({ paymentType: 'VISTA', installmentsCount: 1 });
+  // A lista de parcelas é um dropdown preso ao "Parcelado": abre ao escolher,
+  // fecha ao escolher uma parcela, com Esc ou clicando fora.
+  const [open, setOpen] = useState(isInstallments);
+  const groupRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listOpen = open && isInstallments && hasOptions;
+
+  useEffect(() => {
+    if (!listOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (groupRef.current && !groupRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setOpen(false); triggerRef.current?.focus(); }
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [listOpen]);
+
+  const pickUpfront = () => {
+    setOpen(false);
+    onChange({ paymentType: 'VISTA', installmentsCount: 1 });
+  };
 
   const pickInstallments = () => {
     if (locked || !hasOptions) return;
+
+    // Já em parcelado: o clique só abre ou fecha a lista.
+    if (isInstallments) {
+      setOpen(value => !value);
+      return;
+    }
+    setOpen(true);
 
     // Ao trocar para parcelado, cai na primeira opção disponível em vez de
     // ficar num "1x" que não existe na lista.
@@ -57,7 +91,7 @@ export function PaymentPicker({
   };
 
   return (
-    <div className="payment-picker">
+    <div className={`payment-picker payment-picker-${variant}`}>
       <span className="payment-label">
         {variant === 'admin' ? 'Forma de pagamento' : 'Como você quer pagar?'}
       </span>
@@ -76,13 +110,15 @@ export function PaymentPicker({
           <span className="payment-mode-value">{formatCurrency(netTotal)}</span>
         </button>
 
-        <div className={`payment-group ${isInstallments ? 'open' : ''}`}>
+        <div className={`payment-group ${listOpen ? 'open' : ''}`} ref={groupRef}>
           <button
             type="button"
             className={`payment-mode payment-mode-header ${isInstallments ? 'selected' : ''}`}
             onClick={pickInstallments}
+            ref={triggerRef}
             disabled={locked || !hasOptions}
-            aria-expanded={isInstallments}
+            aria-haspopup="listbox"
+            aria-expanded={listOpen}
           >
             <span className="payment-radio" aria-hidden="true"></span>
             <span className="payment-mode-text">
@@ -90,9 +126,11 @@ export function PaymentPicker({
               <span className="payment-mode-note">
                 {loading && !hasOptions
                   ? 'carregando...'
-                  : hasOptions
-                    ? `de ${installmentOptions[0]!.installments}x a ${installmentOptions[installmentOptions.length - 1]!.installments}x`
-                    : 'indisponível'}
+                  : isInstallments && selected
+                    ? `${selected.installments}x de ${formatCurrency(selected.installmentValue)}`
+                    : hasOptions
+                      ? `de ${installmentOptions[0]!.installments}x a ${installmentOptions[installmentOptions.length - 1]!.installments}x`
+                      : 'indisponível'}
               </span>
             </span>
             {isInstallments && selected && (
@@ -100,7 +138,7 @@ export function PaymentPicker({
             )}
           </button>
 
-          {isInstallments && hasOptions && (
+          {listOpen && (
             <div className="payment-plans" role="listbox" aria-label="Número de parcelas">
               {installmentOptions.map(option => {
                 const isCurrent = option.installments === value.installmentsCount;
@@ -112,10 +150,10 @@ export function PaymentPicker({
                     role="option"
                     aria-selected={isCurrent}
                     className={`payment-plan ${isCurrent ? 'current' : ''}`}
-                    onClick={() => onChange({ paymentType: 'PRAZO', installmentsCount: option.installments })}
+                    onClick={() => { setOpen(false); onChange({ paymentType: 'PRAZO', installmentsCount: option.installments }); }}
                   >
                     <span className="payment-plan-count">{option.installments}x</span>
-                    <span className="payment-plan-value">de {formatCurrency(option.installmentValue)}</span>
+                    <span className="payment-plan-value">{formatCurrency(option.installmentValue)}</span>
                     <span className="payment-plan-interest">
                       {option.interestPercent > 0 ? `juros de ${option.interestPercent}%` : 'sem juros'}
                     </span>
