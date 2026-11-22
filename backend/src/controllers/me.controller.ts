@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail } from '../lib/adminCredentials.js';
+import { linkAccountToCustomer } from '../lib/customerLink.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
 import { sumLines } from '../lib/pricingRules.js';
 import {
@@ -161,10 +162,13 @@ export async function orders(req: Request, res: Response) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { customerId: true },
+      select: { customerId: true, phone: true },
     });
 
     if (!user) return res.status(404).json({ error: "Conta não encontrada." });
+
+    // Conta anterior à regra de vínculo: tenta ligar ao cliente pelo telefone.
+    const customerId = user.customerId ?? await linkAccountToCustomer(userId, user.phone);
 
     const orderList = await prisma.order.findMany({
       where: { userId },
@@ -181,11 +185,26 @@ export async function orders(req: Request, res: Response) {
       },
     });
 
+    // Compras do cliente vinculado que não vieram por pedido: as vendas de
+    // balcão. As que nasceram de um pedido já aparecem na lista acima.
+    const orderedSaleIds = orderList.map(order => order.saleId).filter((id): id is number => id !== null);
+    const counterSales = customerId === null ? [] : await prisma.sale.findMany({
+      where: { customerId, id: { notIn: orderedSaleIds } },
+      orderBy: { date: 'desc' },
+      take: 100,
+      include: {
+        items: { include: { product: { select: { name: true } } } },
+        installments: { orderBy: { number: 'asc' } },
+        coupon: { select: { code: true } },
+      },
+    });
+
     const payload = orderList.map(order => {
       const installments = order.sale?.installments ?? [];
       const pending = installments.filter(installment => !installment.paidAt);
 
       return {
+        source: 'ORDER' as const,
         id: order.id,
         status: order.status,
         createdAt: order.createdAt,
@@ -213,7 +232,40 @@ export async function orders(req: Request, res: Response) {
       };
     });
 
-    return res.json({ linkedToCustomer: user.customerId !== null, orders: payload });
+    const salePayload = counterSales.map(sale => {
+      const pending = sale.installments.filter(installment => !installment.paidAt);
+
+      return {
+        source: 'SALE' as const,
+        id: sale.id,
+        status: 'CONFIRMED' as const,
+        createdAt: sale.date,
+        cancelReason: null,
+        saleId: sale.id,
+        total: sale.total,
+        discount: sale.discount ?? 0,
+        interest: sale.interest ?? 0,
+        couponCode: sale.coupon?.code ?? null,
+        items: sale.items.map(item => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+        installments: sale.installments.map(installment => ({
+          number: installment.number,
+          value: installment.value,
+          dueDate: installment.dueDate,
+          paidAt: installment.paidAt,
+        })),
+        pendingAmount: pending.reduce((acc, installment) => acc + installment.value, 0),
+        isPaid: sale.installments.length > 0 && pending.length === 0,
+      };
+    });
+
+    const history = [...payload, ...salePayload]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return res.json({ linkedToCustomer: customerId !== null, orders: history });
   } catch (error) {
     console.error("Erro ao buscar o histórico:", error);
     return res.status(500).json({ error: "Não foi possível carregar seu histórico." });

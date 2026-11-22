@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail, isAdminPassword } from '../lib/adminCredentials.js';
+import { findLinkableCustomer } from '../lib/customerLink.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
 import {
   normalizeEmail,
@@ -17,8 +18,11 @@ import type { Role } from '../middlewares/auth.js';
 
 const TOKEN_LIFETIME = '1d';
 
+/** Hash válido de uma senha que ninguém conhece, só para igualar o tempo do login. */
+const DUMMY_HASH = bcrypt.hashSync('stoqd-dummy-password', BCRYPT_ROUNDS);
+
 function signToken(payload: { role: Role; userId?: number }) {
-  return jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: TOKEN_LIFETIME });
+  return jwt.sign(payload, process.env.JWT_SECRET as string, { algorithm: 'HS256', expiresIn: TOKEN_LIFETIME });
 }
 
 export async function register(req: Request, res: Response) {
@@ -42,8 +46,11 @@ export async function register(req: Request, res: Response) {
   try {
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
+    // Quem já era cliente da loja entra na conta com o histórico que já tinha.
+    const existingCustomer = await findLinkableCustomer(phone);
+
     const user = await prisma.user.create({
-      data: { name, email, phone, passwordHash },
+      data: { name, email, phone, passwordHash, customerId: existingCustomer?.id ?? null },
       select: { id: true, name: true, email: true, phone: true },
     });
 
@@ -74,7 +81,8 @@ export async function register(req: Request, res: Response) {
  * O cliente entra pelo telefone — é o dado que ele tem sempre à mão, e o mesmo
  * que a loja usa para falar com ele. A administração entra pelo e-mail do
  * `.env`, que não é um `User`. Por isso o admin é testado primeiro: o que ele
- * digita nunca vai casar com um telefone.
+ * digita nunca vai casar com um telefone. E-mail de cliente não entra: o
+ * e-mail dele é opcional e serve para contato, não para acesso.
  */
 export async function login(req: Request, res: Response) {
   const identifier = req.body?.identifier ?? req.body?.phone ?? req.body?.email;
@@ -83,7 +91,12 @@ export async function login(req: Request, res: Response) {
   const password = String(req.body?.password ?? '');
 
   try {
-    if (isAdminEmail(email) && await isAdminPassword(password)) {
+    // Os dois lados rodam sempre, sem curto-circuito: `&&` só pagaria o bcrypt
+    // (~250 ms) quando o e-mail fosse o do admin, e o tempo da resposta
+    // entregaria justamente o endereço que a mensagem de erro esconde.
+    const [emailIsAdmin, passwordIsAdmin] = [isAdminEmail(email), await isAdminPassword(password)];
+
+    if (emailIsAdmin && passwordIsAdmin) {
       return res.json({
         token: signToken({ role: 'admin' }),
         user: { name: 'Administração', email, role: 'admin' },
@@ -92,14 +105,26 @@ export async function login(req: Request, res: Response) {
 
     const user = phone ? await prisma.user.findUnique({ where: { phone } }) : null;
 
-    if (user && await bcrypt.compare(password, user.passwordHash)) {
+    // Sem usuário, compara contra um hash fictício: o custo é o mesmo de uma
+    // senha errada para um telefone que existe.
+    const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+
+    if (user && passwordMatches) {
       return res.json({
         token: signToken({ role: 'customer', userId: user.id }),
         user: { id: user.id, name: user.name, email: user.email, phone: user.phone, role: 'customer' },
       });
     }
 
-    return res.status(401).json({ error: "Telefone ou senha incorretos." });
+    // A mensagem segue o que a pessoa digitou — e é a mesma para qualquer
+    // e-mail, seja o da administração ou não: dizer "esse e-mail existe" ou
+    // "esse não" entregaria o endereço do admin a quem tentar.
+    const typedEmail = String(identifier ?? '').includes('@');
+    return res.status(401).json({
+      error: typedEmail
+        ? "E-mail ou senha incorretos. Clientes entram pelo telefone."
+        : "Telefone ou senha incorretos.",
+    });
   } catch (error) {
     console.error("Erro no login:", error);
     return res.status(500).json({ error: "Não foi possível entrar. Tente novamente." });
