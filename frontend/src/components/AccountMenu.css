@@ -1,0 +1,72 @@
+.account-menu { position: relative; display: inline-flex; }
+
+/* Mesmo formato dos outros controles: folha, com a quina reta embaixo à esquerda. */
+.account-menu-trigger {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  color: var(--tinta);
+  border: 1.5px solid var(--tinta);
+  border-radius: 24px 24px 24px 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.account-menu-trigger:hover { background: var(--tinta); color: var(--papel); }
+/* Aberto, o botão tem o mesmo papel da lista: os dois formam uma peça só. */
+.account-menu-trigger[aria-expanded="true"] { background: var(--papel); color: var(--tinta); border-bottom: 0; padding-bottom: 1.5px; }
+.account-menu-trigger[aria-expanded="true"] { border-radius: 24px 24px 0 0; }
+.account-menu-trigger:focus-visible { outline: 2px solid var(--coroa); outline-offset: 2px; }
+
+.account-menu-list {
+  position: absolute;
+  /* Colado no botão, sem folga: é uma peça só com ele. */
+  top: calc(100% - 1px);
+  right: 0;
+  z-index: 60;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  background: var(--papel);
+  border: 1.5px solid var(--tinta);
+  border-top: 0;
+  /* Desenrola de cima para baixo ao abrir. */
+  animation: menu-unroll 0.2s var(--ease-out, ease-out);
+}
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--fio);
+  color: var(--tinta);
+  font: inherit;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.account-menu-item:last-child { border-bottom: none; }
+.account-menu-item:hover, .account-menu-item:focus-visible { background: #F6D4E1; color: var(--tinta); outline: none; }
+.account-menu-item.is-exit:hover, .account-menu-item.is-exit:focus-visible { color: #7E2F22; }
+.account-menu-item.is-exit { color: #7E2F22; }
+
+/* A emenda com o botão: a lista não tem borda de cima; o fio dela corre só até a
+   lateral do botão, que desce reta e se encontra com as laterais da lista. */
+.account-menu-list::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1.5px;
+  right: 46.25px;
+  height: 1.5px;
+  background: var(--tinta);
+}
+@keyframes menu-unroll { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(-2px -2px -2px -2px); } }
+@media (prefers-reduced-motion: reduce) { .account-menu-list { animation: none; } }

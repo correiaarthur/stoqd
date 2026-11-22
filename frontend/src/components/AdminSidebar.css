@@ -1,0 +1,212 @@
+.admin-sidebar {
+  flex: 0 0 var(--side-w, 240px);
+  background: var(--mandacaru);
+  color: var(--areia);
+  /* 18px dos lados nos dois estados: minimizada, sobram exatamente os 36px do
+     botão, e ele fica centrado sem precisar mudar de padding. */
+  padding: 28px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.side-logo { color: var(--areia); text-decoration: none; }
+.side-logo:hover { color: var(--areia); }
+.side-logo .logo-name { font-size: 32px; }
+
+.side-nav { display: flex; flex-direction: column; gap: 28px; }
+.side-group { display: flex; flex-direction: column; gap: 2px; }
+.side-group-label {
+  /* Cabeçalho de seção, não opção de menu: serifada itálica, em rosa, com um fio
+     que corre até a borda — nada que lembre um link. */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--rosa);
+  padding: 0 0 10px;
+}
+.side-group-label::after { content: ""; flex: 1; height: 1px; background: var(--mandacaru-fio); }
+.side-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px;
+  font-size: 15px;
+  color: var(--mandacaru-texto);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.side-link:hover { background: color-mix(in srgb, var(--papel) 10%, transparent); color: var(--papel); }
+.side-link.active { background: var(--barro); color: var(--papel); font-weight: 600; }
+.side-count {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 7px;
+  background: var(--barro);
+  color: var(--papel);
+  font-variant-numeric: tabular-nums;
+}
+.side-link.active .side-count { background: var(--papel); color: var(--barro); }
+
+.side-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--mandacaru-fio);
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.side-footer-label { font-size: 13px; color: #C6D6CA; }
+.side-footer-name { font-size: 15px; font-weight: 600; }
+.side-logout {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 10px 0;
+  min-height: 44px;
+  background: none;
+  border: none;
+  color: var(--areia);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.side-logout:hover { color: var(--rosa); }
+
+/* No telefone a barra vira uma faixa no topo com o menu rolando de lado. */
+@media (max-width: 860px) {
+  .admin-sidebar {
+    flex: 1 1 100%;
+    position: static;
+    height: auto;
+    padding: 14px 16px 0;
+    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .side-logo .logo-name { font-size: 26px; }
+  .side-nav {
+    order: 3;
+    flex: 1 1 100%;
+    flex-direction: row;
+    gap: 0;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 0 16px;
+  }
+  .side-group { flex-direction: row; }
+  .side-group + .side-group { border-left: 1px solid var(--mandacaru-fio); margin-left: 6px; padding-left: 6px; }
+  .side-group-label { display: none; }
+  .side-link { white-space: nowrap; }
+  .side-footer {
+    margin: 0;
+    border: none;
+    padding: 0;
+    flex-direction: row;
+    align-items: center;
+  }
+  .side-footer-label, .side-footer-name { display: none; }
+  .side-logout { margin: 0; }
+}
+
+/* --- Cabeçalho da barra: marca e botão de minimizar ---
+   O botão é posicionado, e não parte de uma linha: assim ele pode se mover de
+   verdade — da ponta direita da marca para baixo da folhinha — em vez de
+   saltar quando a barra muda de modo. */
+.side-head { position: relative; height: 36px; display: flex; align-items: center; }
+.side-logo { transition: margin-left 0.28s var(--ease-out); }
+.side-logo .logo-name {
+  display: inline-block;
+  max-width: 120px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.28s var(--ease-out), opacity 0.16s ease-out;
+}
+.side-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--areia) 35%, transparent);
+  border-radius: 12px 12px 12px 0;
+  color: var(--areia);
+  cursor: pointer;
+  transition: top 0.28s var(--ease-out), background 0.15s;
+}
+.side-toggle:hover { background: color-mix(in srgb, var(--papel) 14%, transparent); }
+.side-toggle svg { transition: transform 0.28s var(--ease-out); }
+
+/* O menu fica no lugar e só esmaece: a largura da barra o recorta enquanto
+   encolhe, sem reflow. `visibility` tira os links do Tab depois do fade. Na
+   volta, entra com um atraso — só depois de a barra ter largura para ele. */
+.side-body {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  flex: 1;
+  min-width: 204px;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease-out 0.1s, visibility 0s;
+}
+
+/* O nome na vertical, como a lombada de um livro, fora do fluxo: aparece por
+   último ao minimizar e some primeiro ao expandir. */
+.side-rail-name {
+  position: absolute;
+  top: 138px;
+  left: 50%;
+  transform: translateX(-50%);
+  writing-mode: vertical-rl;
+  font-family: var(--font-serif);
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--areia);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease-out;
+}
+
+/* --- Minimizada: só a marca --- */
+.admin-sidebar.is-collapsed .side-logo { margin-left: 4px; }
+.admin-sidebar.is-collapsed .side-logo .logo-name { max-width: 0; opacity: 0; }
+.admin-sidebar.is-collapsed .side-toggle { top: 52px; }
+.admin-sidebar.is-collapsed .side-toggle svg { transform: rotate(180deg); }
+.admin-sidebar.is-collapsed .side-body {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.14s ease-out, visibility 0s 0.14s;
+}
+.admin-sidebar.is-collapsed .side-rail-name { opacity: 1; transition: opacity 0.2s ease-out 0.16s; }
+
+/* No telefone a barra já é uma faixa no topo: não há o que minimizar. */
+@media (max-width: 860px) {
+  .side-toggle, .side-rail-name { display: none; }
+  .side-head { height: auto; }
+  /* O contêiner some da estrutura: menu e rodapé voltam a ser filhos diretos
+     da faixa, como antes de existir o botão de minimizar. */
+  .side-body { display: contents; }
+}
