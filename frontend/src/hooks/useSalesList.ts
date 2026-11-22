@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { listSales } from '../services/orders';
+import { useAsync } from './useAsync';
 
 export interface SaleListItem {
   id: number;
@@ -28,26 +29,17 @@ export interface SaleListItem {
 }
 
 export function useSalesList(from: Date) {
-  const [sales, setSales] = useState<SaleListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const fromISO = from.toISOString();
 
-  const fetchSales = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await listSales({ from: fromISO, limit: 200 });
-      setSales(res.data || []);
-    } catch (err) {
-      console.error("Erro ao buscar vendas:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [fromISO]);
+  const fetchSales = useCallback(
+    () => listSales({ from: fromISO, limit: 200 }).then(res => res.data || []),
+    [fromISO]
+  );
 
-  useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
+  const { data: sales, loading, refetch } = useAsync<SaleListItem[]>(fetchSales, {
+    initial: [],
+    errorMessage: 'Erro ao buscar vendas:',
+  });
 
-  return { sales, loading, refetch: fetchSales };
+  return { sales, loading, refetch };
 }

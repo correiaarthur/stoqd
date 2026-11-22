@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
 import { listOrders } from '../services/orders';
+import { useAsync } from './useAsync';
 
 export type OrderItemView = {
   productId: number;
@@ -44,25 +44,13 @@ export type PendingOrder = {
   };
 };
 
+const fetchPending = () => listOrders('PENDING').then(res => res.data || []);
+
 export function usePendingOrders() {
-  const [orders, setOrders] = useState<PendingOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: orders, loading, refetch } = useAsync<PendingOrder[]>(fetchPending, {
+    initial: [],
+    errorMessage: 'Erro ao buscar pedidos:',
+  });
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await listOrders('PENDING');
-      setOrders(res.data || []);
-    } catch (err) {
-      console.error('Erro ao buscar pedidos:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  return { orders, loading, refetch: fetchOrders };
+  return { orders, loading, refetch };
 }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
 import { getDashboardSummary } from '../services/analytics';
+import { useAsync } from './useAsync';
 
 export interface DashboardSummary {
   inventory: {
@@ -17,25 +17,13 @@ export interface DashboardSummary {
   };
 }
 
+const fetchSummary = () => getDashboardSummary().then(res => res.data as DashboardSummary);
+
 export function useDashboardSummary() {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: summary, loading, refetch } = useAsync<DashboardSummary | null>(fetchSummary, {
+    initial: null,
+    errorMessage: 'Erro ao carregar os indicadores:',
+  });
 
-  const fetchSummary = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await getDashboardSummary();
-      setSummary(res.data);
-    } catch (err) {
-      console.error("Erro ao carregar os indicadores:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
-
-  return { summary, loading, refetch: fetchSummary };
+  return { summary, loading, refetch };
 }

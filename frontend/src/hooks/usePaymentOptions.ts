@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { getPaymentOptions } from '../services/checkout';
+import { useAsync } from './useAsync';
 
 export type InstallmentOption = {
   installments: number;
@@ -23,25 +24,20 @@ export type PaymentOptions = {
  * poderiam divergir no dia em que a fórmula mudasse num dos dois lados.
  */
 export function usePaymentOptions(netTotal: number) {
-  const [options, setOptions] = useState<PaymentOptions | null>(null);
-  const [loading, setLoading] = useState(true);
-
   const rounded = Math.round(netTotal * 100) / 100;
 
-  const fetchOptions = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await getPaymentOptions(rounded);
-      setOptions(res.data);
-    } catch (err) {
-      console.error('Erro ao carregar formas de pagamento:', err);
-      setOptions(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [rounded]);
+  const fetchOptions = useCallback(
+    () => getPaymentOptions(rounded).then(res => res.data as PaymentOptions),
+    [rounded]
+  );
 
-  useEffect(() => { fetchOptions(); }, [fetchOptions]);
+  // Na falha as opções somem em vez de ficarem as do valor anterior: elas
+  // mostrariam juros de um total que já não é o da tela.
+  const { data: options, loading } = useAsync<PaymentOptions | null>(fetchOptions, {
+    initial: null,
+    errorMessage: 'Erro ao carregar formas de pagamento:',
+    resetOnError: true,
+  });
 
   return { options, loading };
 }

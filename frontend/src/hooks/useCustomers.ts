@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { listCustomers } from '../services/customers';
+import { useAsync } from './useAsync';
 
 /** Os dados de contato, que toda resposta de cliente traz. */
 export interface CustomerRecord {
@@ -27,27 +27,15 @@ export interface Customer extends CustomerRecord {
   hasOverdue: boolean;
 }
 
+const fetchCustomers = () => listCustomers<Customer>().then(res => res.data || []);
+
 export function useCustomers() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: customers, setData: setCustomers, loading, refetch: refetchCustomers } = useAsync<Customer[]>(fetchCustomers, {
+    initial: [],
+    errorMessage: 'Erro ao buscar clientes:',
+  });
 
-  const fetchCustomers = async () => {
-    setLoading(true);
-    try {
-      const res = await listCustomers<Customer>();
-      setCustomers(res.data || []);
-    } catch (err) {
-      console.error("Erro ao buscar clientes:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  return { customers, setCustomers, loading, refetchCustomers: fetchCustomers };
+  return { customers, setCustomers, loading, refetchCustomers };
 }
 
 /** Uma parcela da venda a prazo. `paidAt` nulo é o que define "em aberto". */

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
 import { listProducts } from '../services/catalog';
+import { useAsync } from './useAsync';
 
 export interface Brand {
   id: number;
@@ -42,25 +42,13 @@ export interface Product {
   totalExpectedProfit: number;
 }
 
+const fetchProducts = () => listProducts().then(res => res.data || []);
+
 export function useProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: products, loading, refetch } = useAsync<Product[]>(fetchProducts, {
+    initial: [],
+    errorMessage: 'Erro ao buscar produtos:',
+  });
 
-  const fetchProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await listProducts();
-      setProducts(res.data || []);
-    } catch (err) {
-      console.error("Erro ao buscar produtos:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  return { products, loading, refetch: fetchProducts };
+  return { products, loading, refetch };
 }

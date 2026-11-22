@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getSalesReport } from '../services/analytics';
+import { useAsync } from './useAsync';
 
 export interface SoldItem {
   saleId: number;
@@ -12,28 +13,19 @@ export interface SoldItem {
 }
 
 // `from` limita o relatório ao período analisado — sem ele o dashboard
-// puxaria o histórico inteiro a cada troca de filtro.
+// puxaria o histórico inteiro a cada troca de filtro (e o servidor recusa).
 export function useSalesReport(from: Date) {
-  const [soldItems, setSoldItems] = useState<SoldItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const fromISO = from.toISOString();
 
-  const fetchReport = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await getSalesReport(fromISO);
-      setSoldItems(res.data || []);
-    } catch (err) {
-      console.error("Erro ao carregar o relatório de vendas:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [fromISO]);
+  const fetchReport = useCallback(
+    () => getSalesReport(fromISO).then(res => res.data || []),
+    [fromISO]
+  );
 
-  useEffect(() => {
-    fetchReport();
-  }, [fetchReport]);
+  const { data: soldItems, loading, refetch } = useAsync<SoldItem[]>(fetchReport, {
+    initial: [],
+    errorMessage: 'Erro ao carregar o relatório de vendas:',
+  });
 
-  return { soldItems, loading, refetch: fetchReport };
+  return { soldItems, loading, refetch };
 }
