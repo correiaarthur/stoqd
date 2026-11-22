@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../api';
+import { checkAvailability, releaseCart, reserveCart } from '../services/checkout';
 import { getCartToken } from '../utils/cartToken';
 import { isAdmin } from '../utils/auth';
 import { CartContext, type CartContextValue, type CartItem, type ItemAvailability } from './cart';
@@ -94,7 +94,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (items.length === 0) return;
 
     try {
-      const res = await api.post('/cart/availability', buildPayload());
+      const res = await checkAvailability(buildPayload());
       applyServerAnswer(res.data);
     } catch (err) {
       // Falha aqui não pode travar a tela: o servidor confere de novo na hora
@@ -114,7 +114,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // Só solta a reserva se o carrinho **passou** a ficar vazio. Carrinho que
       // já estava vazio não tem reserva para liberar.
       if (esvaziouAgora) {
-        api.post('/cart/release', { cartToken }).catch(() => {});
+        releaseCart(cartToken).catch(() => {});
       }
       return;
     }
@@ -125,7 +125,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     reserveTimer.current = setTimeout(async () => {
       try {
-        const res = await api.post('/cart/reserve', buildPayload());
+        const res = await reserveCart(buildPayload());
         applyServerAnswer(res.data);
       } catch (err) {
         console.error('Erro ao reservar o carrinho:', err);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../api';
+import { createProduct, listBrands, listCategories, requestProductImageUpload, taxonomy, updateProduct, type TaxonomyResource } from '../services/catalog';
 import { getApiErrorMessage } from '../utils/errors';
 import { DropdownMenu } from './DropdownMenu';
 import { parseCurrencyInput, formatCurrency } from '../utils/formatters';
@@ -31,8 +31,8 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
   const loadInitialData = async () => {
     try {
       const [bRes, cRes] = await Promise.all([
-        api.get<Brand[]>('/brands'),
-        api.get<Category[]>('/categories'),
+        listBrands(),
+        listCategories(),
       ]);
       setBrands(bRes.data || []);
       setCategories(cRes.data || []);
@@ -58,7 +58,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
 
   // Apagar uma marca leva junto todos os produtos dela (onDelete: Cascade no
   // schema). Categoria só desvincula. A confirmação precisa dizer qual é o caso.
-  const removeTaxonomy = async (resource: 'brands' | 'categories', id: number, items: Array<Brand | Category>) => {
+  const removeTaxonomy = async (resource: TaxonomyResource, id: number, items: Array<Brand | Category>) => {
     const name = items.find(i => i.id === id)?.name || 'este item';
 
     const message = resource === 'brands'
@@ -68,7 +68,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
     if (!confirm(message)) return;
 
     try {
-      await api.delete(`/${resource}/${id}`);
+      await taxonomy.remove(resource, id);
       loadInitialData();
     } catch (err) {
       alert(getApiErrorMessage(err, 'Não foi possível apagar.'));
@@ -105,10 +105,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
 
       // O servidor decide o caminho e assina o envio; o bucket não aceita
       // escrita anônima.
-      const { data: signed } = await api.post<{ path: string; token: string; publicUrl: string }>(
-        '/uploads/product-image',
-        { contentType: file.type, size: file.size }
-      );
+      const { data: signed } = await requestProductImageUpload(file);
 
       const { error: uploadError } = await supabase.storage
         .from('produtos')
@@ -124,6 +121,26 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
       setIsUploading(false);
     }
   };
+
+  // Marca e categoria são o mesmo menu com o recurso trocado: criar, renomear
+  // e apagar vão para o mesmo CRUD, e a lista recarrega ao fim.
+  const taxonomyMenu = (
+    resource: TaxonomyResource,
+    label: string,
+    items: Array<Brand | Category>,
+    selectedId: string,
+    field: 'brandId' | 'categoryId'
+  ) => (
+    <DropdownMenu
+      label={label}
+      items={items}
+      selectedId={selectedId}
+      onSelect={(id) => setForm({ ...form, [field]: id })}
+      onCreate={async (name) => { await taxonomy.create(resource, name); loadInitialData(); }}
+      onUpdate={async (id, name) => { await taxonomy.rename(resource, id, name); loadInitialData(); }}
+      onDelete={async (id) => { await removeTaxonomy(resource, id, items); }}
+    />
+  );
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -141,10 +158,10 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
 
     try {
       if (productToEdit) {
-        await api.put(`/products/${productToEdit.id}`, payload);
+        await updateProduct(productToEdit.id, payload);
         alert('Produto atualizado com sucesso!');
       } else {
-        await api.post('/products', payload);
+        await createProduct(payload);
         alert('Produto cadastrado com sucesso!');
       }
       onSuccess();
@@ -227,8 +244,8 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
           </div>
 
           <div className="form-row">
-            <DropdownMenu label="Marca" items={brands} selectedId={form.brandId} onSelect={(id) => setForm({...form, brandId: id})} onCreate={async (n) => { await api.post('/brands', { name: n }); loadInitialData(); }} onUpdate={async (id, n) => { await api.put(`/brands/${id}`, { name: n }); loadInitialData(); }} onDelete={async (id) => { await removeTaxonomy('brands', id, brands); }} />
-            <DropdownMenu label="Categoria" items={categories} selectedId={form.categoryId} onSelect={(id) => setForm({...form, categoryId: id})} onCreate={async (n) => { await api.post('/categories', { name: n }); loadInitialData(); }} onUpdate={async (id, n) => { await api.put(`/categories/${id}`, { name: n }); loadInitialData(); }} onDelete={async (id) => { await removeTaxonomy('categories', id, categories); }} />
+            {taxonomyMenu('brands', 'Marca', brands, form.brandId, 'brandId')}
+            {taxonomyMenu('categories', 'Categoria', categories, form.categoryId, 'categoryId')}
           </div>
 
           <div className="form-row">

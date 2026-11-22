@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { api } from '../api';
+import { deleteProduct } from '../services/catalog';
 import { getApiErrorMessage } from '../utils/errors';
 import { useProducts, type Product } from '../hooks/useProducts';
 import { formatCurrency } from '../utils/formatters';
@@ -32,7 +32,7 @@ export function Inventory() {
   const handleDeleteProduct = async (id: number) => {
     if (confirm("Tem certeza que deseja apagar TODOS os itens deste produto?")) {
       try {
-        await api.delete(`/products/${id}`);
+        await deleteProduct(id);
         refetchProducts();
       } catch (err) { alert(getApiErrorMessage(err, "Erro ao excluir produto.")); }
     }

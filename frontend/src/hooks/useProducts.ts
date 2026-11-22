@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api';
+import { listProducts } from '../services/catalog';
 
 export interface Brand {
   id: number;
@@ -49,7 +49,7 @@ export function useProducts() {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get<Product[]>('/products');
+      const res = await listProducts();
       setProducts(res.data || []);
     } catch (err) {
       console.error("Erro ao buscar produtos:", err);

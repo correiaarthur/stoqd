@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { api } from '../api';
+import { getInstallmentPlans, saveInstallmentPlans, listCoupons, updateCoupon, createCoupon, deleteCoupon } from '../services/settings';
 import { formatCurrency, parseCurrencyInput, parsePercentInput } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
 import { simulateInstallment } from '../utils/installments';
@@ -71,7 +71,7 @@ function InstallmentPlans() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/settings/installments')
+    getInstallmentPlans()
       .then(res => { setPlans(res.data || []); setSaved(res.data || []); })
       .catch(err => console.error('Erro ao carregar parcelamento:', err))
       .finally(() => setLoading(false));
@@ -88,7 +88,7 @@ function InstallmentPlans() {
     setIsSaving(true);
 
     try {
-      const res = await api.put('/settings/installments', { plans });
+      const res = await saveInstallmentPlans(plans);
       setPlans(res.data || []);
       setSaved(res.data || []);
       setMessage('Parcelamento salvo.');
@@ -304,7 +304,7 @@ function Coupons() {
 
   const load = useCallback(async () => {
     try {
-      const res = await api.get('/coupons');
+      const res = await listCoupons();
       setCoupons(res.data || []);
     } catch (err) {
       console.error('Erro ao carregar cupons:', err);
@@ -359,10 +359,10 @@ function Coupons() {
 
     try {
       if (editing) {
-        await api.put(`/coupons/${editing.id}`, body);
+        await updateCoupon(editing.id, body);
         setMessage('Cupom atualizado.');
       } else {
-        const res = await api.post('/coupons', body);
+        const res = await createCoupon(body);
         setNewId(res.data?.id ?? null);
         setMessage('Cupom criado.');
       }
@@ -378,7 +378,7 @@ function Coupons() {
   const toggle = async (coupon: Coupon) => {
     setListError('');
     try {
-      await api.put(`/coupons/${coupon.id}`, {
+      await updateCoupon(coupon.id, {
         code: coupon.code,
         type: coupon.type,
         value: coupon.value,
@@ -396,7 +396,7 @@ function Coupons() {
   const remove = async (coupon: Coupon) => {
     setListError('');
     try {
-      const res = await api.delete(`/coupons/${coupon.id}`);
+      const res = await deleteCoupon(coupon.id);
       // Cupom já usado é desativado em vez de apagado — a API explica por quê.
       if (res.data?.message) setListError(res.data.message);
       if (editingId === coupon.id) resetForm();

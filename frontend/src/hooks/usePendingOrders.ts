@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../api';
+import { listOrders } from '../services/orders';
 
 export type OrderItemView = {
   productId: number;
@@ -51,7 +51,7 @@ export function usePendingOrders() {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/orders', { params: { status: 'PENDING' } });
+      const res = await listOrders('PENDING');
       setOrders(res.data || []);
     } catch (err) {
       console.error('Erro ao buscar pedidos:', err);

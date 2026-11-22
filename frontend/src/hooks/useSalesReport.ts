@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api';
+import { getSalesReport } from '../services/analytics';
 
 export interface SoldItem {
   saleId: number;
@@ -22,7 +22,7 @@ export function useSalesReport(from: Date) {
   const fetchReport = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/analytics/sales-report', { params: { from: fromISO } });
+      const res = await getSalesReport(fromISO);
       setSoldItems(res.data || []);
     } catch (err) {
       console.error("Erro ao carregar o relatório de vendas:", err);

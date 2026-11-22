@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../api';
+import { getPaymentOptions } from '../services/checkout';
 
 export type InstallmentOption = {
   installments: number;
@@ -31,7 +31,7 @@ export function usePaymentOptions(netTotal: number) {
   const fetchOptions = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/payment/options', { params: { subtotal: rounded } });
+      const res = await getPaymentOptions(rounded);
       setOptions(res.data);
     } catch (err) {
       console.error('Erro ao carregar formas de pagamento:', err);

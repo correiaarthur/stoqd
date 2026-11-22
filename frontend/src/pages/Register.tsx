@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { api } from '../api';
+import { register } from '../services/account';
 import { saveToken } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/errors';
 import { AuthShell } from '../components/AuthShell';
@@ -24,7 +24,7 @@ export function Register() {
     setIsSubmitting(true);
 
     try {
-      const res = await api.post('/auth/register', form);
+      const res = await register(form);
       saveToken(res.data.token);
 
       // Recarrega para o cabeçalho e o carrinho enxergarem o novo papel.

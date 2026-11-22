@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api } from '../api';
+import { login } from '../services/account';
 import { saveToken } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/errors';
 import { AuthShell } from '../components/AuthShell';
@@ -17,7 +17,7 @@ export function Login() {
     setError('');
 
     try {
-      const response = await api.post('/auth/login', { identifier, password });
+      const response = await login(identifier, password);
 
       saveToken(response.data.token);
 

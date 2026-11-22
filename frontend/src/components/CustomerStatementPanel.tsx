@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '../api';
+import { updateCustomer, getCustomerStatement, payInstallment } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
 import { formatCurrency } from '../utils/formatters';
 import type { Customer, CustomerStatement, Installment, StatementSale, StatementSaleItem } from '../hooks/useCustomers';
@@ -68,7 +68,7 @@ function EditHeader({ customer, onCancel, onSaved }: { customer: Customer; onCan
     setError('');
     setIsSaving(true);
     try {
-      await api.put(`/customers/${customer.id}`, form);
+      await updateCustomer(customer.id, form);
       onSaved();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Não foi possível salvar o cliente.'));
@@ -130,7 +130,7 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
 
     try {
       setLoading(true);
-      const res = await api.get<CustomerStatement>(`/customers/${customerId}/statement`);
+      const res = await getCustomerStatement<CustomerStatement>(customerId);
       setActiveCustomer(res.data);
 
       // As compras chegam fechadas: com várias, abrir todas escondia a que se
@@ -157,7 +157,7 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
 
   const handlePay = async (installmentId: number) => {
     try {
-      await api.patch(`/installments/${installmentId}/pay`, { paidAt: new Date().toISOString() });
+      await payInstallment(installmentId);
       await loadStatement();
       onRefresh();
     } catch (err) {

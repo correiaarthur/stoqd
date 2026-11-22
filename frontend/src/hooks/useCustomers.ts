@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../api';
+import { listCustomers } from '../services/customers';
 
 /** Os dados de contato, que toda resposta de cliente traz. */
 export interface CustomerRecord {
@@ -34,7 +34,7 @@ export function useCustomers() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const res = await api.get<Customer[]>('/customers');
+      const res = await listCustomers<Customer>();
       setCustomers(res.data || []);
     } catch (err) {
       console.error("Erro ao buscar clientes:", err);

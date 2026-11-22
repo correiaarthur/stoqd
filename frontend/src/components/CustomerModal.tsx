@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../api';
+import { updateCustomer, createCustomer } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
 import type { Customer, CustomerRecord } from '../hooks/useCustomers';
 
@@ -32,11 +32,11 @@ export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerMo
     setIsSubmitting(true);
     try {
       if (customerToEdit) {
-        await api.put(`/customers/${customerToEdit.id}`, form);
+        await updateCustomer(customerToEdit.id, form);
         alert('Cliente atualizado com sucesso!');
         onSuccess();
       } else {
-        const res = await api.post<CustomerRecord>('/customers', form);
+        const res = await createCustomer<CustomerRecord>(form);
         alert('Cliente adicionado com sucesso!');
         onSuccess(res.data);
       }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api';
+import { listSales } from '../services/orders';
 
 export interface SaleListItem {
   id: number;
@@ -36,7 +36,7 @@ export function useSalesList(from: Date) {
   const fetchSales = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/sales', { params: { from: fromISO, limit: 200 } });
+      const res = await listSales({ from: fromISO, limit: 200 });
       setSales(res.data || []);
     } catch (err) {
       console.error("Erro ao buscar vendas:", err);

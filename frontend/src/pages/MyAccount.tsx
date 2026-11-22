@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { api } from '../api';
+import { getMe, getMyOrders, updateMe, changePassword, deleteMe } from '../services/account';
 import { formatCurrency } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
 import { clearToken } from '../utils/auth';
@@ -67,7 +67,7 @@ export function MyAccount() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [me, history] = await Promise.all([api.get('/me'), api.get('/me/orders')]);
+      const [me, history] = await Promise.all([getMe(), getMyOrders()]);
       setAccount(me.data);
       setOrders(history.data.orders || []);
     } catch (err) {
@@ -229,7 +229,7 @@ function ProfileCard({ account, onSaved }: { account: Account; onSaved: (account
     setIsSaving(true);
 
     try {
-      const res = await api.put('/me', form);
+      const res = await updateMe(form);
       onSaved(res.data);
       setMessage('Dados atualizados.');
     } catch (err) {
@@ -281,7 +281,7 @@ function PasswordCard() {
     setIsSaving(true);
 
     try {
-      await api.put('/me/password', { currentPassword, newPassword });
+      await changePassword(currentPassword, newPassword);
       setCurrentPassword('');
       setNewPassword('');
       setMessage('Senha alterada.');
@@ -339,7 +339,7 @@ function DangerZone() {
     setError('');
 
     try {
-      await api.delete('/me');
+      await deleteMe();
       clearToken();
       window.location.href = '/';
     } catch (err) {

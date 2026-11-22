@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { api } from '../api';
+import { createOrder, createSale } from '../services/orders';
 import { useCart } from '../contexts/cart';
 import { useCustomers } from '../hooks/useCustomers';
 import { useCountdown, formatCountdown } from '../hooks/useCountdown';
@@ -333,7 +333,7 @@ function CustomerPanel({
     setIsProcessing(true);
 
     try {
-      await api.post('/orders', {
+      await createOrder({
         cartToken,
         observation: observation.trim() || null,
         paymentType: choice.paymentType,
@@ -510,7 +510,7 @@ function AdminPanel({
     setIsProcessing(true);
 
     try {
-      const res = await api.post('/sales', {
+      const res = await createSale({
         customerId: selectedCustomer ? Number(selectedCustomer) : null,
         observation: observation.trim() || null,
         discount: Math.min(rawDiscountInReais, itemsTotal),

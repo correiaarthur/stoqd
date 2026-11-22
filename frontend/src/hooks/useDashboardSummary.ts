@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api';
+import { getDashboardSummary } from '../services/analytics';
 
 export interface DashboardSummary {
   inventory: {
@@ -24,7 +24,7 @@ export function useDashboardSummary() {
   const fetchSummary = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/analytics/summary');
+      const res = await getDashboardSummary();
       setSummary(res.data);
     } catch (err) {
       console.error("Erro ao carregar os indicadores:", err);

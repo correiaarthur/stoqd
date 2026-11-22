@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { api } from '../api';
+import { confirmOrder, cancelOrder } from '../services/orders';
 import { usePendingOrders, type PendingOrder } from '../hooks/usePendingOrders';
 import { useCustomers } from '../hooks/useCustomers';
 import { formatCurrency, parseCurrencyInput } from '../utils/formatters';
@@ -102,7 +102,7 @@ function OrderCard({ order, customers, onDone }: {
     setIsProcessing(true);
 
     try {
-      await api.post(`/orders/${order.id}/confirm`, {
+      await confirmOrder(order.id, {
         ...(customerChoice === 'new' ? { createCustomer: true } : { customerId: Number(customerChoice) }),
         priceSource,
         discount: manualDiscount,
@@ -124,7 +124,7 @@ function OrderCard({ order, customers, onDone }: {
     setIsProcessing(true);
 
     try {
-      await api.post(`/orders/${order.id}/cancel`, { reason });
+      await cancelOrder(order.id, reason);
       onDone();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Não foi possível recusar o pedido.'));

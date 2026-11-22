@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../api';
+import { validateCoupon } from '../services/checkout';
 import { formatCurrency } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
 import './CouponField.css';
@@ -42,7 +42,7 @@ export function CouponField({ subtotal, applied, onChange, variant = 'box' }: Pr
 
     let cancelled = false;
 
-    api.post('/payment/coupons/validate', { code: appliedCode, subtotal })
+    validateCoupon(appliedCode, subtotal)
       .then(res => { if (!cancelled) onChange({ code: res.data.code, discount: res.data.discount }); })
       .catch(err => {
         if (cancelled) return;
@@ -59,7 +59,7 @@ export function CouponField({ subtotal, applied, onChange, variant = 'box' }: Pr
     setIsChecking(true);
 
     try {
-      const res = await api.post('/payment/coupons/validate', { code, subtotal });
+      const res = await validateCoupon(code, subtotal);
       onChange({ code: res.data.code, discount: res.data.discount });
       setCode('');
     } catch (err) {

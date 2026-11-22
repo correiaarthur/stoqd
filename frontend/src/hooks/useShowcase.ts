@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../api';
+import { fetchShowcase, fetchShowcaseFacets } from '../services/catalog';
 import { getCartToken } from '../utils/cartToken';
 
 /**
@@ -84,9 +84,9 @@ export function useShowcase(filters: ShowcaseFilters) {
     setStatus(cursor ? 'loadingMore' : 'loading');
 
     try {
-      const res = await api.get<ShowcasePage>('/products/showcase', {
-        params: buildParams(JSON.parse(filtersKey) as ShowcaseFilters, cursor),
-      });
+      const res = await fetchShowcase<ShowcasePage>(
+        buildParams(JSON.parse(filtersKey) as ShowcaseFilters, cursor),
+      );
       if (myGeneration !== generation.current) return;
 
       // Um produto que esgota no meio da rolagem já veio entre os com estoque
@@ -139,8 +139,7 @@ let facetsCache: { at: number; promise: Promise<ShowcaseFacets | null> } | null 
 function loadFacets(): Promise<ShowcaseFacets | null> {
   if (facetsCache && Date.now() - facetsCache.at < FACETS_TTL_MS) return facetsCache.promise;
 
-  const promise = api
-    .get<ShowcaseFacets>('/products/showcase/facets', { params: { cartToken: getCartToken() } })
+  const promise = fetchShowcaseFacets<ShowcaseFacets>(getCartToken())
     .then(res => res.data)
     .catch(err => {
       console.error('Erro ao buscar os filtros da vitrine:', err);

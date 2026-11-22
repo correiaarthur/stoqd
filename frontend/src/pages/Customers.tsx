@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { api } from '../api';
+import { deleteCustomer } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
 import { useCustomers, type Customer } from '../hooks/useCustomers';
 import { formatCurrency } from '../utils/formatters';
@@ -36,7 +36,7 @@ export function Customers() {
 
     if (confirmed) {
       try {
-        await api.delete(`/customers/${customer.id}`);
+        await deleteCustomer(customer.id);
         refetchCustomers();
       } catch (err) { alert(getApiErrorMessage(err, "Erro ao excluir cliente.")); }
     }
