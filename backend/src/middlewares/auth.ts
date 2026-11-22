@@ -92,4 +92,29 @@ function requireRole(role: Role, message: string) {
 
 export const requireAdmin = requireRole('admin', "Esta área é da administração da loja.");
 
-export const requireCustomer = requireRole('customer', "Esta área é da sua conta de cliente.");
+const requireCustomerRole = requireRole('customer', "Esta área é da sua conta de cliente.");
+
+/**
+ * Exige token de cliente **com** `userId`. Quem passa por aqui pode usar
+ * `customerUserId(req)` sem checar nada: a verificação mora num lugar só, em
+ * vez de um `if (!userId)` no começo de cada handler.
+ */
+export function requireCustomer(req: Request, res: Response, next: NextFunction): Response | void {
+  requireCustomerRole(req, res, (err?: unknown) => {
+    if (err) return next(err);
+
+    if (req.auth?.userId === undefined) {
+      return res.status(401).json({ error: "Faça login novamente." });
+    }
+
+    next();
+  });
+}
+
+/** `userId` do cliente autenticado. Só chamar depois de `requireCustomer`. */
+export function customerUserId(req: Request): number {
+  return req.auth?.userId as number;
+}
+
+/** Autentica e exige papel de admin: o par que toda rota da administração precisa. */
+export const adminOnly = [authMiddleware, requireAdmin];

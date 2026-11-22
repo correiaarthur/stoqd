@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail, isAdminPassword } from '../lib/adminCredentials.js';
 import { findLinkableCustomer } from '../lib/customerLink.js';
-import { translatePrismaError } from '../lib/prismaErrors.js';
+import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
 import {
   normalizeEmail,
   normalizeName,
@@ -61,7 +61,7 @@ export async function register(req: Request, res: Response) {
   } catch (error) {
     // A constraint violada pode ser a do telefone ou a do e-mail; o Prisma diz
     // qual em `meta.target`, e a mensagem precisa apontar o campo certo.
-    const duplicatedField = (error as { meta?: { target?: string[] } })?.meta?.target ?? [];
+    const duplicatedField = duplicatedFieldsOf(error);
 
     const translated = translatePrismaError(error, {
       duplicate: duplicatedField.includes('email')

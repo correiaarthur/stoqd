@@ -1,16 +1,19 @@
 import type { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
+import { customerUserId } from '../middlewares/auth.js';
 import { PRODUCT_STOCK_SELECT, getActivePrice } from '../lib/pricing.js';
 import { parseCartItems, parseCartToken } from '../lib/cartItems.js';
 import {
   MAX_LINES_PER_CART,
   MAX_UNITS_PER_CART,
   getStockView,
+  loadStockProducts,
   reservationExpiry,
   IDENTIFIED_RESERVATION_MINUTES,
 } from '../lib/availability.js';
-import { SaleError, registerSale } from '../lib/sales.js';
+import { registerSale } from '../lib/sales.js';
+import { DomainError, respondWithError } from '../lib/errors.js';
 import { notifyNewOrder } from '../lib/notifications.js';
 import { checkCoupon, couponDiscountFor } from '../lib/coupons.js';
 import { computeTotals, getInterestPercent, previewInstallmentValue, sumLines } from '../lib/pricingRules.js';
@@ -18,19 +21,6 @@ import { computeTotals, getInterestPercent, previewInstallmentValue, sumLines } 
 /** Um pedido pendente por vez já é bastante para quem atende sozinha. */
 const MAX_PENDING_ORDERS_PER_USER = 3;
 
-class OrderError extends Error {
-  constructor(message: string, readonly status = 400) {
-    super(message);
-  }
-}
-
-function fail(res: Response, error: unknown, fallback: string) {
-  if (error instanceof OrderError) return res.status(error.status).json({ error: error.message });
-  if (error instanceof SaleError) return res.status(400).json({ error: error.message });
-
-  console.error(fallback, error);
-  return res.status(500).json({ error: fallback });
-}
 
 /**
  * Cria o pedido a partir do carrinho e dispara o aviso.
@@ -40,8 +30,7 @@ function fail(res: Response, error: unknown, fallback: string) {
  * ficam presas a ele, e só saem quando o pedido virar venda ou for recusado.
  */
 export async function create(req: Request, res: Response) {
-  const userId = req.auth?.userId;
-  if (!userId) return res.status(401).json({ error: "Faça login para enviar o pedido." });
+  const userId = customerUserId(req);
 
   const cartToken = parseCartToken(req.body?.cartToken);
   const parsed = parseCartItems(req.body?.items, { maxLines: MAX_LINES_PER_CART, maxUnits: MAX_UNITS_PER_CART });
@@ -58,17 +47,13 @@ export async function create(req: Request, res: Response) {
       const pendingCount = await tx.order.count({ where: { userId, status: 'PENDING' } });
 
       if (pendingCount >= MAX_PENDING_ORDERS_PER_USER) {
-        throw new OrderError(
+        throw new DomainError(
           "Você já tem pedidos aguardando confirmação. Espere a resposta antes de enviar outro.",
           429
         );
       }
 
-      const products = await tx.product.findMany({
-        where: { id: { in: parsed.items.map(item => item.productId) } },
-        select: PRODUCT_STOCK_SELECT,
-      });
-      const productById = new Map(products.map(product => [product.id, product]));
+      const { products, byId: productById } = await loadStockProducts(parsed.items.map(item => item.productId), tx);
 
       // A reserva do próprio carrinho não conta contra ele — mas o que outra
       // pessoa reservou, sim.
@@ -78,12 +63,12 @@ export async function create(req: Request, res: Response) {
 
       for (const item of parsed.items) {
         const product = productById.get(item.productId);
-        if (!product) throw new OrderError("Um dos produtos do carrinho não existe mais.");
+        if (!product) throw new DomainError("Um dos produtos do carrinho não existe mais.");
 
         const available = stock.get(product.id)?.available ?? 0;
 
         if (available < item.quantity) {
-          throw new OrderError(
+          throw new DomainError(
             available === 0
               ? `${product.name} esgotou enquanto você finalizava. Remova o item para continuar.`
               : `Restam ${available} de ${item.quantity} unidades de ${product.name}. Ajuste a quantidade para continuar.`
@@ -102,7 +87,7 @@ export async function create(req: Request, res: Response) {
       // A opção de parcelamento é conferida no banco: uma que a loja desligou
       // não pode chegar até a confirmação como se estivesse valendo.
       if (paymentType === 'PRAZO' && await getInterestPercent(tx, requestedInstallments) === null) {
-        throw new OrderError(`O parcelamento em ${requestedInstallments}x não está disponível.`);
+        throw new DomainError(`O parcelamento em ${requestedInstallments}x não está disponível.`);
       }
 
       const subtotal = sumLines(itemsData);
@@ -114,7 +99,7 @@ export async function create(req: Request, res: Response) {
 
       if (req.body?.couponCode) {
         const coupon = await checkCoupon(tx, req.body.couponCode, subtotal);
-        if (!coupon.ok) throw new OrderError(coupon.message);
+        if (!coupon.ok) throw new DomainError(coupon.message);
         couponId = coupon.couponId;
       }
 
@@ -163,7 +148,7 @@ export async function create(req: Request, res: Response) {
 
     return res.status(201).json({ id: order.id, status: order.status, total });
   } catch (error) {
-    return fail(res, error, "Não foi possível enviar o pedido. Tente novamente.");
+    return respondWithError(res, error, "Não foi possível enviar o pedido. Tente novamente.");
   }
 }
 
@@ -303,7 +288,7 @@ export async function list(req: Request, res: Response) {
 
     return res.json(payload);
   } catch (error) {
-    return fail(res, error, "Erro ao buscar pedidos.");
+    return respondWithError(res, error, "Erro ao buscar pedidos.");
   }
 }
 
@@ -347,9 +332,9 @@ export async function confirm(req: Request, res: Response) {
         },
       });
 
-      if (!order) throw new OrderError("Pedido não encontrado.", 404);
+      if (!order) throw new DomainError("Pedido não encontrado.", 404);
       if (order.status !== 'PENDING') {
-        throw new OrderError(
+        throw new DomainError(
           order.status === 'CONFIRMED'
             ? "Este pedido já virou venda."
             : "Este pedido foi recusado e não pode ser confirmado.",
@@ -376,7 +361,7 @@ export async function confirm(req: Request, res: Response) {
       });
 
       if (reivindicado.count !== 1) {
-        throw new OrderError("Este pedido já virou venda.", 409);
+        throw new DomainError("Este pedido já virou venda.", 409);
       }
 
       // O vínculo acontece aqui, e não no cadastro: é o momento em que você já
@@ -388,11 +373,11 @@ export async function confirm(req: Request, res: Response) {
         linkedCustomerId = order.user.customerId;
       } else if (customerId) {
         const existing = await tx.customer.findUnique({ where: { id: Number(customerId) } });
-        if (!existing) throw new OrderError("Cliente escolhido não existe.", 404);
+        if (!existing) throw new DomainError("Cliente escolhido não existe.", 404);
 
         const alreadyLinked = await tx.user.findUnique({ where: { customerId: existing.id } });
         if (alreadyLinked && alreadyLinked.id !== order.userId) {
-          throw new OrderError("Este cliente já está vinculado a outra conta.", 409);
+          throw new DomainError("Este cliente já está vinculado a outra conta.", 409);
         }
 
         linkedCustomerId = existing.id;
@@ -404,7 +389,7 @@ export async function confirm(req: Request, res: Response) {
         linkedCustomerId = created.id;
         await tx.user.update({ where: { id: order.userId }, data: { customerId: created.id } });
       } else {
-        throw new OrderError("Escolha o cliente da venda ou crie um novo a partir dos dados do pedido.");
+        throw new DomainError("Escolha o cliente da venda ou crie um novo a partir dos dados do pedido.");
       }
 
       const saleItems = order.items.map(item => ({
@@ -422,7 +407,7 @@ export async function confirm(req: Request, res: Response) {
         const checked = await checkCoupon(tx, order.coupon?.code, subtotal);
 
         if (!checked.ok) {
-          throw new OrderError(
+          throw new DomainError(
             `O cupom ${order.coupon?.code} não vale mais: ${checked.message.toLowerCase()} Confirme sem o cupom ou recuse o pedido.`
           );
         }
@@ -456,7 +441,7 @@ export async function confirm(req: Request, res: Response) {
 
     return res.json(result);
   } catch (error) {
-    return fail(res, error, "Não foi possível confirmar o pedido.");
+    return respondWithError(res, error, "Não foi possível confirmar o pedido.");
   }
 }
 
@@ -474,9 +459,9 @@ export async function cancel(req: Request, res: Response) {
     const order = await prisma.$transaction(async (tx) => {
       const found = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } });
 
-      if (!found) throw new OrderError("Pedido não encontrado.", 404);
+      if (!found) throw new DomainError("Pedido não encontrado.", 404);
       if (found.status !== 'PENDING') {
-        throw new OrderError("Só um pedido pendente pode ser recusado.", 409);
+        throw new DomainError("Só um pedido pendente pode ser recusado.", 409);
       }
 
       const updated = await tx.order.update({
@@ -492,6 +477,6 @@ export async function cancel(req: Request, res: Response) {
 
     return res.json({ id: order.id, status: order.status, cancelReason: order.cancelReason });
   } catch (error) {
-    return fail(res, error, "Não foi possível recusar o pedido.");
+    return respondWithError(res, error, "Não foi possível recusar o pedido.");
   }
 }

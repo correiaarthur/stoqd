@@ -33,3 +33,9 @@ export function translatePrismaError(error: unknown, messages: Messages): Transl
 
   return null;
 }
+
+/** Campos da constraint única violada (P2002), como o Prisma os informa em `meta.target`. */
+export function duplicatedFieldsOf(error: unknown): string[] {
+  const target = (error as { meta?: { target?: unknown } })?.meta?.target;
+  return Array.isArray(target) ? target.map(String) : [];
+}

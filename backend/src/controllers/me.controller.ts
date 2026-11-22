@@ -2,9 +2,10 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '../lib/prisma.js';
+import { customerUserId } from '../middlewares/auth.js';
 import { BCRYPT_ROUNDS, isAdminEmail } from '../lib/adminCredentials.js';
 import { linkAccountToCustomer } from '../lib/customerLink.js';
-import { translatePrismaError } from '../lib/prismaErrors.js';
+import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
 import { sumLines } from '../lib/pricingRules.js';
 import {
   normalizeName,
@@ -24,13 +25,8 @@ const PUBLIC_FIELDS = {
   customerId: true,
 } as const;
 
-function currentUserId(req: Request) {
-  return req.auth?.userId;
-}
-
 export async function show(req: Request, res: Response) {
-  const userId = currentUserId(req);
-  if (!userId) return res.status(401).json({ error: "Faça login novamente." });
+  const userId = customerUserId(req);
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: PUBLIC_FIELDS });
@@ -45,8 +41,7 @@ export async function show(req: Request, res: Response) {
 }
 
 export async function update(req: Request, res: Response) {
-  const userId = currentUserId(req);
-  if (!userId) return res.status(401).json({ error: "Faça login novamente." });
+  const userId = customerUserId(req);
 
   const name = normalizeName(req.body?.name);
   const email = optionalEmail(req.body?.email);
@@ -68,7 +63,7 @@ export async function update(req: Request, res: Response) {
 
     return res.json(user);
   } catch (error) {
-    const duplicatedField = (error as { meta?: { target?: string[] } })?.meta?.target ?? [];
+    const duplicatedField = duplicatedFieldsOf(error);
 
     const translated = translatePrismaError(error, {
       duplicate: duplicatedField.includes('email')
@@ -92,8 +87,7 @@ export async function update(req: Request, res: Response) {
  * barata porque o serviço de envio já entrou com o aviso de pedido.
  */
 export async function changePassword(req: Request, res: Response) {
-  const userId = currentUserId(req);
-  if (!userId) return res.status(401).json({ error: "Faça login novamente." });
+  const userId = customerUserId(req);
 
   const currentPassword = String(req.body?.currentPassword ?? '');
   const newPassword = req.body?.newPassword;
@@ -135,8 +129,7 @@ export async function changePassword(req: Request, res: Response) {
  * não o contrário.
  */
 export async function remove(req: Request, res: Response) {
-  const userId = currentUserId(req);
-  if (!userId) return res.status(401).json({ error: "Faça login novamente." });
+  const userId = customerUserId(req);
 
   try {
     await prisma.user.delete({ where: { id: userId } });
@@ -151,13 +144,40 @@ export async function remove(req: Request, res: Response) {
   }
 }
 
+
+type LineItem = { quantity: number; unitPrice: number; product: { name: string } };
+type InstallmentRow = { number: number; value: number; dueDate: Date; paidAt: Date | null };
+
+function serializeItems(items: LineItem[]) {
+  return items.map(item => ({
+    name: item.product.name,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+  }));
+}
+
+/** As parcelas como a tela as mostra, mais o que falta pagar e se já quitou. */
+function serializeInstallments(installments: InstallmentRow[]) {
+  const pending = installments.filter(installment => !installment.paidAt);
+
+  return {
+    installments: installments.map(installment => ({
+      number: installment.number,
+      value: installment.value,
+      dueDate: installment.dueDate,
+      paidAt: installment.paidAt,
+    })),
+    pendingAmount: pending.reduce((acc, installment) => acc + installment.value, 0),
+    isPaid: installments.length > 0 && pending.length === 0,
+  };
+}
+
 /**
  * Histórico de compras: os pedidos feitos pela vitrine e, quando existe
  * vínculo com um Customer, também as vendas de balcão dessa mesma pessoa.
  */
 export async function orders(req: Request, res: Response) {
-  const userId = currentUserId(req);
-  if (!userId) return res.status(401).json({ error: "Faça login novamente." });
+  const userId = customerUserId(req);
 
   try {
     const user = await prisma.user.findUnique({
@@ -199,70 +219,39 @@ export async function orders(req: Request, res: Response) {
       },
     });
 
-    const payload = orderList.map(order => {
-      const installments = order.sale?.installments ?? [];
-      const pending = installments.filter(installment => !installment.paidAt);
+    const orderEntries = orderList.map(order => ({
+      source: 'ORDER' as const,
+      id: order.id,
+      status: order.status,
+      createdAt: order.createdAt,
+      cancelReason: order.cancelReason,
+      saleId: order.saleId,
+      // Enquanto pendente o total é o do pedido; confirmado, é o que a venda
+      // realmente cobrou — desconto, juros e mudança de preço já aplicados.
+      total: order.sale?.total ?? sumLines(order.items),
+      discount: order.sale?.discount ?? 0,
+      interest: order.sale?.interest ?? 0,
+      couponCode: order.sale?.coupon?.code ?? null,
+      items: serializeItems(order.items),
+      ...serializeInstallments(order.sale?.installments ?? []),
+    }));
 
-      return {
-        source: 'ORDER' as const,
-        id: order.id,
-        status: order.status,
-        createdAt: order.createdAt,
-        cancelReason: order.cancelReason,
-        saleId: order.saleId,
-        // Enquanto pendente o total é o do pedido; confirmado, é o que a venda
-        // realmente cobrou — desconto, juros e mudança de preço já aplicados.
-        total: order.sale?.total ?? sumLines(order.items),
-        discount: order.sale?.discount ?? 0,
-        interest: order.sale?.interest ?? 0,
-        couponCode: order.sale?.coupon?.code ?? null,
-        items: order.items.map(item => ({
-          name: item.product.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-        })),
-        installments: installments.map(installment => ({
-          number: installment.number,
-          value: installment.value,
-          dueDate: installment.dueDate,
-          paidAt: installment.paidAt,
-        })),
-        pendingAmount: pending.reduce((acc, installment) => acc + installment.value, 0),
-        isPaid: installments.length > 0 && pending.length === 0,
-      };
-    });
+    const saleEntries = counterSales.map(sale => ({
+      source: 'SALE' as const,
+      id: sale.id,
+      status: 'CONFIRMED' as const,
+      createdAt: sale.date,
+      cancelReason: null,
+      saleId: sale.id,
+      total: sale.total,
+      discount: sale.discount ?? 0,
+      interest: sale.interest ?? 0,
+      couponCode: sale.coupon?.code ?? null,
+      items: serializeItems(sale.items),
+      ...serializeInstallments(sale.installments),
+    }));
 
-    const salePayload = counterSales.map(sale => {
-      const pending = sale.installments.filter(installment => !installment.paidAt);
-
-      return {
-        source: 'SALE' as const,
-        id: sale.id,
-        status: 'CONFIRMED' as const,
-        createdAt: sale.date,
-        cancelReason: null,
-        saleId: sale.id,
-        total: sale.total,
-        discount: sale.discount ?? 0,
-        interest: sale.interest ?? 0,
-        couponCode: sale.coupon?.code ?? null,
-        items: sale.items.map(item => ({
-          name: item.product.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-        })),
-        installments: sale.installments.map(installment => ({
-          number: installment.number,
-          value: installment.value,
-          dueDate: installment.dueDate,
-          paidAt: installment.paidAt,
-        })),
-        pendingAmount: pending.reduce((acc, installment) => acc + installment.value, 0),
-        isPaid: sale.installments.length > 0 && pending.length === 0,
-      };
-    });
-
-    const history = [...payload, ...salePayload]
+    const history = [...orderEntries, ...saleEntries]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return res.json({ linkedToCustomer: customerId !== null, orders: history });

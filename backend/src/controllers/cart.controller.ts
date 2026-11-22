@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
-import { PRODUCT_STOCK_SELECT, getActivePrice } from '../lib/pricing.js';
+import { getActivePrice } from '../lib/pricing.js';
 import { parseCartItems, parseCartToken } from '../lib/cartItems.js';
 import {
   ANONYMOUS_RESERVATION_MINUTES,
@@ -9,6 +9,7 @@ import {
   MAX_LINES_PER_CART,
   MAX_UNITS_PER_CART,
   getStockView,
+  loadStockProducts,
   reservationExpiry,
 } from '../lib/availability.js';
 
@@ -24,13 +25,6 @@ type ItemStatus = {
   unitPrice: number;
   status: 'ok' | 'partial' | 'unavailable';
 };
-
-async function loadProducts(productIds: number[]) {
-  return prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: PRODUCT_STOCK_SELECT,
-  });
-}
 
 /**
  * Troca as reservas deste carrinho pelas do estado atual dele.
@@ -54,8 +48,7 @@ export async function reserve(req: Request, res: Response) {
   const expiresAt = reservationExpiry(minutes);
 
   try {
-    const products = await loadProducts(parsed.items.map(item => item.productId));
-    const productById = new Map(products.map(product => [product.id, product]));
+    const { products, byId: productById } = await loadStockProducts(parsed.items.map(item => item.productId));
 
     const result = await prisma.$transaction(async (tx) => {
       // As reservas antigas deste carrinho saem antes da contagem, senão o
@@ -125,8 +118,7 @@ export async function availability(req: Request, res: Response) {
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
   try {
-    const products = await loadProducts(parsed.items.map(item => item.productId));
-    const productById = new Map(products.map(product => [product.id, product]));
+    const { products, byId: productById } = await loadStockProducts(parsed.items.map(item => item.productId));
 
     // A reserva do próprio carrinho não conta contra ele.
     const stock = await getStockView(products, cartToken ? { excludeCartToken: cartToken } : {});

@@ -1,4 +1,5 @@
 import { prisma } from './prisma.js';
+import { PRODUCT_STOCK_SELECT } from './pricing.js';
 
 /**
  * Disponibilidade de estoque.
@@ -119,4 +120,19 @@ export async function withAvailability<T extends { id: number; quantity: number 
       available: stock?.available ?? product.quantity,
     };
   });
+}
+
+/**
+ * Produtos do carrinho com o que preço e estoque precisam, já indexados por id.
+ *
+ * Carrinho, disponibilidade e pedido faziam o mesmo `findMany` + `new Map`;
+ * aceita o `tx` para o pedido ler dentro da própria transação.
+ */
+export async function loadStockProducts(productIds: number[], client: Prisma$Tx | typeof prisma = prisma) {
+  const products = await client.product.findMany({
+    where: { id: { in: productIds } },
+    select: PRODUCT_STOCK_SELECT,
+  });
+
+  return { products, byId: new Map(products.map(product => [product.id, product])) };
 }
