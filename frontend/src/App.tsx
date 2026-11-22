@@ -13,6 +13,7 @@ import { Settings } from './pages/Settings';
 
 import { isAdmin, isCustomer, isTokenValid } from './utils/auth';
 import { CartProvider } from './contexts/CartProvider';
+import { ToastProvider } from './contexts/ToastProvider';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { AdminSidebar } from './components/AdminSidebar';
@@ -67,34 +68,36 @@ function Shell({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <BrowserRouter>
-      <CartProvider>
-        <Shell>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/cadastro" element={<Register />} />
+      <ToastProvider>
+        <CartProvider>
+          <Shell>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/cadastro" element={<Register />} />
 
-              {/* O checkout é público: o visitante monta o carrinho antes de
-                  ter conta, e é a própria tela que pede o cadastro na hora de
-                  enviar o pedido. */}
-              <Route path="/checkout" element={<Checkout />} />
+                {/* O checkout é público: o visitante monta o carrinho antes de
+                    ter conta, e é a própria tela que pede o cadastro na hora de
+                    enviar o pedido. */}
+                <Route path="/checkout" element={<Checkout />} />
 
-              <Route path="/minha-conta" element={<CustomerRoute><MyAccount /></CustomerRoute>} />
+                <Route path="/minha-conta" element={<CustomerRoute><MyAccount /></CustomerRoute>} />
 
-              <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
-              <Route path="/estoque" element={<AdminRoute><Inventory /></AdminRoute>} />
-              <Route path="/vendas" element={<AdminRoute><Sales /></AdminRoute>} />
-              <Route path="/customers" element={<AdminRoute><Customers /></AdminRoute>} />
-              <Route path="/ajustes" element={<AdminRoute><Settings /></AdminRoute>} />
+                <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+                <Route path="/estoque" element={<AdminRoute><Inventory /></AdminRoute>} />
+                <Route path="/vendas" element={<AdminRoute><Sales /></AdminRoute>} />
+                <Route path="/customers" element={<AdminRoute><Customers /></AdminRoute>} />
+                <Route path="/ajustes" element={<AdminRoute><Settings /></AdminRoute>} />
 
-              {/* O PDV virou o checkout: quem tiver o link antigo salvo cai no
-                  lugar novo em vez de numa tela que não existe mais. */}
-              <Route path="/pdv" element={<Navigate to="/checkout" replace />} />
+                {/* O PDV virou o checkout: quem tiver o link antigo salvo cai no
+                    lugar novo em vez de numa tela que não existe mais. */}
+                <Route path="/pdv" element={<Navigate to="/checkout" replace />} />
 
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-        </Shell>
-      </CartProvider>
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+          </Shell>
+        </CartProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

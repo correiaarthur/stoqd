@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { deleteCustomer } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
+import { useToast } from '../contexts/toast';
 import { useCustomers, type Customer } from '../hooks/useCustomers';
 import { formatCurrency } from '../utils/formatters';
 import { CustomerModal } from '../components/CustomerModal';
@@ -8,6 +9,7 @@ import { CustomerStatementPanel } from '../components/CustomerStatementPanel';
 import './Customers.css';
 
 export function Customers() {
+  const toast = useToast();
   const { customers, loading, refetchCustomers } = useCustomers();
   // Esqueleto só na primeira carga; recarregar depois de salvar não pisca a tela.
   const firstLoad = loading && customers.length === 0;
@@ -38,7 +40,7 @@ export function Customers() {
       try {
         await deleteCustomer(customer.id);
         refetchCustomers();
-      } catch (err) { alert(getApiErrorMessage(err, "Erro ao excluir cliente.")); }
+      } catch (err) { toast.error(getApiErrorMessage(err, "Erro ao excluir cliente.")); }
     }
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { updateCustomer, createCustomer } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
+import { useToast } from '../contexts/toast';
 import type { Customer, CustomerRecord } from '../hooks/useCustomers';
 
 interface CustomerModalProps {
@@ -14,6 +15,7 @@ interface CustomerModalProps {
 }
 
 export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerModalProps) {
+  const toast = useToast();
   const [form, setForm] = useState({ name: '', phone: '', email: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,15 +35,15 @@ export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerMo
     try {
       if (customerToEdit) {
         await updateCustomer(customerToEdit.id, form);
-        alert('Cliente atualizado com sucesso!');
+        toast.success('Cliente atualizado com sucesso!');
         onSuccess();
       } else {
         const res = await createCustomer<CustomerRecord>(form);
-        alert('Cliente adicionado com sucesso!');
+        toast.success('Cliente adicionado com sucesso!');
         onSuccess(res.data);
       }
       onClose();
-    } catch (err) { alert(getApiErrorMessage(err, 'Erro ao salvar cliente.')); } finally { setIsSubmitting(false); }
+    } catch (err) { toast.error(getApiErrorMessage(err, 'Erro ao salvar cliente.')); } finally { setIsSubmitting(false); }
   };
 
   return (

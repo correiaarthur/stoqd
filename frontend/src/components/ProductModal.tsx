@@ -4,6 +4,7 @@ import { getApiErrorMessage } from '../utils/errors';
 import { DropdownMenu } from './DropdownMenu';
 import { parseCurrencyInput, formatCurrency } from '../utils/formatters';
 import { formatExpiryDate } from '../utils/expiry';
+import { useToast } from '../contexts/toast';
 import { supabase } from '../lib/supabase';
 import type { Brand, Category, Product } from '../hooks/useProducts';
 import './ProductModal.css';
@@ -18,6 +19,7 @@ interface ProductModalProps {
 const MONEY_FIELDS = ['averageCost', 'sellingPrice', 'promotionalPrice'];
 
 export function ProductModal({ productToEdit, existingProducts = [], onClose, onSuccess }: ProductModalProps) {
+  const toast = useToast();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +73,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
       await taxonomy.remove(resource, id);
       loadInitialData();
     } catch (err) {
-      alert(getApiErrorMessage(err, 'Não foi possível apagar.'));
+      toast.error(getApiErrorMessage(err, 'Não foi possível apagar.'));
     }
   };
 
@@ -116,7 +118,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
       setForm(prev => ({ ...prev, imageUrl: signed.publicUrl }));
     } catch (error) {
       console.error('Erro no upload:', error);
-      alert('Erro ao enviar a imagem. Tente novamente.');
+      toast.error('Erro ao enviar a imagem. Tente novamente.');
     } finally {
       setIsUploading(false);
     }
@@ -159,14 +161,14 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
     try {
       if (productToEdit) {
         await updateProduct(productToEdit.id, payload);
-        alert('Produto atualizado com sucesso!');
+        toast.success('Produto atualizado com sucesso!');
       } else {
         await createProduct(payload);
-        alert('Produto cadastrado com sucesso!');
+        toast.success('Produto cadastrado com sucesso!');
       }
       onSuccess();
       onClose();
-    } catch (err) { alert(getApiErrorMessage(err, 'Erro ao salvar produto.')); } finally { setIsSubmitting(false); }
+    } catch (err) { toast.error(getApiErrorMessage(err, 'Erro ao salvar produto.')); } finally { setIsSubmitting(false); }
   };
 
   return (

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { updateCustomer, getCustomerStatement, payInstallment } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
 import { formatCurrency, formatDateCompact } from '../utils/formatters';
+import { useToast } from '../contexts/toast';
 import type { Customer, CustomerStatement, Installment, StatementSale, StatementSaleItem } from '../hooks/useCustomers';
 import './CustomerStatementPanel.css';
 
@@ -112,6 +113,7 @@ function EditHeader({ customer, onCancel, onSaved }: { customer: Customer; onCan
 }
 
 export function CustomerStatementPanel({ customerId, contact, name, editing, onEdit, onClose, onRefresh }: Props) {
+  const toast = useToast();
   const [expandedSales, setExpandedSales] = useState<number[]>([]);
 
   // `onClose` chega como arrow inline do pai, então muda de identidade a cada
@@ -138,12 +140,12 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
       // mostra, nos quadradinhos, qual tem parcela atrasada ou a vencer.
       setExpandedSales([]);
     } catch (err) {
-      alert(getApiErrorMessage(err, 'Erro ao carregar o histórico do cliente.'));
+      toast.error(getApiErrorMessage(err, 'Erro ao carregar o histórico do cliente.'));
       onCloseRef.current();
     } finally {
       setLoading(false);
     }
-  }, [customerId]);
+  }, [customerId, toast]);
 
   useEffect(() => { loadStatement(); }, [loadStatement]);
 
@@ -161,7 +163,7 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
       await loadStatement();
       onRefresh();
     } catch (err) {
-      alert(getApiErrorMessage(err, 'Erro ao processar a baixa da parcela.'));
+      toast.error(getApiErrorMessage(err, 'Erro ao processar a baixa da parcela.'));
     }
   };
 

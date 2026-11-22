@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { deleteProduct } from '../services/catalog';
 import { getApiErrorMessage } from '../utils/errors';
+import { useToast } from '../contexts/toast';
 import { useProducts, type Product } from '../hooks/useProducts';
 import { formatCurrency } from '../utils/formatters';
 import { ProductModal } from '../components/ProductModal';
@@ -22,6 +23,7 @@ const needsAttention = (p: Product) => {
 };
 
 export function Inventory() {
+  const toast = useToast();
   const { products, loading, refetch: refetchProducts } = useProducts();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -34,7 +36,7 @@ export function Inventory() {
       try {
         await deleteProduct(id);
         refetchProducts();
-      } catch (err) { alert(getApiErrorMessage(err, "Erro ao excluir produto.")); }
+      } catch (err) { toast.error(getApiErrorMessage(err, "Erro ao excluir produto.")); }
     }
   };
 
