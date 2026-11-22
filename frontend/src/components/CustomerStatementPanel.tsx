@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { updateCustomer, getCustomerStatement, payInstallment } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDateCompact } from '../utils/formatters';
 import type { Customer, CustomerStatement, Installment, StatementSale, StatementSaleItem } from '../hooks/useCustomers';
 import './CustomerStatementPanel.css';
 
@@ -165,15 +165,6 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
     }
   };
 
-  const formatDateBR = (dateString: string) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit' 
-    });
-  };
-
   const sortedSales = [...(activeCustomer?.sales || [])].sort((a, b) =>
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -232,7 +223,7 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
               <div className="statement-overdue">
                 <span>
                   <strong>Parcela {overdueNumber} de {overdue.sale.installments.length} · venda {String(overdue.sale.id).padStart(4, '0')}</strong>
-                  <span>Venceu em {formatDateBR(overdue.inst.dueDate)} · {formatCurrency(Number(overdue.inst.value))}</span>
+                  <span>Venceu em {formatDateCompact(overdue.inst.dueDate)} · {formatCurrency(Number(overdue.inst.value))}</span>
                 </span>
                 <button type="button" className="statement-pay" onClick={() => handlePay(overdue.inst.id)}>Dar baixa</button>
               </div>
@@ -281,7 +272,7 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSale(sale.id); } }}
                   >
                     <div className="sale-info-left">
-                      <h4>Venda #{sale.id} - {formatDateBR(sale.date)}</h4>
+                      <h4>Venda #{sale.id} - {formatDateCompact(sale.date)}</h4>
                       <span className="sale-products-label" title={productNames}>{productNames}</span>
                       {sortedInstallments.length > 1 && (
                         <span className="sale-mini" aria-hidden="true">
@@ -373,7 +364,7 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
                               <div key={inst.id} className="installment-row">
                                 <span className="inst-name">Parcela {idx + 1} - {formatCurrency(Number(inst.value))}</span>
                                 <div className="inst-actions">
-                                  <span className="inst-date">Vence: {formatDateBR(inst.dueDate)}</span>
+                                  <span className="inst-date">Vence: {formatDateCompact(inst.dueDate)}</span>
                                   <button className="btn-pay" onClick={() => handlePay(inst.id)}>Baixar</button>
                                 </div>
                               </div>

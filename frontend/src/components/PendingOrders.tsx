@@ -3,15 +3,9 @@ import { useState } from 'react';
 import { confirmOrder, cancelOrder } from '../services/orders';
 import { usePendingOrders, type PendingOrder } from '../hooks/usePendingOrders';
 import { useCustomers } from '../hooks/useCustomers';
-import { formatCurrency, parseCurrencyInput } from '../utils/formatters';
+import { formatCurrency, formatDateTime, parseCurrencyInput } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
 import './PendingOrders.css';
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
-}
 
 /**
  * Pedidos da vitrine esperando resposta.

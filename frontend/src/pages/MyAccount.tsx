@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { getMe, getMyOrders, updateMe, changePassword, deleteMe } from '../services/account';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDayMonth, formatRelativeDate } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
 import { clearToken } from '../utils/auth';
 import './MyAccount.css';
@@ -29,17 +29,6 @@ const STATUS_LABEL: Record<OrderHistoryItem['status'], string> = {
   CONFIRMED: 'Confirmado',
   CANCELLED: 'Recusado',
 };
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
-  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  if (sameDay) return `Hoje, ${time}`;
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', ...(d.getFullYear() !== today.getFullYear() && { year: '2-digit' }) });
-}
-
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
 /** O que a loja já sabe do pagamento: parcelas dizem tudo; sem elas, nada se afirma. */
 function paymentText(order: OrderHistoryItem) {
@@ -110,7 +99,7 @@ export function MyAccount() {
             <div className="account-stat">
               <span className="account-stat-label">Próxima parcela</span>
               <span className="account-stat-value">{formatCurrency(nextInstallment.value)}</span>
-              <span className="account-stat-note">vence em {shortDate(nextInstallment.dueDate)}</span>
+              <span className="account-stat-note">vence em {formatDayMonth(nextInstallment.dueDate)}</span>
             </div>
           )}
         </div>
@@ -141,7 +130,7 @@ export function MyAccount() {
                       <div className="account-order-top">
                         <span className="account-order-text">
                           <span className="account-order-meta">
-                            {order.source === 'SALE' ? 'Balcão' : 'Pedido'} #{String(order.id).padStart(4, '0')} · {formatDate(order.createdAt)}{payment ? ` · ${payment}` : ''}
+                            {order.source === 'SALE' ? 'Balcão' : 'Pedido'} #{String(order.id).padStart(4, '0')} · {formatRelativeDate(order.createdAt)}{payment ? ` · ${payment}` : ''}
                           </span>
                           <strong className="account-order-products">
                             {order.items.map(item => (item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name)).join(', ')}
@@ -165,7 +154,7 @@ export function MyAccount() {
                               className={`inst-pill ${installment.paidAt ? 'paid' : 'pending'}`}
                             >
                               {installment.number}/{order.installments.length} · {formatCurrency(installment.value)}
-                              {installment.paidAt ? ' ✓' : ` · vence ${shortDate(installment.dueDate)}`}
+                              {installment.paidAt ? ' ✓' : ` · vence ${formatDayMonth(installment.dueDate)}`}
                             </span>
                           ))}
                         </div>

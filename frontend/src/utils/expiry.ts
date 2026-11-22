@@ -1,3 +1,5 @@
+import { formatDate } from './formatters';
+
 export const EXPIRY_WARNING_DAYS = 90;
 
 export type ExpiryStatus = 'none' | 'expired' | 'soon' | 'ok';
@@ -43,11 +45,7 @@ export function formatExpiryDate(expiryDate: string) {
   const due = parseExpiryDay(expiryDate);
   if (!due) return '—';
 
-  return due.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  return formatDate(due);
 }
 
 /** Dias de hoje até a validade (0 = vence hoje, negativo = já venceu); `null` sem data. */

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSalesReport } from '../hooks/useSalesReport';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDayMonth } from '../utils/formatters';
 import {
   MONTH_LONG, MONTH_SHORT, lastMonths, startOf, itemsOfPeriod, revenueByDay,
   unitsByWeek, totalsByMonth, topProducts, type MonthRef, type Bucket,
@@ -19,7 +19,6 @@ const PERIODS = [
 const LONGEST = 12;
 // Só no mês o caixa e o volume mostram dia e semana; acima disso, mês a mês.
 const DETAILED_UP_TO = 1;
-const pad = (n: number) => String(n).padStart(2, '0');
 
 /**
  * A visão geral por período: o mês atual, os últimos 3, 6 ou 12 meses — os
@@ -176,7 +175,7 @@ function CashFlow({ days, monthTotals, detailed }: {
   detailed: boolean;
 }) {
   const bars = detailed
-    ? days.map(d => ({ value: d.value, title: `${pad(d.date.getDate())}/${pad(d.date.getMonth() + 1)}`, label: '' }))
+    ? days.map(d => ({ value: d.value, title: formatDayMonth(d.date), label: '' }))
     : monthTotals.map(t => ({ value: t.revenue, title: `${MONTH_LONG[t.month.month]}/${t.month.year}`, label: MONTH_SHORT[t.month.month] }));
   const max = Math.max(...bars.map(b => b.value), 0);
   const total = bars.reduce((sum, b) => sum + b.value, 0);
@@ -185,7 +184,7 @@ function CashFlow({ days, monthTotals, detailed }: {
   const ticks = detailed
     ? [0, 0.25, 0.5, 0.75, 1].map(f => {
         const d = days[Math.round(f * (days.length - 1))].date;
-        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+        return formatDayMonth(d);
       })
     : null;
 

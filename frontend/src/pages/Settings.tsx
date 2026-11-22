@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { getInstallmentPlans, saveInstallmentPlans, listCoupons, updateCoupon, createCoupon, deleteCoupon } from '../services/settings';
-import { formatCurrency, parseCurrencyInput, parsePercentInput } from '../utils/formatters';
+import { formatCurrency, formatDate, parseCurrencyInput, parsePercentInput } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
 import { simulateInstallment } from '../utils/installments';
 import { DockingLabel } from '../components/DockingLabel';
@@ -266,8 +266,6 @@ function Icon({ children }: { children: React.ReactNode }) {
   );
 }
 
-const dayBR = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
-
 /** O desconto como se lê: "10%" ou "R$ 5,00". */
 const discountOf = (c: Coupon) => (c.type === 'PERCENT' ? `${c.value}%` : formatCurrency(c.value));
 
@@ -275,7 +273,7 @@ const discountOf = (c: Coupon) => (c.type === 'PERCENT' ? `${c.value}%` : format
 function ruleOf(c: Coupon) {
   const parts = [
     c.minimumTotal === null ? 'sem mínimo' : `pedido mínimo ${formatCurrency(c.minimumTotal)}`,
-    c.expiresAt ? `até ${dayBR(c.expiresAt)}` : null,
+    c.expiresAt ? `até ${formatDate(c.expiresAt)}` : null,
   ];
   return parts.filter(Boolean).join(' · ');
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSalesList, type SaleListItem } from '../hooks/useSalesList';
 import { PendingOrders } from '../components/PendingOrders';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDate, formatDayMonth } from '../utils/formatters';
 import { MONTH_LONG, lastMonths, startOf } from '../utils/dashboardMonth';
 import './Sales.css';
 
@@ -12,12 +12,6 @@ const PERIODS = [
   { months: 6, label: '6 meses' },
   { months: 12, label: '1 ano' },
 ] as const;
-
-const pad = (n: number) => String(n).padStart(2, '0');
-const formatShortDate = (iso: string) => {
-  const d = new Date(iso);
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
-};
 
 /** Como a venda foi paga, em palavras, e a cor do texto. */
 function paymentOf(sale: SaleListItem) {
@@ -185,7 +179,7 @@ export function Sales() {
                       onClick={() => toggle(sale.id)}
                     >
                       <span className="sl-n">{String(sale.id).padStart(4, '0')}</span>
-                      <span className="sl-date">{formatShortDate(sale.date)}</span>
+                      <span className="sl-date">{formatDayMonth(sale.date)}</span>
                       <span className="sl-customer">{sale.customer?.name || 'Consumidor final'}</span>
                       <span className="sl-products" title={renderItemsSummary(sale)}>{renderItemsSummary(sale)}</span>
                       <span className="sl-pay">
@@ -237,7 +231,7 @@ export function Sales() {
                               {sale.installments.map(inst => (
                                 <span key={inst.id} className={`inst-pill ${inst.paidAt ? 'paid' : 'pending'}`}>
                                   {inst.number}/{sale.installments.length} · {formatCurrency(inst.value)}
-                                  {inst.paidAt ? ' ✓' : ` · vence ${new Date(inst.dueDate).toLocaleDateString('pt-BR')}`}
+                                  {inst.paidAt ? ' ✓' : ` · vence ${formatDate(inst.dueDate)}`}
                                 </span>
                               ))}
                             </div>
