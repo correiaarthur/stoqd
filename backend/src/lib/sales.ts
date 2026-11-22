@@ -1,10 +1,11 @@
+import { DomainError } from './errors.js';
 import type { Prisma$Tx } from './availability.js';
 import { getActivePrice } from './pricing.js';
 import { consumeCoupon } from './coupons.js';
 import { computeTotals, getInterestPercent, sumLines, toCents } from './pricingRules.js';
 
-/** Regra de negócio que o operador precisa ler na tela, e não um erro interno. */
-export class SaleError extends Error {}
+/** Regra de negócio da venda que o operador precisa ler na tela (400). */
+export class SaleError extends DomainError {}
 
 export type SaleItemInput = {
   productId: number;

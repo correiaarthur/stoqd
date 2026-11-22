@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { parseCartItems } from '../lib/cartItems.js';
 import { MAX_LINES_PER_CART, MAX_UNITS_PER_CART } from '../lib/availability.js';
 import { SaleError, registerSale } from '../lib/sales.js';
+import { respondWithError } from '../lib/errors.js';
 import { checkCoupon } from '../lib/coupons.js';
 import { PRODUCT_PRICING_SELECT, getActivePrice } from '../lib/pricing.js';
 import { sumLines } from '../lib/pricingRules.js';
@@ -43,12 +44,7 @@ export async function create(req: Request, res: Response) {
 
     return res.status(201).json(sale);
   } catch (error) {
-    if (error instanceof SaleError) {
-      return res.status(400).json({ error: error.message });
-    }
-
-    console.error("Erro inesperado ao realizar venda:", error);
-    return res.status(500).json({ error: "Não foi possível registrar a venda. Tente novamente." });
+    return respondWithError(res, error, "Não foi possível registrar a venda. Tente novamente.");
   }
 }
 
@@ -122,7 +118,7 @@ export async function subtotalFor(
 
   const priceById = new Map(products.map(product => [product.id, getActivePrice(product)]));
 
-  return items.reduce((acc, item) => acc + (priceById.get(item.productId) ?? 0) * item.quantity, 0);
+  return sumLines(items.map(item => ({ quantity: item.quantity, unitPrice: priceById.get(item.productId) ?? 0 })));
 }
 
 async function resolveCoupon(

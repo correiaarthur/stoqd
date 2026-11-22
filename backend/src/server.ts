@@ -11,6 +11,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 import { limiter } from './middlewares/rateLimiter.js';
+import { errorHandler, notFound } from './middlewares/errorHandler.js';
 
 import analyticsRoutes from './routes/analytics.routes.js';
 import authRouter from './routes/auth.routes.js';
@@ -84,6 +85,15 @@ app.use('/uploads', uploadsRoutes);
 app.get('/', (_req: Request, res: Response) => {
   res.send('API do Estoque está rodando! 🚀');
 });
+
+// Probe de saúde para o orquestrador: não toca no banco nem no limiter de login.
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok' });
+});
+
+// Por último: só pega o que nenhuma rota atendeu ou o que escapou dos controllers.
+app.use(notFound);
+app.use(errorHandler);
 
 /**
  * O app montado, sem escutar porta.
