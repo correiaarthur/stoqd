@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import { EMPTY_COUPON, type Coupon, type CouponForm } from '../components/settings/types';
 import { createCoupon, deleteCoupon, listCoupons, updateCoupon } from '../services/settings';
 import { getApiErrorMessage } from '../utils/errors';
+import { useAsync } from './useAsync';
 
 /** Quanto tempo o cupom recém-criado fica em destaque na lista. */
 export const NEW_HIGHLIGHT_MS = 8000;
+
+const fetchCoupons = () => listCoupons().then(res => (res.data || []) as Coupon[]);
 
 /** O formulário ao editar: tudo vira texto, como os campos entregam. */
 function formOf(coupon: Coupon): CouponForm {
@@ -28,8 +31,11 @@ function formOf(coupon: Coupon): CouponForm {
  * o topo da lista e ganha um destaque por alguns segundos.
  */
 export function useCoupons() {
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Esqueleto só na primeira carga: recarregar depois de salvar não pode piscar a lista.
+  const { data: coupons, initialLoading: loading, refetch: load } = useAsync<Coupon[]>(fetchCoupons, {
+    initial: [],
+    errorMessage: 'Erro ao carregar cupons:',
+  });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<CouponForm>(EMPTY_COUPON);
   const [formError, setFormError] = useState('');
@@ -37,19 +43,6 @@ export function useCoupons() {
   const [message, setMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [newId, setNewId] = useState<number | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await listCoupons();
-      setCoupons(res.data || []);
-    } catch (err) {
-      console.error('Erro ao carregar cupons:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   // O destaque do cupom novo some sozinho.
   useEffect(() => {

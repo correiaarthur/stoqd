@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { updateCustomer, getCustomerStatement, payInstallment } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
 import { formatCurrency, formatDateCompact } from '../utils/formatters';
 import { useToast } from '../contexts/toast';
+import { useAsync } from '../hooks/useAsync';
 import type { Customer, CustomerStatement, Installment, StatementSale, StatementSaleItem } from '../hooks/useCustomers';
 import './CustomerStatementPanel.css';
 
@@ -116,38 +117,26 @@ export function CustomerStatementPanel({ customerId, contact, name, editing, onE
   const toast = useToast();
   const [expandedSales, setExpandedSales] = useState<number[]>([]);
 
-  // `onClose` chega como arrow inline do pai, então muda de identidade a cada
-  // render. Numa dependência do fetch isso viraria um laço de refetch; a ref
-  // guarda sempre a versão mais recente sem entrar na conta das dependências.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  const [activeCustomer, setActiveCustomer] = useState<CustomerStatement | null>(null);
-  const [loading, setLoading] = useState(false);
-
   // O histórico é buscado só quando um cliente é aberto — a listagem não carrega
-  // as vendas de todo mundo.
-  const loadStatement = useCallback(async () => {
-    if (!customerId) { setActiveCustomer(null); return; }
+  // as vendas de todo mundo. Sem cliente, não há o que buscar.
+  const fetchStatement = useCallback(
+    async () => (customerId ? (await getCustomerStatement<CustomerStatement>(customerId)).data : null),
+    [customerId]
+  );
 
-    try {
-      setLoading(true);
-      const res = await getCustomerStatement<CustomerStatement>(customerId);
-      setActiveCustomer(res.data);
-
-      // As compras chegam fechadas: com várias, abrir todas escondia a que se
-      // procura. Quem quer dar baixa abre a compra pelo cabeçalho, que já
-      // mostra, nos quadradinhos, qual tem parcela atrasada ou a vencer.
-      setExpandedSales([]);
-    } catch (err) {
+  const { data: activeCustomer, loading, refetch: loadStatement } = useAsync<CustomerStatement | null>(fetchStatement, {
+    initial: null,
+    errorMessage: 'Erro ao carregar o histórico do cliente:',
+    // As compras chegam fechadas: com várias, abrir todas escondia a que se
+    // procura. Quem quer dar baixa abre a compra pelo cabeçalho, que já
+    // mostra, nos quadradinhos, qual tem parcela atrasada ou a vencer.
+    onSuccess: () => setExpandedSales([]),
+    // Sem o histórico não há o que mostrar: avisa e fecha o painel.
+    onError: (err) => {
       toast.error(getApiErrorMessage(err, 'Erro ao carregar o histórico do cliente.'));
-      onCloseRef.current();
-    } finally {
-      setLoading(false);
-    }
-  }, [customerId, toast]);
-
-  useEffect(() => { loadStatement(); }, [loadStatement]);
+      onClose();
+    },
+  });
 
   if (!customerId) return null;
 

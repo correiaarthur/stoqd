@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { getMe, getMyOrders, updateMe, changePassword, deleteMe } from '../services/account';
 import { formatCurrency, formatDayMonth, formatRelativeDate } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
 import { clearToken } from '../utils/auth';
+import { useAsync } from '../hooks/useAsync';
 import './MyAccount.css';
 
 type Account = { id: number; name: string; email: string | null; phone: string; createdAt: string };
@@ -45,28 +46,28 @@ const SEAL: Record<OrderHistoryItem['status'], { icon: string; className: string
   CANCELLED: { icon: 'M18 6L6 18M6 6l12 12', className: 'is-cancelled' },
 };
 
+type AccountData = { account: Account | null; orders: OrderHistoryItem[] };
+
+/** Enquanto nada chegou — e se a carga falhar, `account` fica nulo e a tela avisa. */
+const NOT_LOADED: AccountData = { account: null, orders: [] };
+
+async function fetchAccount(): Promise<AccountData> {
+  const [me, history] = await Promise.all([getMe(), getMyOrders()]);
+  return { account: me.data, orders: history.data.orders || [] };
+}
+
 export function MyAccount() {
   const [searchParams] = useSearchParams();
   const justOrdered = searchParams.get('pedido') === 'enviado';
 
-  const [account, setAccount] = useState<Account | null>(null);
-  const [orders, setOrders] = useState<OrderHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, setData, loading } = useAsync<AccountData>(fetchAccount, {
+    initial: NOT_LOADED,
+    errorMessage: 'Erro ao carregar a conta:',
+  });
+  const { account, orders } = data;
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [me, history] = await Promise.all([getMe(), getMyOrders()]);
-      setAccount(me.data);
-      setOrders(history.data.orders || []);
-    } catch (err) {
-      console.error('Erro ao carregar a conta:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  // O perfil salvo na própria tela substitui o que veio do servidor, sem refazer a busca.
+  const setAccount = (saved: Account) => setData(current => ({ ...current, account: saved }));
 
   // A parcela em aberto que vence primeiro, entre os pedidos confirmados.
   const nextInstallment = useMemo(() => {

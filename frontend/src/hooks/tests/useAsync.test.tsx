@@ -121,4 +121,86 @@ describe('useAsync', () => {
     expect(result.current.data).toEqual(['a', 'inserido']);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+
+  it('initialLoading é só a primeira carga: recarregar não volta ao esqueleto', async () => {
+    const fetcher = vi.fn().mockResolvedValue(['a']);
+    const { result } = renderHook(() => useAsync(fetcher, opcoes));
+
+    expect(result.current.initialLoading).toBe(true);
+    await waitFor(() => expect(result.current.initialLoading).toBe(false));
+
+    let pendente!: Promise<void>;
+    act(() => { pendente = result.current.refetch(); });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.initialLoading).toBe(false);
+    await act(async () => { await pendente; });
+  });
+
+  it('initialLoading também termina quando a primeira carga falha', async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error('rede'));
+    const { result } = renderHook(() => useAsync(fetcher, opcoes));
+
+    await waitFor(() => expect(result.current.initialLoading).toBe(false));
+  });
+
+  it('onSuccess recebe o dado de cada busca que vale', async () => {
+    const onSuccess = vi.fn();
+    const fetcher = vi.fn().mockResolvedValueOnce(['um']).mockResolvedValueOnce(['dois']);
+    const { result } = renderHook(() => useAsync(fetcher, { ...opcoes, onSuccess }));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(['um']));
+
+    await act(async () => { await result.current.refetch(); });
+
+    expect(onSuccess).toHaveBeenLastCalledWith(['dois']);
+    expect(onSuccess).toHaveBeenCalledTimes(2);
+  });
+
+  it('onSuccess não é chamado para uma busca que já não vale', async () => {
+    const onSuccess = vi.fn();
+    const lenta = adiada<string[]>();
+    const rapida = adiada<string[]>();
+
+    const { rerender } = renderHook(({ fetcher }) => useAsync(fetcher, { ...opcoes, onSuccess }), {
+      initialProps: { fetcher: () => lenta.promise },
+    });
+    rerender({ fetcher: () => rapida.promise });
+
+    await act(async () => { rapida.resolve(['recente']); });
+    await act(async () => { lenta.resolve(['antiga']); });
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledWith(['recente']);
+  });
+
+  it('onError trata o erro e, tendo dono, o console não recebe nada', async () => {
+    const onError = vi.fn();
+    const falha = new Error('rede');
+    const fetcher = vi.fn().mockRejectedValue(falha);
+    const { result } = renderHook(() => useAsync(fetcher, { ...opcoes, onError }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(onError).toHaveBeenCalledWith(falha);
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('callbacks inline (novos a cada render) usam sempre a versão mais recente, sem refazer a busca', async () => {
+    const fetcher = vi.fn().mockResolvedValue(['a']);
+    const antigo = vi.fn();
+    const recente = vi.fn();
+
+    const { result, rerender } = renderHook(({ onSuccess }) => useAsync(fetcher, { ...opcoes, onSuccess }), {
+      initialProps: { onSuccess: antigo },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    rerender({ onSuccess: recente });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    await act(async () => { await result.current.refetch(); });
+
+    expect(recente).toHaveBeenCalledTimes(1);
+    expect(antigo).toHaveBeenCalledTimes(1); // só a primeira carga
+  });
 });

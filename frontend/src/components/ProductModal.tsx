@@ -5,6 +5,7 @@ import { DropdownMenu } from './DropdownMenu';
 import { parseCurrencyInput, formatCurrency } from '../utils/formatters';
 import { formatExpiryDate } from '../utils/expiry';
 import { useToast } from '../contexts/toast';
+import { useAsync } from '../hooks/useAsync';
 import { useConfirm } from '../contexts/confirm';
 import { supabase } from '../lib/supabase';
 import type { Brand, Category, Product } from '../hooks/useProducts';
@@ -19,11 +20,17 @@ interface ProductModalProps {
 
 const MONEY_FIELDS = ['averageCost', 'sellingPrice', 'promotionalPrice'];
 
+type Taxonomies = { brands: Brand[]; categories: Category[] };
+const NO_TAXONOMIES: Taxonomies = { brands: [], categories: [] };
+
+async function fetchTaxonomies(): Promise<Taxonomies> {
+  const [brands, categories] = await Promise.all([listBrands(), listCategories()]);
+  return { brands: brands.data || [], categories: categories.data || [] };
+}
+
 export function ProductModal({ productToEdit, existingProducts = [], onClose, onSuccess }: ProductModalProps) {
   const toast = useToast();
   const confirm = useConfirm();
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
@@ -32,19 +39,13 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
     averageCost: '', sellingPrice: '', promotionalPrice: '', expiryDate: '', imageUrl: ''
   });
 
-  const loadInitialData = async () => {
-    try {
-      const [bRes, cRes] = await Promise.all([
-        listBrands(),
-        listCategories(),
-      ]);
-      setBrands(bRes.data || []);
-      setCategories(cRes.data || []);
-    } catch (err) { console.error(err); }
-  };
+  // Marca e categoria para os menus. Recarrega depois de criar, renomear ou apagar.
+  const { data: { brands, categories }, refetch: loadInitialData } = useAsync<Taxonomies>(fetchTaxonomies, {
+    initial: NO_TAXONOMIES,
+    errorMessage: 'Erro ao carregar marcas e categorias:',
+  });
 
   useEffect(() => {
-    loadInitialData();
     if (productToEdit) {
       setForm({
         name: productToEdit.name || '', 
