@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
+
+import { bodyOf } from './validate.js';
 
 /**
  * Upload de foto de produto, assinado pelo servidor.
@@ -17,6 +20,20 @@ export const IMAGE_TYPES: Record<string, string> = {
   'image/png': 'png',
   'image/webp': 'webp',
 };
+
+const IMAGE_TYPE_NAMES = Object.keys(IMAGE_TYPES) as [string, ...string[]];
+const MSG_TAMANHO = `A imagem precisa ter até ${MAX_IMAGE_BYTES / 1024 / 1024} MB.`;
+
+/** O que o admin diz da foto antes de enviar: o tipo e o tamanho, que o servidor confere. */
+export const productImageUploadSchema = bodyOf({
+  contentType: z.preprocess(
+    value => String(value ?? ''),
+    z.enum(IMAGE_TYPE_NAMES, { error: "Envie uma imagem JPG, PNG ou WebP." })
+  ),
+  size: z.coerce.number({ error: MSG_TAMANHO })
+    .positive({ error: MSG_TAMANHO })
+    .max(MAX_IMAGE_BYTES, { error: MSG_TAMANHO }),
+});
 
 function config() {
   const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, '');

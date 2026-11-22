@@ -3,24 +3,19 @@ import { prisma } from '../lib/prisma.js';
 import { getActivePrice } from '../lib/pricing.js';
 import { lineTotal, sumLines } from '../lib/pricingRules.js';
 import { EXPIRY_WARNING_DAYS, expiryStatusOf } from '../lib/expiryWindow.js';
+import { parseSalesReportQuery } from '../lib/saleInput.js';
 
 
 // Uma linha por item vendido, já com o desconto da venda rateado entre os itens.
 // O dashboard agrupa e filtra em cima disso.
 export async function getSalesReport(req: Request, res: Response) {
-  const { from } = req.query;
-
   // Sem período o relatório puxaria o histórico inteiro, que só cresce. O
   // Dashboard sempre manda `from`; quem chama sem ele recebe o motivo, não um
   // relatório truncado em silêncio.
-  if (!from) {
-    return res.status(400).json({ error: "Informe a data inicial do período." });
-  }
+  const query = parseSalesReportQuery(req.query);
+  if (!query.ok) return res.status(400).json({ error: query.error });
 
-  const fromDate = new Date(String(from));
-  if (Number.isNaN(fromDate.getTime())) {
-    return res.status(400).json({ error: "Data inicial inválida." });
-  }
+  const fromDate = query.data.from;
 
   try {
     const sales = await prisma.sale.findMany({

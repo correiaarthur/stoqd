@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
+import { parseId } from '../lib/validation.js';
 
 /**
  * Marca uma parcela como paga.
@@ -13,9 +14,9 @@ import { translatePrismaError } from '../lib/prismaErrors.js';
  * caixa) seriam dois.
  */
 export async function pay(req: Request, res: Response) {
-  const installmentId = Number(req.params.id);
+  const installmentId = parseId(req.params.id);
 
-  if (!Number.isInteger(installmentId)) {
+  if (installmentId === null) {
     return res.status(400).json({ error: "Parcela inválida." });
   }
 

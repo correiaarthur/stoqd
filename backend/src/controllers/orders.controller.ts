@@ -3,10 +3,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { customerUserId } from '../middlewares/auth.js';
 import { PRODUCT_STOCK_SELECT, getActivePrice } from '../lib/pricing.js';
-import { parseCartItems, parseCartToken } from '../lib/cartItems.js';
 import {
-  MAX_LINES_PER_CART,
-  MAX_UNITS_PER_CART,
   getStockView,
   loadStockProducts,
   reservationExpiry,
@@ -16,7 +13,9 @@ import { registerSale } from '../lib/sales.js';
 import { DomainError, respondWithError } from '../lib/errors.js';
 import { notifyNewOrder } from '../lib/notifications.js';
 import { checkCoupon, couponDiscountFor } from '../lib/coupons.js';
-import { computeTotals, getInterestPercent, parseInstallmentsCount, previewInstallmentValue, sumLines } from '../lib/pricingRules.js';
+import { computeTotals, getInterestPercent, previewInstallmentValue, sumLines } from '../lib/pricingRules.js';
+import { parseId } from '../lib/validation.js';
+import { parseOrderCancel, parseOrderConfirm, parseOrderCreate, parseOrderListQuery } from '../lib/orderInput.js';
 
 /** Um pedido pendente por vez já é bastante para quem atende sozinha. */
 const MAX_PENDING_ORDERS_PER_USER = 3;
@@ -32,18 +31,11 @@ const MAX_PENDING_ORDERS_PER_USER = 3;
 export async function create(req: Request, res: Response) {
   const userId = customerUserId(req);
 
-  const cartToken = parseCartToken(req.body?.cartToken);
-  const parsed = parseCartItems(req.body?.items, { maxLines: MAX_LINES_PER_CART, maxUnits: MAX_UNITS_PER_CART });
+  const parsed = parseOrderCreate(req.body);
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-  const observation = req.body?.observation ? String(req.body.observation).trim().slice(0, 500) : null;
-
   // Preferência, não decisão: o cliente diz como quer pagar e a loja confirma.
-  const paymentType = req.body?.paymentType === 'PRAZO' ? 'PRAZO' : 'VISTA';
-  const requestedInstallments = paymentType === 'PRAZO' ? parseInstallmentsCount(req.body?.installmentsCount) : 1;
-  if (requestedInstallments === null) {
-    return res.status(400).json({ error: "O parcelamento precisa ser de 1x a 12x." });
-  }
+  const { cartToken, items: cartItems, observation, paymentType, installmentsCount: requestedInstallments, couponCode } = parsed.data;
 
   try {
     const order = await prisma.$transaction(async (tx) => {
@@ -56,7 +48,7 @@ export async function create(req: Request, res: Response) {
         );
       }
 
-      const { products, byId: productById } = await loadStockProducts(parsed.items.map(item => item.productId), tx);
+      const { products, byId: productById } = await loadStockProducts(cartItems.map(item => item.productId), tx);
 
       // A reserva do próprio carrinho não conta contra ele — mas o que outra
       // pessoa reservou, sim.
@@ -64,7 +56,7 @@ export async function create(req: Request, res: Response) {
 
       const itemsData = [];
 
-      for (const item of parsed.items) {
+      for (const item of cartItems) {
         const product = productById.get(item.productId);
         if (!product) throw new DomainError("Um dos produtos do carrinho não existe mais.");
 
@@ -100,8 +92,8 @@ export async function create(req: Request, res: Response) {
       // pedido pendente ainda não consumiu nada, e um recusado não pode.
       let couponId: number | null = null;
 
-      if (req.body?.couponCode) {
-        const coupon = await checkCoupon(tx, req.body.couponCode, subtotal);
+      if (couponCode) {
+        const coupon = await checkCoupon(tx, couponCode, subtotal);
         if (!coupon.ok) throw new DomainError(coupon.message);
         couponId = coupon.couponId;
       }
@@ -161,15 +153,14 @@ export async function create(req: Request, res: Response) {
  * cobrar — senão o cliente vê um valor e paga outro.
  */
 export async function list(req: Request, res: Response) {
-  const status = String(req.query.status ?? 'PENDING').toUpperCase();
+  const query = parseOrderListQuery(req.query);
+  if (!query.ok) return res.status(400).json({ error: query.error });
 
-  if (!['PENDING', 'CONFIRMED', 'CANCELLED', 'ALL'].includes(status)) {
-    return res.status(400).json({ error: "Situação inválida." });
-  }
+  const { status } = query.data;
 
   try {
     const orders = await prisma.order.findMany({
-      where: status === 'ALL' ? {} : { status: status as 'PENDING' | 'CONFIRMED' | 'CANCELLED' },
+      where: status === 'ALL' ? {} : { status },
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: {
@@ -308,24 +299,13 @@ export async function list(req: Request, res: Response) {
  * quanto restou, em vez de um erro genérico.
  */
 export async function confirm(req: Request, res: Response) {
-  const orderId = Number(req.params.id);
-  if (!Number.isInteger(orderId)) return res.status(400).json({ error: "Pedido inválido." });
+  const orderId = parseId(req.params.id);
+  if (orderId === null) return res.status(400).json({ error: "Pedido inválido." });
 
-  const {
-    customerId,
-    createCustomer = false,
-    priceSource = 'order',
-    discount = 0,
-    installmentsCount,
-    paymentType,
-    observation,
-    // `false` descarta o cupom que o cliente pediu; qualquer outra coisa mantém.
-    keepCoupon = true,
-  } = req.body ?? {};
+  const body = parseOrderConfirm(req.body);
+  if (!body.ok) return res.status(400).json({ error: body.error });
 
-  if (priceSource !== 'order' && priceSource !== 'current') {
-    return res.status(400).json({ error: "Escolha se o pedido será cobrado pelo preço do pedido ou pelo preço de hoje." });
-  }
+  const { customerId, createCustomer, priceSource, discount, installmentsCount, paymentType, observation, keepCoupon } = body.data;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -378,7 +358,7 @@ export async function confirm(req: Request, res: Response) {
       if (order.user.customerId) {
         linkedCustomerId = order.user.customerId;
       } else if (customerId) {
-        const existing = await tx.customer.findUnique({ where: { id: Number(customerId) } });
+        const existing = await tx.customer.findUnique({ where: { id: customerId } });
         if (!existing) throw new DomainError("Cliente escolhido não existe.", 404);
 
         const alreadyLinked = await tx.user.findUnique({ where: { customerId: existing.id } });
@@ -408,7 +388,7 @@ export async function confirm(req: Request, res: Response) {
       // que muda se a loja escolher o preço de hoje em vez do preço do pedido.
       let coupon: { id: number; discount: number } | null = null;
 
-      if (keepCoupon !== false && order.couponId) {
+      if (keepCoupon && order.couponId) {
         const subtotal = sumLines(saleItems);
         const checked = await checkCoupon(tx, order.coupon?.code, subtotal);
 
@@ -424,11 +404,11 @@ export async function confirm(req: Request, res: Response) {
       const sale = await registerSale(tx, {
         customerId: linkedCustomerId,
         items: saleItems,
-        discount: Number(discount) || 0,
+        discount,
         // Sem override, vale o que o cliente pediu.
         installmentsCount: installmentsCount ?? order.installmentsCount,
         paymentType: paymentType ?? order.paymentType,
-        observation: observation ? String(observation).trim() : `Pedido #${order.id} pela vitrine`,
+        observation: observation ?? `Pedido #${order.id} pela vitrine`,
         coupon,
       });
 
@@ -453,13 +433,13 @@ export async function confirm(req: Request, res: Response) {
 
 /** Recusa o pedido, libera as reservas e guarda o motivo para o cliente ler. */
 export async function cancel(req: Request, res: Response) {
-  const orderId = Number(req.params.id);
-  if (!Number.isInteger(orderId)) return res.status(400).json({ error: "Pedido inválido." });
+  const orderId = parseId(req.params.id);
+  if (orderId === null) return res.status(400).json({ error: "Pedido inválido." });
 
-  const reason = String(req.body?.reason ?? '').trim();
-  if (reason.length < 3) {
-    return res.status(400).json({ error: "Explique o motivo da recusa — é o que o cliente vai ler." });
-  }
+  const body = parseOrderCancel(req.body);
+  if (!body.ok) return res.status(400).json({ error: body.error });
+
+  const { reason } = body.data;
 
   try {
     const order = await prisma.$transaction(async (tx) => {
@@ -472,7 +452,7 @@ export async function cancel(req: Request, res: Response) {
 
       const updated = await tx.order.update({
         where: { id: orderId },
-        data: { status: 'CANCELLED', cancelReason: reason.slice(0, 300) },
+        data: { status: 'CANCELLED', cancelReason: reason },
       });
 
       // Sem isto o estoque ficaria preso a um pedido que não vai acontecer.

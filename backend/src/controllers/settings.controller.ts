@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
-import { MAX_INSTALLMENTS, MIN_INSTALLMENTS } from '../lib/pricingRules.js';
+import { MAX_INSTALLMENTS, MIN_INSTALLMENTS, installmentPlansSchema } from '../lib/pricingRules.js';
+import { parseWith } from '../lib/validate.js';
 
 /**
  * Tabela de juros por parcelamento, do jeito que a tela edita: a lista toda.
@@ -34,32 +35,10 @@ export async function getInstallmentPlans(_req: Request, res: Response) {
  * estado meio-salvo em que 3x já subiu de juros e 6x ainda não.
  */
 export async function updateInstallmentPlans(req: Request, res: Response) {
-  const rows = req.body?.plans;
+  const body = parseWith(installmentPlansSchema, req.body);
+  if (!body.ok) return res.status(400).json({ error: body.error });
 
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return res.status(400).json({ error: "Envie as opções de parcelamento." });
-  }
-
-  const parsed: Array<{ installments: number; interestPercent: number; active: boolean }> = [];
-  const seen = new Set<number>();
-
-  for (const row of rows) {
-    const installments = Number(row?.installments);
-    const interestPercent = Number(row?.interestPercent);
-
-    if (!Number.isInteger(installments) || installments < MIN_INSTALLMENTS || installments > MAX_INSTALLMENTS) {
-      return res.status(400).json({ error: `O parcelamento precisa ser entre ${MIN_INSTALLMENTS}x e ${MAX_INSTALLMENTS}x.` });
-    }
-    if (seen.has(installments)) {
-      return res.status(400).json({ error: `${installments}x aparece duas vezes.` });
-    }
-    if (!Number.isFinite(interestPercent) || interestPercent < 0 || interestPercent > 100) {
-      return res.status(400).json({ error: "A taxa de juros precisa ficar entre 0% e 100%." });
-    }
-
-    seen.add(installments);
-    parsed.push({ installments, interestPercent, active: row?.active !== false });
-  }
+  const parsed = body.data.plans;
 
   try {
     await prisma.$transaction(

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { checkCoupon } from '../lib/coupons.js';
 import { computeTotals, listActivePlans, previewInstallmentValue } from '../lib/pricingRules.js';
+import { subtotalSchema } from '../lib/saleInput.js';
 
 /**
  * Opções de pagamento para montar a tela — público, porque o visitante escolhe
@@ -13,7 +14,7 @@ import { computeTotals, listActivePlans, previewInstallmentValue } from '../lib/
  * regra e mostrar um número diferente do que a venda vai cobrar.
  */
 export async function options(req: Request, res: Response) {
-  const subtotal = Math.max(Number(req.query.subtotal) || 0, 0);
+  const subtotal = subtotalSchema.parse(req.query.subtotal);
 
   try {
     const plans = await listActivePlans();
@@ -48,7 +49,7 @@ export async function options(req: Request, res: Response) {
  * que responde sobre a existência de um código.
  */
 export async function validateCoupon(req: Request, res: Response) {
-  const subtotal = Math.max(Number(req.body?.subtotal) || 0, 0);
+  const subtotal = subtotalSchema.parse(req.body?.subtotal);
 
   try {
     const result = await checkCoupon(prisma, req.body?.code, subtotal);

@@ -1,50 +1,35 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { parseCartItems } from '../lib/cartItems.js';
-import { MAX_LINES_PER_CART, MAX_UNITS_PER_CART } from '../lib/availability.js';
 import { SaleError, registerSale } from '../lib/sales.js';
 import { respondWithError } from '../lib/errors.js';
-import { parseId } from '../lib/validation.js';
+import { parseSaleCreate, parseSalesQuery } from '../lib/saleInput.js';
 import { checkCoupon } from '../lib/coupons.js';
 import { PRODUCT_PRICING_SELECT, getActivePrice } from '../lib/pricing.js';
 import { sumLines } from '../lib/pricingRules.js';
 
 export async function create(req: Request, res: Response) {
-  const { customerId, items, installmentsCount = 1, observation, discount = 0, paymentType = 'VISTA' } = req.body;
+  const body = parseSaleCreate(req.body);
+  if (!body.ok) return res.status(400).json({ error: body.error });
 
-  // Ausente é venda sem cliente; presente e inválido é erro, não `NaN` no Prisma.
-  const saleCustomerId = customerId === undefined || customerId === null || customerId === '' ? null : parseId(customerId);
-  if (customerId !== undefined && customerId !== null && customerId !== '' && saleCustomerId === null) {
-    return res.status(400).json({ error: "Cliente inválido." });
-  }
-
-  const parsed = parseCartItems(items, { maxLines: MAX_LINES_PER_CART, maxUnits: MAX_UNITS_PER_CART });
-
-  if (!parsed.ok) {
-    // "O carrinho está vazio" não é a frase certa para uma venda de balcão.
-    const message = parsed.error === "O carrinho está vazio."
-      ? "A venda precisa ter pelo menos um item."
-      : parsed.error;
-    return res.status(400).json({ error: message });
-  }
+  const { customerId, items, installmentsCount, observation, discount, paymentType, couponCode } = body.data;
 
   try {
     const sale = await prisma.$transaction(async (tx) => {
       // O cupom é conferido contra o subtotal real dos produtos no banco, não
       // contra um total que veio do corpo da requisição.
-      const coupon = req.body?.couponCode
-        ? await resolveCoupon(tx, req.body.couponCode, parsed.items)
+      const coupon = couponCode
+        ? await resolveCoupon(tx, couponCode, items)
         : null;
 
       return registerSale(tx, {
-        customerId: saleCustomerId,
+        customerId,
         // O `unitPrice` que vem do corpo é ignorado de propósito: quem define o
         // preço é o produto no banco, não quem chama a API.
-        items: parsed.items,
-        discount: Number(discount) || 0,
+        items,
+        discount,
         installmentsCount,
         paymentType,
-        observation: observation ? String(observation).trim() : null,
+        observation,
         coupon,
       });
     });
@@ -55,23 +40,15 @@ export async function create(req: Request, res: Response) {
   }
 }
 
-const MAX_SALES_PER_PAGE = 200;
-
 export async function list(req: Request, res: Response) {
-  const { from, to, customerId, limit } = req.query;
+  const query = parseSalesQuery(req.query);
+  if (!query.ok) return res.status(400).json({ error: query.error });
+
+  const { from, to, customerId, limit: take } = query.data;
 
   const dateFilter: { gte?: Date; lte?: Date } = {};
-
-  for (const [key, value] of [['gte', from], ['lte', to]] as const) {
-    if (!value) continue;
-    const parsed = new Date(String(value));
-    if (Number.isNaN(parsed.getTime())) {
-      return res.status(400).json({ error: "Período inválido." });
-    }
-    dateFilter[key] = parsed;
-  }
-
-  const take = Math.min(Number(limit) || 50, MAX_SALES_PER_PAGE);
+  if (from) dateFilter.gte = from;
+  if (to) dateFilter.lte = to;
 
   try {
     const sales = await prisma.sale.findMany({
@@ -79,7 +56,7 @@ export async function list(req: Request, res: Response) {
       orderBy: { date: 'desc' },
       where: {
         ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
-        ...(customerId ? { customerId: Number(customerId) } : {}),
+        ...(customerId ? { customerId } : {}),
       },
       include: {
         customer: { select: { id: true, name: true } },

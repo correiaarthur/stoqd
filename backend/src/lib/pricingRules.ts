@@ -1,5 +1,8 @@
+import { z } from 'zod';
+
 import type { Prisma$Tx } from './availability.js';
 import { prisma } from './prisma.js';
+import { bodyOf, isBlank } from './validate.js';
 
 /**
  * A ordem em que desconto e juros entram no total.
@@ -32,6 +35,30 @@ export function parseInstallmentsCount(raw: unknown): number | null {
 
   return Number.isInteger(count) && count >= 1 && count <= MAX_INSTALLMENTS ? count : null;
 }
+
+export const MSG_PARCELAS = "O parcelamento precisa ser de 1x a 12x.";
+
+/**
+ * `parseInstallmentsCount` como schema: o número de parcelas, ou o erro que a
+ * tela mostra. Ausente vale 1. Mesma regra estrita de antes — `true`, `[]`,
+ * `"3x"` e `0.5` são recusados — que o `Number()` do Zod deixaria passar.
+ */
+export const installmentsCountSchema = z.unknown().transform((value, ctx) => {
+  const count = parseInstallmentsCount(value);
+
+  if (count === null) {
+    ctx.issues.push({ code: 'custom', message: MSG_PARCELAS, input: value });
+    return z.NEVER;
+  }
+
+  return count;
+});
+
+/** Parcelas que podem faltar: ausente é `undefined` (sem troca), não 1x. */
+export const optionalInstallmentsCount = z.preprocess(
+  value => (isBlank(value) ? undefined : value),
+  installmentsCountSchema.optional()
+);
 
 export type InstallmentPlanView = {
   installments: number;
@@ -132,3 +159,36 @@ export function computeTotals({ grossTotal, discount, interestPercent }: TotalsI
 export function previewInstallmentValue(finalTotal: number, installments: number) {
   return toCents(finalTotal / installments);
 }
+
+
+const MSG_JUROS = "A taxa de juros precisa ficar entre 0% e 100%.";
+
+/**
+ * A tabela de juros por parcelamento, do jeito que a tela a salva: a lista toda.
+ * Faixa repetida ou fora de 2x–12x é recusada.
+ */
+export const installmentPlansSchema = bodyOf({
+  plans: z.array(
+    bodyOf({
+      installments: z.coerce.number({ error: `O parcelamento precisa ser entre ${MIN_INSTALLMENTS}x e ${MAX_INSTALLMENTS}x.` })
+        .int({ error: `O parcelamento precisa ser entre ${MIN_INSTALLMENTS}x e ${MAX_INSTALLMENTS}x.` })
+        .min(MIN_INSTALLMENTS, { error: `O parcelamento precisa ser entre ${MIN_INSTALLMENTS}x e ${MAX_INSTALLMENTS}x.` })
+        .max(MAX_INSTALLMENTS, { error: `O parcelamento precisa ser entre ${MIN_INSTALLMENTS}x e ${MAX_INSTALLMENTS}x.` }),
+      interestPercent: z.coerce.number({ error: MSG_JUROS }).min(0, { error: MSG_JUROS }).max(100, { error: MSG_JUROS }),
+      active: z.preprocess(value => value !== false, z.boolean()),
+    }),
+    { error: "Envie as opções de parcelamento." }
+  )
+    .min(1, { error: "Envie as opções de parcelamento." })
+    .superRefine((plans, ctx) => {
+      const seen = new Set<number>();
+
+      for (const plan of plans) {
+        if (seen.has(plan.installments)) {
+          ctx.addIssue({ code: 'custom', message: `${plan.installments}x aparece duas vezes.` });
+          return;
+        }
+        seen.add(plan.installments);
+      }
+    }),
+});
