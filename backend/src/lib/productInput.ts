@@ -10,27 +10,14 @@
  *    do Prisma como 500, em vez de 400 dizendo o que faltou;
  *  - custo zero entrava na média ponderada e derrubava o custo médio.
  *
- * Mesmo formato de `parseCartItems`: devolve `ok` com o dado limpo ou `ok:false`
- * com a mensagem que o operador lê na tela.
+ * Agora é um schema (`productSchema`): devolve `ok` com o dado já convertido ou
+ * `ok:false` com a mensagem que o operador lê na tela.
  */
 
+import { z } from 'zod';
+
 import { isAllowedImageUrl } from './storage.js';
-
-export type ProductInput = {
-  name: string;
-  brandId: number;
-  categoryId: number | null;
-  quantity: number;
-  averageCost: number;
-  sellingPrice: number;
-  promotionalPrice: number | null;
-  expiryDate: Date | null;
-  imageUrl: string | null;
-};
-
-export type ProductParseResult =
-  | { ok: true; data: ProductInput }
-  | { ok: false; error: string };
+import { bodyOf, isBlank, money, optional, parseWith, positiveInt, trimmed, type ParseResult } from './validate.js';
 
 const MAX_NOME = 200;
 
@@ -38,15 +25,7 @@ const MAX_NOME = 200;
 const MAX_QUANTIDADE = 1_000_000;
 const MAX_VALOR = 10_000_000;
 
-function inteiroPositivo(valor: unknown): number | null {
-  const n = Number(valor);
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
-
-function valorMonetario(valor: unknown): number | null {
-  const n = Number(valor);
-  return Number.isFinite(n) && n >= 0 && n <= MAX_VALOR ? n : null;
-}
+const MSG_QUANTIDADE = "A quantidade precisa ser um número inteiro de zero para cima.";
 
 /**
  * Valida a data e guarda só o **dia**.
@@ -55,76 +34,76 @@ function valorMonetario(valor: unknown): number | null {
  * para meia-noite UTC aqui é o que permite comparar validade com "hoje" sem o
  * fuso deslocar um dia — o erro que fazia o produto que vence hoje aparecer como
  * vencido.
+ *
+ * Dia que não existe (30 de fevereiro, mês 13) é recusado: `Date.UTC` o empurraria
+ * em silêncio para o mês seguinte e o produto ganharia uma validade que ninguém
+ * digitou.
  */
-function diaDeValidade(valor: unknown): { ok: true; data: Date | null } | { ok: false } {
-  if (valor === null || valor === undefined || valor === '') return { ok: true, data: null };
-
-  const texto = String(valor);
+function diaDeValidade(texto: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(texto);
+  if (!match) return null;
 
-  if (!match) return { ok: false };
+  const [ano, mes, dia] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
 
-  const [, ano, mes, dia] = match;
-  const data = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia)));
-
-  return Number.isNaN(data.getTime()) ? { ok: false } : { ok: true, data };
+  const existe = data.getUTCFullYear() === ano && data.getUTCMonth() === mes - 1 && data.getUTCDate() === dia;
+  return existe ? data : null;
 }
 
+const MSG_VALIDADE = "A data de validade não é válida.";
+
+/**
+ * O produto que chega do cadastro. A ordem das chaves é a ordem em que o erro é
+ * reportado: nome, marca, categoria, quantidade, valores, validade, imagem.
+ */
+export const productSchema = bodyOf({
+  name: trimmed.pipe(
+    z.string()
+      .min(1, { error: "O nome do produto é obrigatório." })
+      .max(MAX_NOME, { error: `O nome do produto passa de ${MAX_NOME} caracteres.` })
+  ),
+
+  brandId: positiveInt("Escolha a marca do produto."),
+
+  categoryId: optional(positiveInt("Categoria inválida.")),
+
+  // O caso que deixava estoque negativo entrar pela API. Ausente vale zero.
+  quantity: z.preprocess(
+    value => value ?? 0,
+    z.coerce.number({ error: MSG_QUANTIDADE })
+      .int({ error: MSG_QUANTIDADE })
+      .min(0, { error: MSG_QUANTIDADE })
+      .max(MAX_QUANTIDADE, { error: "A quantidade informada é alta demais. Confira o número." })
+  ),
+
+  averageCost: z.preprocess(value => value ?? 0, money("O custo precisa ser um valor de zero para cima.", MAX_VALOR)),
+
+  sellingPrice: z.preprocess(value => value ?? 0, money("O preço de venda precisa ser um valor de zero para cima.", MAX_VALOR)),
+
+  promotionalPrice: optional(money("O preço promocional precisa ser um valor de zero para cima.", MAX_VALOR)),
+
+  expiryDate: z.preprocess(
+    value => (isBlank(value) ? null : String(value)),
+    z.string({ error: MSG_VALIDADE })
+      .transform(diaDeValidade)
+      .refine(data => data !== null, { error: MSG_VALIDADE })
+      .nullable()
+  ),
+
+  imageUrl: z.preprocess(
+    value => (typeof value === 'string' && value.trim() !== '' ? value.trim() : null),
+    z.string()
+      .refine(isAllowedImageUrl, { error: "A imagem precisa ser enviada pelo próprio sistema." })
+      .nullable()
+  ),
+});
+
+export type ProductInput = z.output<typeof productSchema>;
+
+export type ProductParseResult = ParseResult<ProductInput>;
+
 export function parseProductInput(raw: unknown): ProductParseResult {
-  const body = (raw ?? {}) as Record<string, unknown>;
-
-  const name = String(body['name'] ?? '').trim();
-  if (name.length === 0) return { ok: false, error: "O nome do produto é obrigatório." };
-  if (name.length > MAX_NOME) {
-    return { ok: false, error: `O nome do produto passa de ${MAX_NOME} caracteres.` };
-  }
-
-  const brandId = inteiroPositivo(body['brandId']);
-  if (brandId === null) return { ok: false, error: "Escolha a marca do produto." };
-
-  let categoryId: number | null = null;
-  if (body['categoryId'] !== null && body['categoryId'] !== undefined && body['categoryId'] !== '') {
-    categoryId = inteiroPositivo(body['categoryId']);
-    if (categoryId === null) return { ok: false, error: "Categoria inválida." };
-  }
-
-  const quantity = Number(body['quantity'] ?? 0);
-  if (!Number.isInteger(quantity) || quantity < 0) {
-    // O caso que deixava estoque negativo entrar pela API.
-    return { ok: false, error: "A quantidade precisa ser um número inteiro de zero para cima." };
-  }
-  if (quantity > MAX_QUANTIDADE) {
-    return { ok: false, error: "A quantidade informada é alta demais. Confira o número." };
-  }
-
-  const averageCost = valorMonetario(body['averageCost'] ?? 0);
-  if (averageCost === null) return { ok: false, error: "O custo precisa ser um valor de zero para cima." };
-
-  const sellingPrice = valorMonetario(body['sellingPrice'] ?? 0);
-  if (sellingPrice === null) return { ok: false, error: "O preço de venda precisa ser um valor de zero para cima." };
-
-  let promotionalPrice: number | null = null;
-  if (body['promotionalPrice'] !== null && body['promotionalPrice'] !== undefined && body['promotionalPrice'] !== '') {
-    promotionalPrice = valorMonetario(body['promotionalPrice']);
-    if (promotionalPrice === null) {
-      return { ok: false, error: "O preço promocional precisa ser um valor de zero para cima." };
-    }
-  }
-
-  const validade = diaDeValidade(body['expiryDate']);
-  if (!validade.ok) return { ok: false, error: "A data de validade não é válida." };
-
-  const imagem = body['imageUrl'];
-  const imageUrl = typeof imagem === 'string' && imagem.trim() !== '' ? imagem.trim() : null;
-
-  if (imageUrl !== null && !isAllowedImageUrl(imageUrl)) {
-    return { ok: false, error: "A imagem precisa ser enviada pelo próprio sistema." };
-  }
-
-  return {
-    ok: true,
-    data: { name, brandId, categoryId, quantity, averageCost, sellingPrice, promotionalPrice, expiryDate: validade.data, imageUrl },
-  };
+  return parseWith(productSchema, raw);
 }
 
 /**

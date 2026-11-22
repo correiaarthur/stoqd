@@ -2,71 +2,8 @@ import type { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
-import { type CouponRow, isValidCouponCode, normalizeCouponCode } from '../lib/coupons.js';
-
-/**
- * O que o corpo da requisição pode definir: a linha inteira menos o que é do
- * banco. `id` é do autoincremento e `usedCount` só sobe quando uma venda gasta
- * o cupom — nenhum dos dois se aceita de fora.
- */
-type ParsedCoupon = Omit<CouponRow, 'id' | 'usedCount'>;
-
-function parseBody(body: any): { ok: true; data: ParsedCoupon } | { ok: false; error: string } {
-  const code = normalizeCouponCode(body?.code);
-
-  if (!isValidCouponCode(code)) {
-    return { ok: false, error: "O código precisa ter de 3 a 24 letras, números ou hífen." };
-  }
-
-  const type = body?.type === 'FIXED' ? 'FIXED' : 'PERCENT';
-  const value = Number(body?.value);
-
-  if (!Number.isFinite(value) || value <= 0) {
-    return { ok: false, error: "Informe o valor do desconto." };
-  }
-  if (type === 'PERCENT' && value > 100) {
-    return { ok: false, error: "Um desconto percentual não pode passar de 100%." };
-  }
-
-  const minimumTotal = body?.minimumTotal === '' || body?.minimumTotal == null
-    ? null
-    : Number(body.minimumTotal);
-
-  if (minimumTotal !== null && (!Number.isFinite(minimumTotal) || minimumTotal < 0)) {
-    return { ok: false, error: "Pedido mínimo inválido." };
-  }
-
-  const maxUses = body?.maxUses === '' || body?.maxUses == null ? null : Number(body.maxUses);
-
-  if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1)) {
-    return { ok: false, error: "O limite de usos precisa ser um número inteiro maior que zero." };
-  }
-
-  let expiresAt: Date | null = null;
-
-  if (body?.expiresAt) {
-    // O input date manda "2026-09-30", que `new Date` lê como meia-noite UTC.
-    // Aplicar setHours local depois disso empurra o vencimento para o dia
-    // ANTERIOR aqui (UTC-3) — um cupom "válido até 30/09" morreria em 29/09.
-    // Montando a data campo a campo, ela nasce local e o fim do dia é o fim
-    // do dia certo.
-    const dayOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(body.expiresAt).trim());
-
-    const parsed = dayOnly
-      ? new Date(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3]), 23, 59, 59, 999)
-      : new Date(String(body.expiresAt));
-
-    if (Number.isNaN(parsed.getTime())) {
-      return { ok: false, error: "Data de validade inválida." };
-    }
-
-    if (!dayOnly) parsed.setHours(23, 59, 59, 999);
-
-    expiresAt = parsed;
-  }
-
-  return { ok: true, data: { code, type, value, minimumTotal, expiresAt, maxUses, active: body?.active !== false } };
-}
+import { parseCouponBody } from '../lib/coupons.js';
+import { parseId } from '../lib/validation.js';
 
 export async function list(_req: Request, res: Response) {
   try {
@@ -93,7 +30,7 @@ export async function list(_req: Request, res: Response) {
 }
 
 export async function create(req: Request, res: Response) {
-  const parsed = parseBody(req.body);
+  const parsed = parseCouponBody(req.body);
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
   try {
@@ -109,10 +46,10 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function update(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) return res.status(400).json({ error: "Cupom inválido." });
+  const id = parseId(req.params.id);
+  if (id === null) return res.status(400).json({ error: "Cupom inválido." });
 
-  const parsed = parseBody(req.body);
+  const parsed = parseCouponBody(req.body);
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
   try {
@@ -137,8 +74,8 @@ export async function update(req: Request, res: Response) {
  * ele, e apagar deixaria "por que esta venda saiu mais barata?" sem resposta.
  */
 export async function remove(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) return res.status(400).json({ error: "Cupom inválido." });
+  const id = parseId(req.params.id);
+  if (id === null) return res.status(400).json({ error: "Cupom inválido." });
 
   try {
     const coupon = await prisma.coupon.findUnique({

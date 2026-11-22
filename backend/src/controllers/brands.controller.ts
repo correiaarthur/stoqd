@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
-import { parseId, parseLabel } from '../lib/validation.js';
+import { parseWith } from '../lib/validate.js';
+import { labelBody, parseId } from '../lib/validation.js';
 
 export async function getAll(_req: Request, res: Response) {
   try {
@@ -13,8 +14,10 @@ export async function getAll(_req: Request, res: Response) {
 }
 
 export async function create(req: Request, res: Response) {
-  const name = parseLabel(req.body?.name);
-  if (!name) return res.status(400).json({ error: "Nome é obrigatório" });
+  const parsed = parseWith(labelBody("Nome é obrigatório"), req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+
+  const { name } = parsed.data;
 
   try {
     const created = await prisma.brand.create({ data: { name } });
@@ -29,8 +32,10 @@ export async function update(req: Request, res: Response) {
   const id = parseId(req.params.id);
   if (id === null) return res.status(400).json({ error: "Marca inválida." });
 
-  const name = parseLabel(req.body?.name);
-  if (!name) return res.status(400).json({ error: "O novo nome é obrigatório" });
+  const parsed = parseWith(labelBody("O novo nome é obrigatório"), req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+
+  const { name } = parsed.data;
 
   try {
     const updated = await prisma.brand.update({ where: { id }, data: { name } });

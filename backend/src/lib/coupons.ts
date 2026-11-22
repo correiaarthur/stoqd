@@ -1,7 +1,10 @@
+import { z } from 'zod';
+
 import { formatBRL } from './format.js';
 import type { Prisma$Tx } from './availability.js';
 import { prisma } from './prisma.js';
 import { toCents } from './pricingRules.js';
+import { bodyOf, optional, parseWith, type ParseResult } from './validate.js';
 
 /**
  * Cupom de desconto.
@@ -51,6 +54,71 @@ export type CouponRow = {
   usedCount: number;
   active: boolean;
 };
+
+const MSG_VALOR = "Informe o valor do desconto.";
+const MSG_USOS = "O limite de usos precisa ser um número inteiro maior que zero.";
+const MSG_VALIDADE = "Data de validade inválida.";
+
+/**
+ * O fim do dia da validade.
+ *
+ * O input date manda "2026-09-30", que `new Date` lê como meia-noite UTC.
+ * Aplicar setHours local depois disso empurra o vencimento para o dia
+ * ANTERIOR aqui (UTC-3) — um cupom "válido até 30/09" morreria em 29/09.
+ * Montando a data campo a campo, ela nasce local e o fim do dia é o fim
+ * do dia certo. `null` quando a data não existe.
+ */
+function fimDoDia(value: unknown): Date | null {
+  const text = String(value).trim();
+  const dayOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+
+  const date = dayOnly
+    ? new Date(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3]), 23, 59, 59, 999)
+    : new Date(text);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  if (!dayOnly) date.setHours(23, 59, 59, 999);
+
+  return date;
+}
+
+/**
+ * O que o corpo da requisição pode definir: a linha inteira menos o que é do
+ * banco. `id` é do autoincremento e `usedCount` só sobe quando uma venda gasta
+ * o cupom — nenhum dos dois se aceita de fora.
+ */
+export const couponSchema = bodyOf({
+  code: z.preprocess(normalizeCouponCode, z.string().refine(isValidCouponCode, {
+    error: "O código precisa ter de 3 a 24 letras, números ou hífen.",
+  })),
+
+  // Qualquer coisa que não seja FIXED é percentual.
+  type: z.preprocess(value => (value === 'FIXED' ? 'FIXED' : 'PERCENT'), z.enum(['PERCENT', 'FIXED'])),
+
+  value: z.coerce.number({ error: MSG_VALOR }).positive({ error: MSG_VALOR }),
+
+  minimumTotal: optional(z.coerce.number({ error: "Pedido mínimo inválido." }).min(0, { error: "Pedido mínimo inválido." })),
+
+  maxUses: optional(z.coerce.number({ error: MSG_USOS }).int({ error: MSG_USOS }).min(1, { error: MSG_USOS })),
+
+  expiresAt: z.preprocess(
+    value => (value ? value : null),
+    z.unknown().transform(fimDoDia).refine(date => date !== null, { error: MSG_VALIDADE }).nullable()
+  ),
+
+  active: z.preprocess(value => value !== false, z.boolean()),
+}).superRefine((coupon, ctx) => {
+  if (coupon.type === 'PERCENT' && coupon.value > 100) {
+    ctx.addIssue({ code: 'custom', path: ['value'], message: "Um desconto percentual não pode passar de 100%." });
+  }
+});
+
+export type CouponInput = z.output<typeof couponSchema>;
+
+export function parseCouponBody(raw: unknown): ParseResult<CouponInput> {
+  return parseWith(couponSchema, raw);
+}
 
 /** Desconto em reais que o cupom gera sobre um subtotal. */
 export function couponDiscountFor(coupon: Pick<CouponRow, 'type' | 'value'>, subtotal: number): number {

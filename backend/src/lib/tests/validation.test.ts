@@ -7,12 +7,15 @@ import {
   normalizeName,
   normalizePhone,
   optionalEmail,
-  validateAccountFields,
+  accountSchema,
+  changePasswordSchema,
+  labelBody,
   parseCustomerBody,
   parseId,
-  parseLabel,
+  registerSchema,
   validatePassword,
 } from '../validation.js';
+import { parseWith } from '../validate.js';
 
 /**
  * O telefone é o identificador de acesso, então normalizá-lo é o que impede o
@@ -104,27 +107,89 @@ describe('validatePassword', () => {
   });
 });
 
-describe('validateAccountFields', () => {
+describe('accountSchema (perfil)', () => {
   const ok = { name: 'Maria', phone: '12934567890', email: 'maria@loja.com' };
+  const mensagem = (body: unknown) => { const r = parseWith(accountSchema, body); return r.ok ? null : r.error; };
 
-  it('aceita um conjunto válido', () => {
-    expect(validateAccountFields(ok)).toBeNull();
+  it('aceita um conjunto válido e devolve os campos já normalizados', () => {
+    expect(parseWith(accountSchema, { name: '  Maria   Lima ', phone: '(12) 93456-7890', email: ' MARIA@LOJA.COM ' }))
+      .toEqual({ ok: true, data: { name: 'Maria Lima', phone: '12934567890', email: 'maria@loja.com' } });
   });
 
-  it('e-mail nulo é válido — é opcional', () => {
-    expect(validateAccountFields({ ...ok, email: null })).toBeNull();
+  it('e-mail ausente, nulo ou vazio é válido — é opcional — e vira null', () => {
+    for (const email of [undefined, null, '', '   ']) {
+      expect(parseWith(accountSchema, { ...ok, email })).toMatchObject({ ok: true, data: { email: null } });
+    }
   });
 
-  it('aponta o campo, não só a mensagem', () => {
-    // A tela usa `field` para marcar o input certo.
-    expect(validateAccountFields({ ...ok, name: 'M' })?.field).toBe('name');
-    expect(validateAccountFields({ ...ok, phone: '123' })?.field).toBe('phone');
-    expect(validateAccountFields({ ...ok, email: 'nao-e-email' })?.field).toBe('email');
+  it('diz o que está errado em cada campo', () => {
+    expect(mensagem({ ...ok, name: 'M' })).toBe('Informe seu nome.');
+    expect(mensagem({ ...ok, phone: '123' })).toBe('Informe um telefone válido com DDD.');
+    expect(mensagem({ ...ok, email: 'nao-e-email' })).toMatch(/e-mail informado não parece válido/);
   });
 
-  it('valida nome antes de telefone', () => {
-    // Com dois campos errados, reporta o primeiro — a ordem atual é essa.
-    expect(validateAccountFields({ name: '', phone: '1', email: null })?.field).toBe('name');
+  it('com dois campos errados, reporta o primeiro: nome antes de telefone', () => {
+    expect(mensagem({ name: '', phone: '1', email: null })).toBe('Informe seu nome.');
+  });
+
+  it('corpo ausente ou que não é objeto diz o que falta, não um erro de tipo', () => {
+    expect(mensagem(undefined)).toBe('Informe seu nome.');
+    expect(mensagem('texto')).toBe('Informe seu nome.');
+    expect(mensagem([1, 2])).toBe('Informe seu nome.');
+  });
+
+  it('campo que não está no schema não passa adiante', () => {
+    const r = parseWith(accountSchema, { ...ok, role: 'admin', customerId: 99, passwordHash: 'x' });
+    expect(r.ok && Object.keys(r.data).sort()).toEqual(['email', 'name', 'phone']);
+  });
+});
+
+describe('registerSchema', () => {
+  const ok = { name: 'Maria', phone: '12934567890', password: 'senha-forte-123' };
+
+  it('aceita o cadastro completo', () => {
+    expect(parseWith(registerSchema, ok)).toMatchObject({ ok: true, data: { password: 'senha-forte-123', email: null } });
+  });
+
+  it('valida o perfil antes da senha', () => {
+    const r = parseWith(registerSchema, { name: '', phone: '1', password: '1' });
+    expect(r.ok ? null : r.error).toBe('Informe seu nome.');
+  });
+
+  it('senha curta, ausente ou que não é texto é recusada', () => {
+    for (const password of ['1234567', undefined, null, 12345678]) {
+      const r = parseWith(registerSchema, { ...ok, password });
+      expect(r.ok ? null : r.error).toMatch(/pelo menos 8/);
+    }
+  });
+
+  it('o bcrypt só lê 72 bytes: senha acima disso é recusada, em vez de truncada em silêncio', () => {
+    expect(parseWith(registerSchema, { ...ok, password: 'a'.repeat(72) }).ok).toBe(true);
+
+    const r = parseWith(registerSchema, { ...ok, password: 'a'.repeat(73) });
+    expect(r.ok ? null : r.error).toMatch(/no máximo 72/);
+  });
+
+  it('o teto é em bytes: acento pesa dois', () => {
+    expect(parseWith(registerSchema, { ...ok, password: 'é'.repeat(36) }).ok).toBe(true); // 72 bytes
+    expect(parseWith(registerSchema, { ...ok, password: 'é'.repeat(37) }).ok).toBe(false); // 74 bytes
+  });
+});
+
+describe('changePasswordSchema', () => {
+  it('lê a senha atual como texto e valida a nova', () => {
+    expect(parseWith(changePasswordSchema, { currentPassword: 'velha', newPassword: 'nova-senha-1' }))
+      .toEqual({ ok: true, data: { currentPassword: 'velha', newPassword: 'nova-senha-1' } });
+  });
+
+  it('senha atual ausente vale texto vazio: quem recusa é a conferência com o banco', () => {
+    expect(parseWith(changePasswordSchema, { newPassword: 'nova-senha-1' }))
+      .toMatchObject({ ok: true, data: { currentPassword: '' } });
+  });
+
+  it('a nova senha fraca é recusada', () => {
+    const r = parseWith(changePasswordSchema, { currentPassword: 'x', newPassword: 'curta' });
+    expect(r.ok ? null : r.error).toMatch(/pelo menos 8/);
   });
 });
 
@@ -138,15 +203,21 @@ describe('parseId', () => {
   });
 });
 
-describe('parseLabel', () => {
+describe('labelBody (marca e categoria)', () => {
+  const nome = (body: unknown) => parseWith(labelBody('Nome é obrigatório'), body);
+
   it('apara e colapsa espaços', () => {
-    expect(parseLabel('  Marca   X ')).toBe('Marca X');
+    expect(nome({ name: '  Marca   X ' })).toEqual({ ok: true, data: { name: 'Marca X' } });
   });
 
-  it('recusa vazio e texto longo demais', () => {
-    expect(parseLabel('   ')).toBeNull();
-    expect(parseLabel(undefined)).toBeNull();
-    expect(parseLabel('a'.repeat(101))).toBeNull();
+  it('recusa vazio, ausente e texto longo demais, com a mensagem de quem chamou', () => {
+    for (const body of [{ name: '   ' }, {}, undefined, { name: 'a'.repeat(101) }]) {
+      expect(nome(body)).toEqual({ ok: false, error: 'Nome é obrigatório' });
+    }
+  });
+
+  it('cem caracteres ainda passa', () => {
+    expect(nome({ name: 'a'.repeat(100) }).ok).toBe(true);
   });
 });
 

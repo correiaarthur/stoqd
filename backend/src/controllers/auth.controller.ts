@@ -5,14 +5,8 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail, isAdminPassword } from '../lib/adminCredentials.js';
 import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
-import {
-  normalizeEmail,
-  normalizeName,
-  normalizePhone,
-  optionalEmail,
-  validateAccountFields,
-  validatePassword,
-} from '../lib/validation.js';
+import { parseWith } from '../lib/validate.js';
+import { normalizeEmail, normalizePhone, registerSchema } from '../lib/validation.js';
 import type { Role } from '../middlewares/auth.js';
 
 const TOKEN_LIFETIME = '1d';
@@ -25,16 +19,10 @@ function signToken(payload: { role: Role; userId?: number }) {
 }
 
 export async function register(req: Request, res: Response) {
-  const name = normalizeName(req.body?.name);
-  const email = optionalEmail(req.body?.email);
-  const phone = normalizePhone(req.body?.phone);
-  const password = req.body?.password;
+  const parsed = parseWith(registerSchema, req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-  const fieldError = validateAccountFields({ name, email, phone });
-  if (fieldError) return res.status(400).json({ error: fieldError.error });
-
-  const passwordError = validatePassword(password);
-  if (passwordError) return res.status(400).json({ error: passwordError });
+  const { name, email, phone, password } = parsed.data;
 
   // O admin não é um User: deixar cadastrar com o e-mail dele criaria uma conta
   // de cliente que responde pelo mesmo endereço no login.

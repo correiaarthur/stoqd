@@ -6,13 +6,8 @@ import { customerUserId } from '../middlewares/auth.js';
 import { BCRYPT_ROUNDS, isAdminEmail } from '../lib/adminCredentials.js';
 import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
 import { sumLines } from '../lib/pricingRules.js';
-import {
-  normalizeName,
-  normalizePhone,
-  optionalEmail,
-  validateAccountFields,
-  validatePassword,
-} from '../lib/validation.js';
+import { parseWith } from '../lib/validate.js';
+import { accountSchema, changePasswordSchema } from '../lib/validation.js';
 
 /** Nunca devolvemos o hash da senha, nem por engano num spread. */
 const PUBLIC_FIELDS = {
@@ -42,12 +37,10 @@ export async function show(req: Request, res: Response) {
 export async function update(req: Request, res: Response) {
   const userId = customerUserId(req);
 
-  const name = normalizeName(req.body?.name);
-  const email = optionalEmail(req.body?.email);
-  const phone = normalizePhone(req.body?.phone);
+  const parsed = parseWith(accountSchema, req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-  const fieldError = validateAccountFields({ name, email, phone });
-  if (fieldError) return res.status(400).json({ error: fieldError.error });
+  const { name, email, phone } = parsed.data;
 
   if (email !== null && isAdminEmail(email)) {
     return res.status(409).json({ error: "Este e-mail já está em uso." });
@@ -88,11 +81,10 @@ export async function update(req: Request, res: Response) {
 export async function changePassword(req: Request, res: Response) {
   const userId = customerUserId(req);
 
-  const currentPassword = String(req.body?.currentPassword ?? '');
-  const newPassword = req.body?.newPassword;
+  const parsed = parseWith(changePasswordSchema, req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-  const passwordError = validatePassword(newPassword);
-  if (passwordError) return res.status(400).json({ error: passwordError });
+  const { currentPassword, newPassword } = parsed.data;
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });

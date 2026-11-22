@@ -137,6 +137,45 @@ describe('parseProductInput — validade', () => {
   });
 });
 
+describe('parseProductInput — schema', () => {
+  const base = { name: 'Sabonete', brandId: 1 };
+
+  it('recusa um dia que não existe em vez de empurrá-lo para o mês seguinte', () => {
+    for (const expiryDate of ['2026-02-30', '2026-13-01', '2026-04-31', '2026-00-10']) {
+      expect(parseProductInput({ ...base, expiryDate })).toEqual({ ok: false, error: 'A data de validade não é válida.' });
+    }
+  });
+
+  it('aceita 29 de fevereiro só em ano bissexto', () => {
+    expect(parseProductInput({ ...base, expiryDate: '2028-02-29' }).ok).toBe(true);
+    expect(parseProductInput({ ...base, expiryDate: '2027-02-29' }).ok).toBe(false);
+  });
+
+  it('corpo ausente ou que não é objeto diz que falta o nome', () => {
+    for (const corpo of [undefined, null, 'texto', [1, 2]]) {
+      expect(parseProductInput(corpo)).toEqual({ ok: false, error: 'O nome do produto é obrigatório.' });
+    }
+  });
+
+  it('campo que não é do produto não passa adiante', () => {
+    const r = parseProductInput({ ...base, id: 99, createdAt: 'x', saleItems: [] });
+    expect(r.ok && Object.keys(r.data).sort()).toEqual(
+      ['averageCost', 'brandId', 'categoryId', 'expiryDate', 'imageUrl', 'name', 'promotionalPrice', 'quantity', 'sellingPrice']
+    );
+  });
+
+  it('reporta o primeiro erro na ordem do cadastro: nome, marca, quantidade', () => {
+    expect(parseProductInput({ name: '', brandId: 'x', quantity: -1 })).toMatchObject({ error: 'O nome do produto é obrigatório.' });
+    expect(parseProductInput({ name: 'A', brandId: 'x', quantity: -1 })).toMatchObject({ error: 'Escolha a marca do produto.' });
+    expect(parseProductInput({ name: 'A', brandId: 1, quantity: -1 })).toMatchObject({ error: expect.stringContaining('quantidade') });
+  });
+
+  it('um número em texto passa por Number(), como o formulário envia', () => {
+    expect(parseProductInput({ name: 'A', brandId: '2', quantity: '5', sellingPrice: '9.9' }))
+      .toMatchObject({ ok: true, data: { brandId: 2, quantity: 5, sellingPrice: 9.9 } });
+  });
+});
+
 describe('mergeAverageCost', () => {
   it('média ponderada quando os dois lados têm custo', () => {
     // 10 un a 10 + 10 un a 20 = 15
