@@ -5,6 +5,7 @@ import { authMiddleware, requireAdmin } from '../middlewares/auth.js';
 const router = Router();
 
 router.get('/showcase', ProductController.getShowcase);
+router.get('/showcase/facets', ProductController.getShowcaseFacets);
 router.get('/', authMiddleware, requireAdmin, ProductController.getAll);
 router.post('/', authMiddleware, requireAdmin, ProductController.upsert);
 router.put('/:id', authMiddleware, requireAdmin, ProductController.update);
