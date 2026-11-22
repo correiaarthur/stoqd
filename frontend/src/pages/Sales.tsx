@@ -2,33 +2,51 @@ import { useState, useMemo } from 'react';
 import { useSalesList, type SaleListItem } from '../hooks/useSalesList';
 import { PendingOrders } from '../components/PendingOrders';
 import { formatCurrency } from '../utils/formatters';
+import { MONTH_LONG, lastMonths, startOf } from '../utils/dashboardMonth';
 import './Sales.css';
 
-type Period = '7D' | '30D' | '90D' | '1Y';
+/** Períodos em meses corridos: o atual, 3, 6 ou 12. */
+const PERIODS = [
+  { months: 1, label: 'Mês' },
+  { months: 3, label: '3 meses' },
+  { months: 6, label: '6 meses' },
+  { months: 12, label: '1 ano' },
+] as const;
 
-const PERIOD_DAYS: Record<Period, number> = { '7D': 7, '30D': 30, '90D': 90, '1Y': 365 };
-const PERIOD_LABELS: Record<Period, string> = { '7D': '7 dias', '30D': '30 dias', '90D': '90 dias', '1Y': '1 ano' };
+const pad = (n: number) => String(n).padStart(2, '0');
+const formatShortDate = (iso: string) => {
+  const d = new Date(iso);
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+};
 
-function getStartDate(period: Period) {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - (PERIOD_DAYS[period] - 1));
-  return start;
+/** Como a venda foi paga, em palavras, e a cor do texto. */
+function paymentOf(sale: SaleListItem) {
+  const total = sale.installments.length;
+  if (total <= 1) return { text: 'À vista', tone: 'ink' as const };
+
+  const paid = sale.installments.filter(i => i.paidAt).length;
+  if (paid === total) return { text: `${total}x · quitada`, tone: 'good' as const };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const late = sale.installments.some(i => !i.paidAt && new Date(i.dueDate) < today);
+  return { text: `${total}x · ${paid} de ${total} ${paid === 1 ? 'paga' : 'pagas'}`, tone: late ? ('bad' as const) : ('ink' as const) };
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
+/** Os quadradinhos da venda a prazo: pago, em aberto ou atrasado. */
+function installmentState(inst: SaleListItem['installments'][number]) {
+  if (inst.paidAt) return 'paid';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return new Date(inst.dueDate) < today ? 'late' : 'open';
 }
 
 export function Sales() {
-  const [period, setPeriod] = useState<Period>('30D');
+  const [months, setMonths] = useState<number>(1);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const startDate = useMemo(() => getStartDate(period), [period]);
+  const startDate = useMemo(() => startOf(lastMonths(months, new Date())[0]), [months]);
   const { sales, loading, refetch } = useSalesList(startDate);
 
   const filteredSales = useMemo(() => {
@@ -42,171 +60,195 @@ export function Sales() {
     );
   }, [sales, search]);
 
-  const totals = useMemo(() => filteredSales.reduce((acc, sale) => ({
-    revenue: acc.revenue + sale.total,
-    discount: acc.discount + (sale.discount || 0),
-    pending: acc.pending + sale.pendingAmount,
-  }), { revenue: 0, discount: 0, pending: 0 }), [filteredSales]);
+  const totals = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return filteredSales.reduce((acc, sale) => ({
+      revenue: acc.revenue + sale.total,
+      discount: acc.discount + (sale.discount || 0),
+      pending: acc.pending + sale.pendingAmount,
+      units: acc.units + sale.items.reduce((n, i) => n + i.quantity, 0),
+      lateCount: acc.lateCount + sale.installments.filter(i => !i.paidAt && new Date(i.dueDate) < today).length,
+    }), { revenue: 0, discount: 0, pending: 0, units: 0, lateCount: 0 });
+  }, [filteredSales]);
 
   const toggle = (id: number) => setExpandedId(prev => (prev === id ? null : id));
 
   const renderItemsSummary = (sale: SaleListItem) => (
-    sale.items.map(i => `${i.quantity > 1 ? `${i.quantity}x ` : ''}${i.product.name}`).join(', ')
+    sale.items.map(i => `${i.product.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
   );
 
   return (
-    <div className="page-container">
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Vendas</h1>
-      </div>
+    <div className="sl">
+      <header className="sl-head">
+        <div className="sl-head-text">
+          <span className="sl-kicker">Operação · {MONTH_LONG[new Date().getMonth()].toLowerCase()}</span>
+          <h1 className="sl-title">Vendas</h1>
+        </div>
+        <div role="group" aria-label="Período" className="period-group">
+          {PERIODS.map(p => (
+            <button
+              key={p.months}
+              type="button"
+              className="period-btn"
+              aria-pressed={months === p.months}
+              onClick={() => setMonths(p.months)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </header>
 
       {/* Um pedido confirmado vira venda: a lista abaixo precisa recarregar
           junto, senão a venda que acabou de nascer não aparece. */}
       <PendingOrders onConfirmed={refetch} />
 
-      <div className="sales-stats">
-        <div className="sales-stat base-card">
-          <span className="label">Faturamento no período</span>
-          <h2 className="value">{formatCurrency(totals.revenue)}</h2>
+      <div className="sl-summary">
+        <div className="sl-stat">
+          <span className="sl-label">Faturamento no período</span>
+          <strong className="sl-stat-value">{formatCurrency(totals.revenue)}</strong>
+          <span className="sl-stat-note">já sem os descontos</span>
         </div>
-        <div className="sales-stat base-card">
-          <span className="label">Vendas</span>
-          <h2 className="value">{filteredSales.length}</h2>
+        <div className="sl-stat">
+          <span className="sl-label">Vendas</span>
+          <strong className="sl-stat-value">{filteredSales.length}</strong>
+          <span className="sl-stat-note">{totals.units} {totals.units === 1 ? 'unidade' : 'unidades'}</span>
         </div>
-        <div className="sales-stat base-card">
-          <span className="label">Descontos concedidos</span>
-          <h2 className="value">{formatCurrency(totals.discount)}</h2>
+        <div className="sl-stat">
+          <span className="sl-label">Descontos concedidos</span>
+          <strong className="sl-stat-value sl-good">{formatCurrency(totals.discount)}</strong>
+          <span className="sl-stat-note">cupons e balcão</span>
         </div>
-        <div className="sales-stat base-card">
-          <span className="label">A receber</span>
-          <h2 className={`value ${totals.pending > 0 ? 'value-pending' : ''}`}>{formatCurrency(totals.pending)}</h2>
+        <div className="sl-stat">
+          <span className="sl-label">A receber</span>
+          <strong className={`sl-stat-value ${totals.pending > 0 ? 'sl-accent' : ''}`}>{formatCurrency(totals.pending)}</strong>
+          <span className="sl-stat-note">
+            {totals.lateCount > 0 ? `${totals.lateCount} ${totals.lateCount === 1 ? 'parcela atrasada' : 'parcelas atrasadas'}` : 'nada atrasado'}
+          </span>
         </div>
       </div>
 
-      <section className="page-card base-card">
-        <div className="sales-toolbar">
-          <div className="input-with-icon sales-search">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <section aria-labelledby="livro-titulo" className="sl-book">
+        <div className="sl-book-head">
+          <h2 id="livro-titulo" className="sl-h2">Livro de <em>vendas</em></h2>
+          <div className="input-with-icon sl-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input
               type="text"
-              placeholder="Buscar por nº da venda, cliente ou produto..."
+              aria-label="Buscar venda"
+              placeholder="Nº da venda, cliente ou produto"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-
-          <div className="time-pills">
-            {(Object.keys(PERIOD_DAYS) as Period[]).map(p => (
-              <button
-                key={p}
-                className={`time-pill ${period === p ? 'active' : ''}`}
-                onClick={() => setPeriod(p)}
-              >
-                {PERIOD_LABELS[p]}
-              </button>
-            ))}
-          </div>
         </div>
 
         {loading ? (
-          <p className="text-dim" style={{ padding: '2rem', textAlign: 'center' }}>Carregando vendas...</p>
+          <div className="sl-ledger-wrap" aria-busy="true" aria-label="Carregando vendas">
+            <div className="sl-ledger">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="sl-row sl-row-skeleton" aria-hidden="true">
+                  <span className="skeleton" style={{ width: 40, height: 22 }} />
+                  <span className="skeleton skeleton-line" style={{ width: 44, height: 16 }} />
+                  <span className="skeleton skeleton-line" style={{ width: '70%', height: 16 }} />
+                  <span className="skeleton skeleton-line" style={{ width: '85%', height: 16 }} />
+                  <span className="skeleton skeleton-line" style={{ width: 110, height: 16 }} />
+                  <span className="skeleton skeleton-line" style={{ width: 80, height: 18, marginLeft: 'auto' }} />
+                </div>
+              ))}
+            </div>
+          </div>
         ) : filteredSales.length === 0 ? (
-          <p className="text-dim" style={{ padding: '2rem', textAlign: 'center' }}>
+          <p className="sl-empty">
             {search ? 'Nenhuma venda encontrada para essa busca.' : 'Nenhuma venda registrada neste período.'}
           </p>
         ) : (
-          <div className="sales-list">
-            {filteredSales.map(sale => {
-              const isExpanded = expandedId === sale.id;
-              const discount = sale.discount || 0;
+          <div className="sl-ledger-wrap">
+            <div className="sl-ledger">
+              <div className="sl-row sl-row-head" role="presentation">
+                <span>Nº</span><span>Data</span><span>Cliente</span><span>Produtos</span><span>Pagamento</span><span className="num">Total</span>
+              </div>
+              {filteredSales.map(sale => {
+                const isExpanded = expandedId === sale.id;
+                const discount = sale.discount || 0;
+                const pay = paymentOf(sale);
 
-              return (
-                <div key={sale.id} className={`sale-card ${isExpanded ? 'expanded' : ''}`}>
-                  <div className="sale-card-header" onClick={() => toggle(sale.id)}>
-                    <div className="sale-card-main">
-                      <div className="sale-card-title">
-                        <strong>Venda #{sale.id}</strong>
-                        <span className={`badge ${sale.isPaid ? 'badge-success' : 'badge-danger'}`}>
-                          {sale.isPaid ? 'Paga' : `Deve ${formatCurrency(sale.pendingAmount)}`}
-                        </span>
-                        {discount > 0 && <span className="badge badge-discount">Desconto</span>}
-                      </div>
-                      <span className="sale-card-meta">
-                        {formatDateTime(sale.date)} · {sale.customer?.name || 'Consumidor final'} · {sale.itemsCount} {sale.itemsCount === 1 ? 'item' : 'itens'}
+                return (
+                  <div key={sale.id} className={`sl-entry ${isExpanded ? 'is-open' : ''}`}>
+                    <button
+                      type="button"
+                      className="sl-row sl-row-main"
+                      aria-expanded={isExpanded}
+                      onClick={() => toggle(sale.id)}
+                    >
+                      <span className="sl-n">{String(sale.id).padStart(4, '0')}</span>
+                      <span className="sl-date">{formatShortDate(sale.date)}</span>
+                      <span className="sl-customer">{sale.customer?.name || 'Consumidor final'}</span>
+                      <span className="sl-products" title={renderItemsSummary(sale)}>{renderItemsSummary(sale)}</span>
+                      <span className="sl-pay">
+                        <span className={`sl-pay-text sl-pay-${pay.tone}`}>{pay.text}</span>
+                        {sale.installments.length > 1 && (
+                          <span className="sl-dots" aria-hidden="true">
+                            {sale.installments.map(inst => <span key={inst.id} className={`sl-dot sl-dot-${installmentState(inst)}`} />)}
+                          </span>
+                        )}
                       </span>
-                      <span className="sale-card-products" title={renderItemsSummary(sale)}>
-                        {renderItemsSummary(sale)}
-                      </span>
-                    </div>
+                      <strong className="num sl-total">{formatCurrency(sale.total)}</strong>
+                    </button>
 
-                    <div className="sale-card-right">
-                      <span className="sale-card-total">{formatCurrency(sale.total)}</span>
-                      <svg className={`chevron-icon ${isExpanded ? 'expanded' : ''}`} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                      </svg>
-                    </div>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="sale-card-body">
-                      <table className="sale-items-table">
-                        <thead>
-                          <tr><th>Produto</th><th>Qtd</th><th>Unit.</th><th>Subtotal</th></tr>
-                        </thead>
-                        <tbody>
-                          {sale.items.map(item => (
-                            <tr key={item.id}>
-                              <td>{item.product.name}</td>
-                              <td>{item.quantity}</td>
-                              <td>{formatCurrency(item.unitPrice)}</td>
-                              <td>{formatCurrency(item.unitPrice * item.quantity)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr>
-                            <td colSpan={3}>Subtotal</td>
-                            <td>{formatCurrency(sale.grossTotal)}</td>
-                          </tr>
-                          {discount > 0 && (
-                            <tr className="row-discount">
-                              <td colSpan={3}>Desconto</td>
-                              <td>− {formatCurrency(discount)}</td>
-                            </tr>
-                          )}
-                          <tr className="row-total">
-                            <td colSpan={3}>Total</td>
-                            <td>{formatCurrency(sale.total)}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
-
-                      {sale.observation && (
-                        <p className="sale-observation">
-                          <span className="text-dim">Observação: </span>{sale.observation}
-                        </p>
-                      )}
-
-                      {sale.installments.length > 1 && (
-                        <div className="sale-installments">
-                          <span className="text-dim">Parcelas</span>
-                          <div className="sale-installments-list">
-                            {sale.installments.map(inst => (
-                              <span key={inst.id} className={`inst-pill ${inst.paidAt ? 'paid' : 'pending'}`}>
-                                {inst.number}/{sale.installments.length} · {formatCurrency(inst.value)}
-                                {inst.paidAt ? ' ✓' : ` · vence ${new Date(inst.dueDate).toLocaleDateString('pt-BR')}`}
-                              </span>
+                    {isExpanded && (
+                      <div className="sl-detail">
+                        <table className="sl-items">
+                          <thead>
+                            <tr><th>Produto</th><th className="num">Qtd</th><th className="num">Unit.</th><th className="num">Subtotal</th></tr>
+                          </thead>
+                          <tbody>
+                            {sale.items.map(item => (
+                              <tr key={item.id}>
+                                <td>{item.product.name}</td>
+                                <td className="num">{item.quantity}</td>
+                                <td className="num">{formatCurrency(item.unitPrice)}</td>
+                                <td className="num">{formatCurrency(item.unitPrice * item.quantity)}</td>
+                              </tr>
                             ))}
+                          </tbody>
+                          <tfoot>
+                            <tr><td colSpan={3}>Subtotal</td><td className="num">{formatCurrency(sale.grossTotal)}</td></tr>
+                            {discount > 0 && (
+                              <tr className="row-discount"><td colSpan={3}>Desconto</td><td className="num">− {formatCurrency(discount)}</td></tr>
+                            )}
+                            <tr className="row-total"><td colSpan={3}>Total</td><td className="num">{formatCurrency(sale.total)}</td></tr>
+                          </tfoot>
+                        </table>
+
+                        {sale.observation && (
+                          <p className="sale-observation">
+                            <span className="text-dim">Observação: </span>{sale.observation}
+                          </p>
+                        )}
+
+                        {sale.installments.length > 1 && (
+                          <div className="sale-installments">
+                            <span className="text-dim">Parcelas</span>
+                            <div className="sale-installments-list">
+                              {sale.installments.map(inst => (
+                                <span key={inst.id} className={`inst-pill ${inst.paidAt ? 'paid' : 'pending'}`}>
+                                  {inst.number}/{sale.installments.length} · {formatCurrency(inst.value)}
+                                  {inst.paidAt ? ' ✓' : ` · vence ${new Date(inst.dueDate).toLocaleDateString('pt-BR')}`}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </section>

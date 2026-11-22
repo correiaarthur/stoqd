@@ -1,4 +1,4 @@
-.pending-orders { border-color: rgba(139, 92, 246, 0.3); }
+.pending-orders { border-color: color-mix(in oklch, var(--accent-color) 30%, transparent); }
 
 .pending-orders-head {
   display: flex;
@@ -97,7 +97,7 @@
 
 .pending-order-alert {
   background: var(--danger-bg);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid color-mix(in oklch, var(--danger-color) 30%, transparent);
   color: var(--danger-color);
   border-radius: 8px;
   padding: 0.75rem 1rem;
@@ -138,7 +138,7 @@
 }
 .pending-order-toggle button.active {
   background: var(--accent-color);
-  color: white;
+  color: var(--on-accent);
 }
 
 .pending-order-form {
@@ -167,8 +167,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 12px 14px;
-  background: rgba(139, 92, 246, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: color-mix(in oklch, var(--accent-color) 8%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent-color) 20%, transparent);
   border-radius: 10px;
 }
 .pending-order-requested-body {
@@ -202,3 +202,12 @@
 .pending-order-lines b { color: var(--text-main); font-variant-numeric: tabular-nums; }
 .pending-order-lines .is-discount b { color: var(--accent-color); }
 .pending-order-lines .is-interest b { color: var(--danger-color); }
+
+/* --- Pedidos da vitrine — Caatinga II: um bloco mostarda com cartões de papel --- */
+.pending-orders {
+  background: #F3D98B;
+  border: none;
+  padding: 28px 30px;
+}
+.pending-orders-head h2 { font-size: 34px; font-weight: 400; letter-spacing: -0.01em; }
+.pending-order { background: var(--papel); border: none; border-radius: 0; padding: 24px; }

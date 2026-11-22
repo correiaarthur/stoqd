@@ -18,8 +18,13 @@
 }
 .sales-stat .value {
   margin: 0;
-  font-size: 1.6rem;
-  font-variant-numeric: tabular-nums;
+  /* Números em grotesca, não na serifada dos títulos: os algarismos da serifada
+     têm alturas variadas e o valor custa a ser lido de relance. */
+  font-family: var(--font-num);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: 1.7rem;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 .sales-stat .value-pending { color: var(--danger-color); }
 
@@ -36,12 +41,19 @@
 .sales-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  /* O espaço também acomoda a sombra de 4px de cada card. */
+  gap: 16px;
+  padding-right: 4px;
 }
 
+/* Cada venda é uma folha de papel com uma sombra dura embaixo: o contorno e a
+   sombra marcam onde o card começa e onde termina, e o formato é o dos cards da
+   vitrine (quina reta embaixo à esquerda). */
 .sale-card {
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  background: var(--papel);
+  border: 1.5px solid color-mix(in srgb, var(--tinta) 55%, var(--border-color));
+  border-radius: 14px 14px 14px 0;
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--barro) 38%, var(--areia));
   overflow: hidden;
   transition: border-color 0.15s;
 }
@@ -99,7 +111,7 @@
 .sale-card-right .chevron-icon.expanded { transform: rotate(180deg); }
 
 .badge-discount {
-  background: rgba(139, 92, 246, 0.15);
+  background: color-mix(in oklch, var(--accent-color) 15%, transparent);
   color: var(--accent-color);
 }
 
@@ -196,4 +208,73 @@
   transition: background 0.15s, color 0.15s;
 }
 .sales-toolbar .time-pill:hover { color: var(--text-main); }
-.sales-toolbar .time-pill.active { background: var(--accent-color); color: #fff; }
+.sales-toolbar .time-pill.active { background: var(--accent-color); color: var(--on-accent); }
+
+/* --- Vendas — Caatinga II --- */
+.sl { padding: 40px 48px 64px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 34px; }
+.sl-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; border-bottom: 3px solid var(--tinta); padding-bottom: 22px; }
+.sl-head-text { display: flex; flex-direction: column; gap: 10px; }
+.sl-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--coroa); }
+.sl-title { margin: 0; font-size: clamp(44px, 6vw, 72px); line-height: 0.95; font-weight: 400; letter-spacing: -0.035em; }
+.sl-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-apagada); }
+.sl-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.sl-stat { padding: 4px 24px 4px 0; margin-right: 24px; border-right: 1px solid var(--fio); display: flex; flex-direction: column; gap: 6px; }
+.sl-stat:last-child { border-right: none; }
+.sl-stat-value { font-family: var(--font-num); font-size: 36px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums lining-nums; }
+.sl-stat-note { font-size: 13px; color: var(--tinta-apagada); }
+.sl-good { color: #2E6B1A; }
+.sl-accent { color: var(--coroa); }
+
+.sl-book { display: flex; flex-direction: column; gap: 18px; }
+.sl-book-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 16px; }
+.sl-h2 { margin: 0; font-size: 40px; font-weight: 400; letter-spacing: -0.02em; }
+.sl-search { width: 320px; max-width: 100%; }
+.sl-empty { margin: 0; padding: 2rem 0; color: var(--tinta-apagada); }
+
+.sl-ledger-wrap { overflow-x: auto; padding: 0 8px 8px 0; }
+.sl-ledger { min-width: 900px; }
+.sl-row {
+  display: grid;
+  grid-template-columns: 70px 90px minmax(0, 1.2fr) minmax(0, 2fr) 190px 120px;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+}
+.sl-row-head { padding: 12px 0; border-bottom: 1px solid var(--tinta); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
+.sl-row .num { text-align: right; }
+.sl-ledger { border-top: none; display: flex; flex-direction: column; gap: 10px; }
+.sl-row-head { border-bottom: none; padding: 12px 20px 4px; }
+/* Cada venda é um cartão de borda preta; aberta, ganha sombra preta na diagonal inferior direita. */
+.sl-entry {
+  background: var(--papel);
+  border: 1.5px solid var(--tinta);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.sl-entry.is-open { box-shadow: 6px 6px 0 var(--tinta); margin-bottom: 6px; }
+.sl-entry .sl-row-main { padding: 16px 20px; }
+.sl-entry .sl-detail { padding: 4px 20px 22px 106px; }
+.sl-row-main { padding: 16px 0; min-height: 44px; background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
+.sl-row-main:hover .sl-customer { text-decoration: underline; text-underline-offset: 4px; }
+.sl-row-skeleton { padding: 18px 20px; background: var(--papel); border: 1.5px solid var(--tinta); box-sizing: border-box; }
+.sl-n { font-family: var(--font-serif); font-style: italic; font-size: 20px; color: var(--tinta-apagada); }
+.sl-date { font-size: 14px; color: var(--tinta-suave); }
+.sl-customer { font-size: 15px; }
+.sl-products { font-size: 14px; color: var(--tinta-suave); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-pay { display: flex; flex-direction: column; gap: 6px; }
+.sl-pay-text { font-size: 14px; }
+.sl-pay-bad { color: #B3261E; }
+.sl-pay-good { color: #2E6B1A; }
+.sl-dots { display: flex; gap: 4px; }
+.sl-dot { width: 16px; height: 8px; border: 1px solid var(--tinta-apagada); }
+.sl-dot-paid { background: #2E6B1A; border-color: #2E6B1A; }
+.sl-dot-late { background: #B3261E; border-color: #B3261E; }
+.sl-total { font-family: var(--font-num); font-size: 16px; font-variant-numeric: tabular-nums lining-nums; }
+.sl-detail { padding: 4px 0 22px 86px; display: flex; flex-direction: column; gap: 14px; }
+.sl-items { width: 100%; max-width: 760px; border-collapse: collapse; font-size: 14px; }
+.sl-items th { text-align: left; padding: 0 12px 8px 0; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--tinta); }
+.sl-items td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--fio); font-variant-numeric: tabular-nums; }
+.sl-items .num { text-align: right; padding-right: 0; }
+.sl-items .row-total td { font-weight: 700; border-bottom: none; }
+
+@media (max-width: 900px) { .sl { padding: 28px 20px 48px; } }
