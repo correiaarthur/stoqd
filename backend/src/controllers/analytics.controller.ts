@@ -10,21 +10,31 @@ import { EXPIRY_WARNING_DAYS, expiryStatusOf } from '../lib/expiryWindow.js';
 export async function getSalesReport(req: Request, res: Response) {
   const { from } = req.query;
 
-  let fromDate: Date | undefined;
-  if (from) {
-    fromDate = new Date(String(from));
-    if (Number.isNaN(fromDate.getTime())) {
-      return res.status(400).json({ error: "Data inicial inválida." });
-    }
+  // Sem período o relatório puxaria o histórico inteiro, que só cresce. O
+  // Dashboard sempre manda `from`; quem chama sem ele recebe o motivo, não um
+  // relatório truncado em silêncio.
+  if (!from) {
+    return res.status(400).json({ error: "Informe a data inicial do período." });
+  }
+
+  const fromDate = new Date(String(from));
+  if (Number.isNaN(fromDate.getTime())) {
+    return res.status(400).json({ error: "Data inicial inválida." });
   }
 
   try {
     const sales = await prisma.sale.findMany({
-      where: fromDate ? { date: { gte: fromDate } } : {},
+      where: { date: { gte: fromDate } },
       orderBy: { date: 'asc' },
-      include: {
+      // Só o que o relatório usa: observação, cliente e parcelas ficam no banco.
+      select: {
+        id: true,
+        date: true,
+        discount: true,
         items: {
-          include: {
+          select: {
+            quantity: true,
+            unitPrice: true,
             product: {
               select: {
                 name: true,
@@ -68,7 +78,13 @@ export async function getSalesReport(req: Request, res: Response) {
 
 export async function getDashboardSummary(_req: Request, res: Response) {
   try {
-    const products = await prisma.product.findMany();
+    // Só as colunas das contas abaixo. Os produtos precisam vir um a um porque o
+    // preço ativo (`getActivePrice`) e a janela de validade (`expiryStatusOf`) são
+    // regras do código — duplicá-las em SQL as deixaria divergir da vitrine e do
+    // caixa. O catálogo é pequeno e limitado; o histórico de vendas, não.
+    const products = await prisma.product.findMany({
+      select: { quantity: true, averageCost: true, sellingPrice: true, promotionalPrice: true, expiryDate: true },
+    });
     
     let totalStockValue = 0;
     let totalExpectedProfit = 0;

@@ -3,48 +3,50 @@ import { prisma } from '../lib/prisma.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
 import { parseCustomerBody, parseId } from '../lib/validation.js';
 
+type DebtRow = {
+  customerId: number;
+  totalDebt: number;
+  pendingSalesCount: number;
+  hasOverdue: boolean;
+};
+
 // A lista de clientes precisa de dívida, compras em aberto e atraso — não do
-// histórico inteiro. Carregar os itens de todas as vendas de todos os clientes
-// fazia a resposta crescer sem limite. O histórico vem por getStatement.
+// histórico inteiro. A soma é feita no banco: carregar as vendas e parcelas de
+// todos os clientes para somar em JS fazia a resposta (e o trabalho) crescer
+// com o histórico da loja. O histórico vem por getStatement.
+//
+// "Em aberto" é parcela sem `paidAt`; "em atraso" é uma delas já vencida.
 export async function getAll(_req: Request, res: Response) {
   try {
-    const customers = await prisma.customer.findMany({
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        email: true,
-        sales: {
-          select: {
-            installments: { select: { value: true, paidAt: true, dueDate: true } }
-          }
-        }
-      }
-    });
+    const [customers, debts] = await Promise.all([
+      prisma.customer.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, phone: true, email: true },
+      }),
+      prisma.$queryRaw<DebtRow[]>`
+        SELECT s."customerId"                              AS "customerId",
+               COALESCE(SUM(i."value"), 0)::float8         AS "totalDebt",
+               COUNT(DISTINCT s."id")::int                 AS "pendingSalesCount",
+               COALESCE(BOOL_OR(i."dueDate" < NOW()), FALSE) AS "hasOverdue"
+        FROM "Installment" i
+        JOIN "Sale" s ON s."id" = i."saleId"
+        WHERE i."paidAt" IS NULL AND s."customerId" IS NOT NULL
+        GROUP BY s."customerId"
+      `,
+    ]);
 
-    const now = new Date();
+    const debtByCustomer = new Map(debts.map(row => [row.customerId, row]));
 
-    const formattedCustomers = customers.map(({ sales, ...customer }) => {
-      let totalDebt = 0;
-      let pendingSalesCount = 0;
-      let hasOverdue = false;
+    return res.json(customers.map(customer => {
+      const debt = debtByCustomer.get(customer.id);
 
-      sales.forEach(sale => {
-        const pending = sale.installments.filter(i => !i.paidAt);
-        if (pending.length === 0) return;
-
-        pendingSalesCount += 1;
-        pending.forEach(installment => {
-          totalDebt += installment.value;
-          if (installment.dueDate < now) hasOverdue = true;
-        });
-      });
-
-      return { ...customer, totalDebt, pendingSalesCount, hasOverdue };
-    });
-
-    return res.json(formattedCustomers);
+      return {
+        ...customer,
+        totalDebt: debt?.totalDebt ?? 0,
+        pendingSalesCount: debt?.pendingSalesCount ?? 0,
+        hasOverdue: debt?.hasOverdue ?? false,
+      };
+    }));
   } catch (error) {
     console.error("Erro ao buscar clientes:", error);
     return res.status(500).json({ error: "Erro ao buscar clientes" });

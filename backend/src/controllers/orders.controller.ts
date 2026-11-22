@@ -191,24 +191,27 @@ export async function list(req: Request, res: Response) {
     });
 
     const allProducts = orders.flatMap(order => order.items.map(item => item.product));
-    const stock = await getStockView(allProducts);
 
-    const plans = await prisma.installmentPlan.findMany({ where: { active: true } });
-    const planRates = new Map(plans.map(plan => [plan.installments, plan.interestPercent]));
-
-    // Um Customer com o mesmo telefone ou e-mail é a pista para sugerir o
-    // vínculo. A decisão continua sendo sua: o sistema não funde ninguém sozinho.
+    // Três leituras que não dependem uma da outra.
     const contacts = orders
       .filter(order => !order.user.customer)
       .flatMap(order => [order.user.phone, order.user.email])
       .filter((contact): contact is string => Boolean(contact));
 
-    const candidates = contacts.length > 0
-      ? await prisma.customer.findMany({
-          where: { OR: [{ phone: { in: contacts } }, { email: { in: contacts } }] },
-          select: { id: true, name: true, phone: true, email: true },
-        })
-      : [];
+    const [stock, plans, candidates] = await Promise.all([
+      getStockView(allProducts),
+      prisma.installmentPlan.findMany({ where: { active: true } }),
+      // Um Customer com o mesmo telefone ou e-mail é a pista para sugerir o
+      // vínculo. A decisão continua sendo sua: o sistema não funde ninguém sozinho.
+      contacts.length > 0
+        ? prisma.customer.findMany({
+            where: { OR: [{ phone: { in: contacts } }, { email: { in: contacts } }] },
+            select: { id: true, name: true, phone: true, email: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const planRates = new Map(plans.map(plan => [plan.installments, plan.interestPercent]));
 
     const payload = orders.map(order => {
       const items = order.items.map(item => {
