@@ -31,6 +31,7 @@ stoqd/
 │       ├── server.ts         Sobe o Express, monta middlewares e routers
 │       ├── routes/           Um arquivo por recurso: caminho + quem pode
 │       ├── controllers/      Um arquivo por recurso: HTTP in, HTTP out
+│       ├── services/         Casos de uso que orquestram transações (hoje: pedidos)
 │       ├── lib/              Regra de negócio, sem Express
 │       ├── middlewares/      Autenticação/autorização e limites por rota
 │       └── scripts/          Tarefas manuais (hash de senha, consolidação)
@@ -48,8 +49,9 @@ stoqd/
 ```
 
 **Camadas do backend, em uma frase:** `routes` decide *quem pode chamar*,
-`controllers` traduz HTTP em chamada de regra, `lib` contém a regra e é o único
-lugar onde ela mora.
+`controllers` traduz HTTP em chamada de regra, `services` executa um caso de uso
+inteiro numa transação (hoje, o ciclo de vida do pedido) e `lib` contém as regras
+puras que eles usam.
 
 ---
 
@@ -61,8 +63,8 @@ leitura. Elas aparecem citadas nos comentários do código.
 | # | Decisão | Onde vive |
 |---|---|---|
 | **D1** | **Disponível nunca é armazenado, sempre derivado.** Disponível = `Product.quantity` − reservas ativas, calculado na leitura. Não existe job liberando reserva vencida: ela deixa de contar no instante em que vence. | `lib/availability.ts` |
-| **D2** | **O balcão ganha da reserva.** Quem está com o produto na mão vende. A venda confere o estoque **físico**; um pedido online pode ser recusado na confirmação porque o item saiu na loja. | `lib/sales.ts`, `controllers/orders.ts` |
-| **D3** | **Pedido não é venda.** O pedido nasce `PENDING`, não baixa estoque e não gasta cupom. Só a confirmação cria a `Sale` — pelo mesmo caminho da venda de balcão. | `controllers/orders.controller.ts` |
+| **D2** | **O balcão ganha da reserva.** Quem está com o produto na mão vende. A venda confere o estoque **físico**; um pedido online pode ser recusado na confirmação porque o item saiu na loja. | `lib/sales.ts`, `services/orders.service.ts` |
+| **D3** | **Pedido não é venda.** O pedido nasce `PENDING`, não baixa estoque e não gasta cupom. Só a confirmação cria a `Sale` — pelo mesmo caminho da venda de balcão. | `services/orders.service.ts` |
 | **D4** | **Conta de acesso ≠ cliente.** `User` guarda login; `Customer` guarda histórico. Apagar a conta não apaga as vendas. O vínculo nasce na confirmação de um pedido, quando uma pessoa reconhece a outra. | `schema.prisma`, `me.controller.ts` |
 | **D5** | **Autenticar não é autorizar.** Cliente e admin recebem token assinado pelo mesmo segredo, então toda rota protegida precisa de `requireAdmin` ou `requireCustomer` depois do `authMiddleware`. | `middlewares/auth.ts` |
 | **D6** | **Preço, taxa e desconto vêm do banco, nunca do corpo da requisição.** Senão o comprador escolhe o próprio preço e os próprios juros. | `lib/sales.ts`, `lib/pricingRules.ts` |
@@ -87,7 +89,7 @@ total    = líquido + juros
 |---|---|
 | `src/server.ts` | Monta o Express na ordem `helmet` → `cors` → `limiter` → `express.json()` → routers. Sem `CORS_ORIGINS` a API reflete qualquer origem — cômodo no desenvolvimento, avisado no log em produção. |
 | `prisma.config.ts` | Aponta o Prisma CLI para o schema e para as migrations. |
-| `package.json` | `npm run dev` (tsx watch) e `npm run hash-password`. Sem suíte de testes. |
+| `package.json` | `npm run dev` (tsx watch), `npm run hash-password`, `npm test` (unitários) e `npm run test:integration` (contra um Postgres descartável). |
 | `.env.example` | Documenta cada variável, inclusive as opcionais do aviso de pedido. É a referência da seção 7. |
 | `tsconfig.json` | ESM (`"type": "module"`), por isso todo import interno termina em `.js`. |
 
@@ -126,6 +128,7 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 | `validation.ts` | Os schemas de conta: `registerSchema`, `accountSchema`, `changePasswordSchema`, `customerSchema`, `labelBody`; mais `parseId` e os normalizadores (nome, telefone só com dígitos, e-mail). | Compartilhado por cadastro, perfil e cliente de balcão, para as telas recusarem as mesmas coisas. A senha tem teto de 72 bytes: o bcrypt só lê esses, e truncaria o resto em silêncio. |
 | `productInput.ts` | `productSchema` e as regras de reabastecimento (`mergeAverageCost`, `mergeExpiryDates`). | Recusa dia de validade que não existe (30 de fevereiro) em vez de empurrá-lo para o mês seguinte. |
 | `orderInput.ts` | Os corpos de criar, confirmar e recusar pedido, e a lista de pedidos por situação. | Forma de pagamento desconhecida é recusada: um "PRZO" digitado errado, lido como à vista, registraria como paga uma venda que ia ser fiada. |
+| `orderView.ts` | A resposta da lista de pedidos para a loja: `buildAdminOrderView` e suas peças (`buildItemView`, `buildRequestedView`, `suggestedCustomersFor`). | Puro: recebe o que o service leu e devolve o que a tela mostra. O desligamento de um parcelamento depois do pedido aparece como taxa `null`, nunca como juro inventado. |
 | `saleInput.ts` | O corpo da venda de balcão e as consultas (lista de vendas, relatório, subtotal). | O relatório exige `from`: sem período puxaria o histórico inteiro. |
 | `adminCredentials.ts` | Compara a senha do admin por bcrypt, com cache do hash. | Sem `ADMIN_PASSWORD_HASH`, gera o hash de `ADMIN_PASSWORD` na subida e avisa. |
 | `notifications.ts` | Avisa **a loja** de pedido novo, por Telegram e Resend. | Cada canal no seu try/catch; nunca lança. Falha de aviso não derruba pedido. Loga só o status HTTP, para não vazar token. |
@@ -138,6 +141,24 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 | `auth.ts` | `authMiddleware` (exige token válido com papel), `optionalAuth` (token ruim = token nenhum), `requireAdmin`, `requireCustomer`. Token sem papel é recusado — um token antigo não vira admin por omissão. |
 | `rateLimiter.ts` | Seis limitadores, cada um dimensionado pelo que a rota faz: geral 600/15min · login 10/15min (sucesso não conta) · cadastro 5/h · carrinho 120/15min · pedido 10/15min · cupom 20/15min. |
 
+### 3.4a `src/services/` — o ciclo de vida do pedido
+
+`orders.service.ts` tem os quatro casos de uso do pedido, cada um numa transação.
+Os erros de regra saem como `DomainError`, com o status HTTP junto, e o controller
+só os traduz.
+
+| Função | O que faz |
+|---|---|
+| `createOrder` | Confere o limite de 3 pedidos pendentes por conta, o estoque de cada item (a reserva do próprio carrinho não conta contra ele) e o parcelamento e o cupom pedidos; congela o preço que a pessoa viu, grava o pedido `PENDING`, prende as reservas do carrinho a ele por 30 minutos e, **depois do commit e sem `await`**, avisa a loja. |
+| `listOrders` | Lê os pedidos e três coisas independentes em paralelo (estoque, planos de parcelamento, candidatos a cliente) e entrega tudo a `lib/orderView.ts`, que monta a resposta. |
+| `confirmOrder` | Em passos nomeados: `claimPendingOrder` (reivindica o pedido **no próprio UPDATE**, para dois cliques simultâneos não gerarem duas vendas), `linkCustomer`, `couponForSale` e `registerSale`. Se qualquer passo falha, a transação inteira reverte e o pedido continua pendente. |
+| `cancelOrder` | Só recusa pedido pendente, guarda o motivo e solta as reservas dele. |
+
+`lib/orderView.ts` é a parte pura da listagem — sem banco, sem relógio: o preço do
+pedido ao lado do de hoje (diferença menor que meio centavo não conta como
+mudança), o que o cliente pediu com as contas prontas, e os clientes de balcão
+sugeridos pelo telefone ou e-mail.
+
 ### 3.5 `src/controllers/` e `src/routes/`
 
 Cada recurso tem um par. O arquivo de rota é curto de propósito: ele é onde se lê
@@ -148,7 +169,7 @@ Cada recurso tem um par. O arquivo de rota é curto de propósito: ele é onde s
 | `auth.controller.ts` | Cadastro e login. Um campo de identificação, dois tipos de conta: o admin é testado primeiro (e-mail do `.env`), o cliente entra pelo telefone. Token de 1 dia. |
 | `me.controller.ts` | Área do cliente: ver/editar conta, trocar senha (exige a atual), excluir o perfil (apaga só o `User`) e histórico de compras. `PUBLIC_FIELDS` garante que o hash nunca sai numa resposta. |
 | `cart.controller.ts` | `reserve` (substitui as reservas do carrinho — repetir a chamada não deixa órfã), `availability` (consulta sem reservar) e `release`. |
-| `orders.controller.ts` | **O arquivo mais denso.** `create` (pedido `PENDING`, teto de 3 pendentes por conta, reservas passam a pertencer ao pedido, aviso disparado depois do commit e sem `await`), `list` (para a tela de Vendas: preço do pedido × preço de hoje, estoque atual, clientes sugeridos, contas do pedido prontas), `confirm` (vincula/cria `Customer`, revalida cupom e estoque, chama `registerSale`, apaga as reservas) e `cancel` (exige motivo, libera reservas). |
+| `orders.controller.ts` | Só o HTTP do pedido: lê a requisição (`orderInput.ts`), chama `services/orders.service.ts` e responde. `create` (pedido `PENDING`), `list` (tela de Vendas), `confirm` e `cancel`. A regra mora no service; o controller tem cerca de 70 linhas. |
 | `sales.controller.ts` | `create` (venda de balcão — ignora de propósito o `unitPrice` que vier no corpo) e `list` com filtro de período/cliente e teto de 200. |
 | `products.controller.ts` | `upsert` com custo médio ponderado e validade mais conservadora; `update`; `remove` (recusa produto já vendido); `getAll` (admin vê físico **e** disponível); `getShowcase` (público, só o disponível). |
 | `customers.controller.ts` | Lista com dívida/atraso já calculados e o extrato completo por cliente, separado de propósito: carregar todo o histórico de todo mundo fazia a resposta crescer sem limite. |
