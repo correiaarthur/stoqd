@@ -49,3 +49,14 @@ export function formatExpiryDate(expiryDate: string) {
     year: 'numeric',
   });
 }
+
+/** Dias de hoje até a validade (0 = vence hoje, negativo = já venceu); `null` sem data. */
+export function daysUntilExpiry(expiryDate: string | null | undefined): number | null {
+  if (!expiryDate) return null;
+  const due = parseExpiryDay(expiryDate);
+  if (!due) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((due.getTime() - today.getTime()) / 86_400_000);
+}
