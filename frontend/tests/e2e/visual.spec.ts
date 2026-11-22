@@ -62,6 +62,15 @@ async function pronta(page: Page) {
 /** As fotos vêm do Storage: fora do controle do teste e dependentes de rede. */
 const mascararFotos = (page: Page) => ({ mask: [page.locator('img')] });
 
+/** Põe o primeiro produto da vitrine na sacola e abre o checkout. */
+async function abrirCheckoutComItem(page: Page) {
+  await page.goto('/');
+  await pronta(page);
+  await page.getByRole('button', { name: /reservar|adicionar|comprar/i }).first().click();
+  await page.goto('/checkout');
+  await pronta(page);
+}
+
 test.describe('vitrine — visitante', () => {
   test('home', async ({ page }) => {
     await page.goto('/');
@@ -97,7 +106,9 @@ test.describe('vitrine — visitante', () => {
     await pronta(page);
     await expect(page).toHaveScreenshot('checkout-com-itens.png', {
       fullPage: true,
-      ...mascararFotos(page),
+      // O relógio da reserva muda a cada rodada: a validade vem do servidor, no
+      // tempo real, e o navegador está com o relógio congelado.
+      mask: [page.locator('img'), page.locator('.reservation-timer')],
     });
   });
 });
@@ -149,6 +160,28 @@ test.describe('loja — admin', () => {
     await expect(page).toHaveScreenshot('ajustes.png', { fullPage: true });
   });
 
+  test('ajustes com um cupom em edição', async ({ page }) => {
+    // O formulário de cupom no modo de edição e a linha selecionada na lista.
+    await page.goto('/ajustes');
+    await pronta(page);
+    await page.locator('.cp-row').first().click();
+    await expect(page.getByRole('heading', { name: /editar cupom/i })).toBeVisible();
+    await expect(page).toHaveScreenshot('ajustes-editando-cupom.png', { fullPage: true });
+  });
+
+  test('checkout do balcão com itens', async ({ page }) => {
+    // Cliente, desconto, forma de pagamento e resumo: o painel do admin inteiro.
+    await abrirCheckoutComItem(page);
+    await expect(page).toHaveScreenshot('checkout-balcao.png', { fullPage: true, ...mascararFotos(page) });
+  });
+
+  test('checkout do balcão com a lista de clientes aberta', async ({ page }) => {
+    await abrirCheckoutComItem(page);
+    await page.getByPlaceholder('Consumidor final').click();
+    await expect(page.locator('.customer-dropdown-menu')).toBeVisible();
+    await expect(page).toHaveScreenshot('checkout-balcao-clientes.png', { fullPage: true, ...mascararFotos(page) });
+  });
+
   test('cadastro de produto', async ({ page }) => {
     // Modal é onde sobreposição e empilhamento quebram primeiro, e nenhum teste
     // de comportamento percebe.
@@ -167,5 +200,17 @@ test.describe('conta — cliente', () => {
     await page.goto('/minha-conta');
     await pronta(page);
     await expect(page).toHaveScreenshot('minha-conta.png', { fullPage: true });
+  });
+
+  test('checkout do cliente logado com itens', async ({ page }) => {
+    // Cupom, forma de pagamento, observação e o botão de enviar o pedido.
+    await abrirCheckoutComItem(page);
+    await expect(page).toHaveScreenshot('checkout-cliente.png', {
+      fullPage: true,
+      // O relógio da reserva: a validade vem do servidor, no tempo real, e o
+      // navegador está com o relógio congelado — o contador muda a cada rodada.
+      // O componente é coberto por teste unitário.
+      mask: [page.locator('img'), page.locator('.reservation-timer')],
+    });
   });
 });
