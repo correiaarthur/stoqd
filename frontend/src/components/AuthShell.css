@@ -1,0 +1,163 @@
+.auth { min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--areia); }
+
+/* --- Painel verde --- */
+.auth-panel {
+  flex: 1 1 480px;
+  background: var(--mandacaru);
+  color: var(--papel);
+  padding: 40px 48px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48px;
+}
+.auth-logo { align-self: flex-start; color: var(--papel); text-decoration: none; }
+.auth-logo:hover { color: var(--papel); }
+.auth-pitch { display: flex; flex-direction: column; gap: 26px; }
+.auth-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
+.auth-title {
+  font-size: clamp(44px, 6.2vw, 84px);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+}
+.auth-title em { color: var(--rosa); }
+.auth-pitch p {
+  max-width: 440px;
+  padding-top: 20px;
+  border-top: 1px solid var(--mandacaru-claro);
+  font-size: 16px;
+  line-height: 1.65;
+  color: #E6EDE7;
+}
+.auth-bag {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--papel);
+  color: var(--tinta);
+  font-size: 14px;
+  font-weight: 600;
+}
+.auth-bag-sep { width: 1px; height: 20px; background: var(--fio); }
+.auth-bag-time { font-family: var(--font-num); font-size: 20px; font-weight: 600; }
+
+/* --- Formulário --- */
+.auth-main {
+  flex: 1 1 480px;
+  /* Alinhado ao topo, num ponto fixo: as abas ficam exatamente no mesmo lugar
+     em Entrar e em Criar conta, e só o formulário embaixo cresce. Centralizar
+     faria as abas subirem no cadastro, que é mais alto. */
+  padding: clamp(24px, 10vh, 96px) 48px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+/* A mesma largura nas duas telas: a aba "Entrar" não anda de lado. O cadastro
+   põe os campos dois a dois nesta largura. */
+.auth-box { width: 100%; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.auth-box-register { gap: 20px; }
+
+/* Abas: duas palavras grandes sobre um fio grosso; a ativa é tinta, a outra
+   some para o fundo. */
+.auth-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 3px solid var(--tinta); }
+.auth-tabs a {
+  min-height: 44px;
+  padding: 4px 0 12px;
+  font-family: var(--font-serif);
+  font-size: 28px;
+  text-decoration: none;
+  color: #8A7B66;
+}
+.auth-tabs a:hover { color: var(--tinta); }
+.auth-tabs a[aria-current="page"] { color: var(--tinta); }
+
+.auth-form { display: flex; flex-direction: column; gap: 20px; }
+.auth-form-register { gap: 14px; }
+.auth-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; }
+.auth-hint { margin-top: -6px; font-size: 12.5px; color: var(--tinta-apagada); }
+.auth-form-register .input-standard { font-size: 16px; min-height: 40px; padding: 8px 0; }
+.auth-lead { font-size: 15px; line-height: 1.6; color: var(--tinta-suave); }
+.auth-field { display: flex; flex-direction: column; gap: 6px; }
+.auth-field .input-standard { font-size: 18px; }
+.auth-form-login .auth-field .input-standard { font-size: 20px; }
+.auth-field small { font-size: 13px; color: var(--tinta-apagada); }
+.auth-optional { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+.auth-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #7E2F22;
+}
+.auth-error::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--coroa);
+}
+
+.auth-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tinta-suave);
+  cursor: pointer;
+}
+.auth-consent input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--mandacaru); }
+
+.auth-cta {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  color: var(--papel);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.auth-cta-green { background: var(--mandacaru); }
+.auth-cta-green:hover:not(:disabled) { background: #244A3A; }
+.auth-cta-coroa { background: var(--coroa); }
+.auth-cta-coroa:hover:not(:disabled) { background: var(--coroa-escura); }
+.auth-cta:disabled { background: var(--fio); color: #6E604F; cursor: not-allowed; }
+
+.auth-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Tela baixa (notebook pequeno): o cadastro, que é mais alto, perde a frase de
+   apresentação. O login a mantém: é ela que diz que cliente entra com o
+   telefone e a administração com o e-mail, e ele tem espaço de sobra. */
+@media (min-width: 761px) and (max-height: 720px) {
+  .auth-form-register .auth-lead { display: none; }
+  .auth-main { padding-bottom: 20px; }
+}
+
+/* --- Telefone: o painel encolhe para só marca, título e sacola --- */
+@media (max-width: 760px) {
+  .auth-panel { padding: 24px 20px 28px; gap: 24px; flex-basis: 100%; }
+  .auth-pitch { gap: 14px; }
+  .auth-pitch p { display: none; }
+  .auth-title { font-size: clamp(36px, 11vw, 52px); }
+  .auth-main { padding: 28px 20px 44px; flex-basis: 100%; }
+  .auth-tabs a { font-size: 26px; }
+  .auth-grid { grid-template-columns: minmax(0, 1fr); }
+}

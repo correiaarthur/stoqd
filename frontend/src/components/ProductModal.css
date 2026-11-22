@@ -3,13 +3,13 @@
   padding: 12px 14px;
   border-radius: 8px;
   border: 1px solid var(--accent-color);
-  background: rgba(139, 92, 246, 0.08);
+  background: color-mix(in oklch, var(--accent-color) 8%, transparent);
   font-size: 0.86rem;
   line-height: 1.5;
 }
 .restock-warning {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
+  border-top: 1px solid color-mix(in oklch, var(--warning-color) 35%, transparent);
+  color: var(--warning-color);
 }

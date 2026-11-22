@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { saveToken } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/errors';
-import './Login.css';
+import { AuthShell } from '../components/AuthShell';
 
 export function Login() {
   const [searchParams] = useSearchParams();
@@ -30,68 +30,72 @@ export function Login() {
     }
   };
 
+  // O campo é um só para os dois acessos, e se ajusta ao que a pessoa digita:
+  // com "@" ele vira o campo de e-mail da administração; sem, é o telefone do
+  // cliente. Assim a tela diz que os dois caminhos existem, sem pedir que a
+  // pessoa escolha antes de começar.
+  const isEmail = identifier.includes('@');
+
+  // Quem veio do checkout volta para ele: o botão diz isso.
+  const backToBag = !!next && next.startsWith('/checkout');
+
   return (
-    <div className="login-container">
-      <div className="login-card base-card">
+    <AuthShell mode="login" next={next}>
+      <form
+        className="auth-form auth-form-login"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleLogin();
+        }}
+      >
+        <p className="auth-lead">
+          Clientes entram com o telefone. A administração entra com o e-mail.
+        </p>
 
-        <div className="login-header">
-          <span className="brand-symbol">▲</span>
-          <h1 className="brand-name">stoqd</h1>
-          <p>Entre com sua conta de cliente ou de administração.</p>
+        {/* Um campo só para os dois tipos de conta: o cliente digita o
+            telefone, a administração digita o e-mail do .env — que nunca vai
+            casar com um número. */}
+        <div className="auth-field">
+          <label htmlFor="login-identificador" className="label-caps">
+            {isEmail ? 'E-mail da administração' : 'Telefone'}
+          </label>
+          <input
+            id="login-identificador"
+            type="text"
+            inputMode={isEmail ? 'email' : 'tel'}
+            className="input-standard"
+            placeholder="(87) 90000-0000"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoComplete="username"
+            required
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+          />
         </div>
 
-        <form
-          className="login-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleLogin();
-          }}
-        >
-
-          {error && (
-            <div className="login-error">
-              {error}
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>Telefone</label>
-            {/* Um campo só para os dois tipos de conta: o cliente digita o
-                telefone, a administração digita o e-mail do .env — que nunca
-                vai casar com um número. */}
-            <input
-              type="text"
-              className="input-standard"
-              placeholder="(87) 90000-0000"
-              required
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Senha</label>
-            <input
-              type="password"
-              className="input-standard"
-              placeholder="••••••••"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button type="submit" className="btn-primary login-btn">
-            Entrar
-          </button>
-
-        </form>
-
-        <div className="login-footer">
-          Ainda não tem conta? <Link to={`/cadastro${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Criar conta</Link>
+        <div className="auth-field">
+          <label htmlFor="login-senha" className="label-caps">Senha</label>
+          <input
+            id="login-senha"
+            type="password"
+            className="input-standard"
+            placeholder="••••••••"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
 
-      </div>
-    </div>
+        {error && <p className="auth-error" role="alert">{error}</p>}
+
+        <button type="submit" className="auth-cta auth-cta-green">
+          {backToBag ? 'Entrar e voltar à sacola' : 'Entrar'}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+        </button>
+      </form>
+    </AuthShell>
   );
 }

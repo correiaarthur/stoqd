@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import { api } from '../api';
 import { saveToken } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/errors';
-import './Login.css';
+import { AuthShell } from '../components/AuthShell';
 
 export function Register() {
   const [searchParams] = useSearchParams();
@@ -36,64 +36,62 @@ export function Register() {
     }
   };
 
+  const toCheckout = next.startsWith('/checkout');
+
   return (
-    <div className="login-container">
-      <div className="login-card base-card">
-        <div className="login-header">
-          <span className="brand-symbol">✦</span>
-          <h1 className="brand-name">stoqd</h1>
-          <p>Crie sua conta para enviar pedidos pela vitrine.</p>
+    <AuthShell mode="register" next={searchParams.get('next')}>
+      <form className="auth-form auth-form-register" onSubmit={handleSubmit}>
+        <p className="auth-lead">Para enviar pedidos pela vitrine. Leva um minuto.</p>
+
+        {/* Dois a dois: o formulário cabe na tela sem rolagem. */}
+        <div className="auth-grid">
+          <div className="auth-field">
+            <label htmlFor="cadastro-nome" className="label-caps">Nome</label>
+            <input id="cadastro-nome" type="text" className="input-standard" placeholder="Como podemos te chamar"
+              autoComplete="name" required value={form.name} onChange={update('name')} />
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="cadastro-telefone" className="label-caps">Telefone</label>
+            <input id="cadastro-telefone" type="tel" className="input-standard" placeholder="(87) 90000-0000"
+              autoComplete="tel" required value={form.phone} onChange={update('phone')} aria-describedby="cadastro-telefone-dica" />
+          </div>
+        </div>
+        <small id="cadastro-telefone-dica" className="auth-hint">É pelo telefone que você entra depois, e é como a loja fala com você.</small>
+
+        <div className="auth-grid">
+          <div className="auth-field">
+            <label htmlFor="cadastro-email" className="label-caps">E-mail <span className="auth-optional">(opcional)</span></label>
+            <input id="cadastro-email" type="email" className="input-standard" placeholder="exemplo@email.com"
+              autoComplete="email" value={form.email} onChange={update('email')} />
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="cadastro-senha" className="label-caps">Senha</label>
+            <input id="cadastro-senha" type="password" className="input-standard" placeholder="Pelo menos 8 caracteres"
+              autoComplete="new-password" required minLength={8} value={form.password} onChange={update('password')} />
+          </div>
         </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          {error && <div className="login-error">{error}</div>}
+        {/* Passamos a guardar dado pessoal de terceiros: a pessoa precisa ler
+            para que serve antes de entregar. */}
+        <label className="auth-consent">
+          <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required />
+          <span>
+            Concordo em fornecer meu nome e telefone — e o e-mail, se eu quiser
+            informar — para que a loja possa confirmar meus pedidos e combinar entrega
+            e pagamento. Esses dados não são usados para mais nada, e posso excluir
+            minha conta quando quiser.
+          </span>
+        </label>
 
-          <div className="form-group">
-            <label>Nome</label>
-            <input type="text" className="input-standard" placeholder="Como podemos te chamar" required
-              value={form.name} onChange={update('name')} />
-          </div>
+        {error && <p className="auth-error" role="alert">{error}</p>}
 
-          <div className="form-group">
-            <label>Telefone</label>
-            <input type="tel" className="input-standard" placeholder="(11) 90000-0000" required
-              value={form.phone} onChange={update('phone')} />
-            <small className="field-hint">É por ele que você entra depois, e como a loja fala com você.</small>
-          </div>
-
-          <div className="form-group">
-            <label>E-mail <span className="label-optional">(opcional)</span></label>
-            <input type="email" className="input-standard" placeholder="exemplo@email.com"
-              value={form.email} onChange={update('email')} />
-          </div>
-
-          <div className="form-group">
-            <label>Senha</label>
-            <input type="password" className="input-standard" placeholder="Pelo menos 8 caracteres" required
-              minLength={8} value={form.password} onChange={update('password')} />
-          </div>
-
-          {/* Passamos a guardar dado pessoal de terceiros: a pessoa precisa ler
-              para que serve antes de entregar. */}
-          <label className="login-consent">
-            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required />
-            <span>
-              Concordo em fornecer meu nome e telefone — e o e-mail, se eu quiser
-              informar — para que a loja possa confirmar meus pedidos e combinar entrega
-              e pagamento. Esses dados não são usados para mais nada, e posso excluir
-              minha conta quando quiser.
-            </span>
-          </label>
-
-          <button type="submit" className="btn-primary login-btn" disabled={isSubmitting || !consent}>
-            {isSubmitting ? 'Criando...' : 'Criar conta'}
-          </button>
-        </form>
-
-        <div className="login-footer">
-          Já tem conta? <Link to={`/login?next=${encodeURIComponent(next)}`}>Entrar</Link>
-        </div>
-      </div>
-    </div>
+        <button type="submit" className="auth-cta auth-cta-coroa" disabled={isSubmitting || !consent}>
+          {isSubmitting ? 'Criando...' : toCheckout ? 'Criar conta e enviar pedido' : 'Criar conta'}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+        </button>
+      </form>
+    </AuthShell>
   );
 }

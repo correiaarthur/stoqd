@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { Dashboard } from './pages/Dashboard';
 import { Checkout } from './pages/Checkout';
@@ -15,6 +15,7 @@ import { isAdmin, isCustomer, isTokenValid } from './utils/auth';
 import { CartProvider } from './contexts/CartProvider';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
+import { AdminSidebar } from './components/AdminSidebar';
 
 /**
  * As rotas por papel existem para a pessoa não cair numa tela que não é dela —
@@ -33,13 +34,41 @@ function CustomerRoute({ children }: { children: React.ReactNode }) {
   return isCustomer() ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+/**
+ * Duas moradas para o mesmo app. Quem administra trabalha dentro da barra
+ * lateral — inclusive na vitrine, que para o balcão é a tela de vender. Quem
+ * compra vê a loja: cabeçalho, conteúdo e rodapé.
+ */
+function Shell({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+
+  // Entrar e Criar conta são telas inteiras, com painel próprio: sem o
+  // cabeçalho nem o rodapé da loja em volta.
+  if (pathname === '/login' || pathname === '/cadastro') return <>{children}</>;
+
+  if (isTokenValid() && isAdmin()) {
+    return (
+      <div className="admin-layout">
+        <AdminSidebar />
+        <main className="admin-main">{children}</main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="store-layout">
+      <Header />
+      <main className="store-main">{children}</main>
+      <Footer />
+    </div>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <CartProvider>
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-color)' }}>
-          <Header />
-          <main style={{ flex: 1 }}>
+        <Shell>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -64,9 +93,7 @@ function App() {
 
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
-          </main>
-          <Footer />
-        </div>
+        </Shell>
       </CartProvider>
     </BrowserRouter>
   );
