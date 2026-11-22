@@ -92,7 +92,7 @@ test.describe('vitrine — visitante', () => {
     // restilização: linha de item, aviso de estoque, total, forma de pagamento.
     await page.goto('/');
     await pronta(page);
-    await page.getByRole('button', { name: /adicionar|comprar/i }).first().click();
+    await page.getByRole('button', { name: /reservar|adicionar|comprar/i }).first().click();
     await page.goto('/checkout');
     await pronta(page);
     await expect(page).toHaveScreenshot('checkout-com-itens.png', {
