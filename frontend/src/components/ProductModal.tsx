@@ -103,19 +103,20 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
       const file = event.target.files?.[0];
       if (!file) return;
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `fotos/${fileName}`;
+      // O servidor decide o caminho e assina o envio; o bucket não aceita
+      // escrita anônima.
+      const { data: signed } = await api.post<{ path: string; token: string; publicUrl: string }>(
+        '/uploads/product-image',
+        { contentType: file.type, size: file.size }
+      );
 
       const { error: uploadError } = await supabase.storage
         .from('produtos')
-        .upload(filePath, file);
+        .uploadToSignedUrl(signed.path, signed.token, file, { contentType: file.type });
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from('produtos').getPublicUrl(filePath);
-
-      setForm(prev => ({ ...prev, imageUrl: data.publicUrl }));
+      setForm(prev => ({ ...prev, imageUrl: signed.publicUrl }));
     } catch (error) {
       console.error('Erro no upload:', error);
       alert('Erro ao enviar a imagem. Tente novamente.');
@@ -204,7 +205,7 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
               <label>Foto do Produto</label>
               <input 
                 type="file" 
-                accept="image/*" 
+                accept="image/jpeg,image/png,image/webp" 
                 onChange={handleImageUpload}
                 disabled={isUploading}
                 className="input-standard"

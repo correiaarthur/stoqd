@@ -14,6 +14,8 @@
  * com a mensagem que o operador lê na tela.
  */
 
+import { isAllowedImageUrl } from './storage.js';
+
 export type ProductInput = {
   name: string;
   brandId: number;
@@ -114,6 +116,10 @@ export function parseProductInput(raw: unknown): ProductParseResult {
 
   const imagem = body['imageUrl'];
   const imageUrl = typeof imagem === 'string' && imagem.trim() !== '' ? imagem.trim() : null;
+
+  if (imageUrl !== null && !isAllowedImageUrl(imageUrl)) {
+    return { ok: false, error: "A imagem precisa ser enviada pelo próprio sistema." };
+  }
 
   return {
     ok: true,
