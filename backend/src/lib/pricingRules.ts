@@ -17,6 +17,22 @@ import { prisma } from './prisma.js';
 export const MIN_INSTALLMENTS = 2;
 export const MAX_INSTALLMENTS = 12;
 
+/**
+ * Quantidade de parcelas vinda de fora (corpo da requisição).
+ *
+ * Só inteiro de 1 a 12. `Number(x) || 1` deixava passar `0.5` e `-3`: a taxa de
+ * "1x ou menos" é 0%, o pedido era aceito e a venda nascia a prazo, com total e
+ * sem nenhuma parcela — a dívida sumia da lista de clientes. Ausente (`undefined`,
+ * `null` ou vazio) vale 1; qualquer outra coisa inválida devolve `null`.
+ */
+export function parseInstallmentsCount(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === '') return 1;
+
+  const count = typeof raw === 'number' ? raw : Number(String(raw).trim());
+
+  return Number.isInteger(count) && count >= 1 && count <= MAX_INSTALLMENTS ? count : null;
+}
+
 export type InstallmentPlanView = {
   installments: number;
   interestPercent: number;

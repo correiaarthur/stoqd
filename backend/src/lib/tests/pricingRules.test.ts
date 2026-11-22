@@ -4,6 +4,7 @@ import {
   computeTotals,
   getInterestPercent,
   lineTotal,
+  parseInstallmentsCount,
   previewInstallmentValue,
   sumLines,
   toCents,
@@ -167,4 +168,26 @@ describe('getInterestPercent', () => {
   it('plano inexistente devolve null', async () => {
     expect(await getInterestPercent(clientCom(null), 7)).toBeNull();
   });
+});
+
+describe('parseInstallmentsCount', () => {
+  it('ausente vale 1x', () => {
+    expect(parseInstallmentsCount(undefined)).toBe(1);
+    expect(parseInstallmentsCount(null)).toBe(1);
+    expect(parseInstallmentsCount('')).toBe(1);
+  });
+
+  it('aceita inteiro de 1 a 12, como número ou texto', () => {
+    expect(parseInstallmentsCount(1)).toBe(1);
+    expect(parseInstallmentsCount(12)).toBe(12);
+    expect(parseInstallmentsCount('6')).toBe(6);
+  });
+
+  // Estes passavam por `Number(x) || 1` e geravam venda a prazo sem parcelas.
+  it.each([0, -3, 0.5, 1.5, 13, 1000, NaN, Infinity, 'abc', '3x', {}, [], true])(
+    'recusa %s',
+    (value) => {
+      expect(parseInstallmentsCount(value)).toBeNull();
+    }
+  );
 });

@@ -16,7 +16,7 @@ import { registerSale } from '../lib/sales.js';
 import { DomainError, respondWithError } from '../lib/errors.js';
 import { notifyNewOrder } from '../lib/notifications.js';
 import { checkCoupon, couponDiscountFor } from '../lib/coupons.js';
-import { computeTotals, getInterestPercent, previewInstallmentValue, sumLines } from '../lib/pricingRules.js';
+import { computeTotals, getInterestPercent, parseInstallmentsCount, previewInstallmentValue, sumLines } from '../lib/pricingRules.js';
 
 /** Um pedido pendente por vez já é bastante para quem atende sozinha. */
 const MAX_PENDING_ORDERS_PER_USER = 3;
@@ -40,7 +40,10 @@ export async function create(req: Request, res: Response) {
 
   // Preferência, não decisão: o cliente diz como quer pagar e a loja confirma.
   const paymentType = req.body?.paymentType === 'PRAZO' ? 'PRAZO' : 'VISTA';
-  const requestedInstallments = paymentType === 'PRAZO' ? Number(req.body?.installmentsCount) || 1 : 1;
+  const requestedInstallments = paymentType === 'PRAZO' ? parseInstallmentsCount(req.body?.installmentsCount) : 1;
+  if (requestedInstallments === null) {
+    return res.status(400).json({ error: "O parcelamento precisa ser de 1x a 12x." });
+  }
 
   try {
     const order = await prisma.$transaction(async (tx) => {

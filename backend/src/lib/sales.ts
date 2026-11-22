@@ -2,7 +2,7 @@ import { DomainError } from './errors.js';
 import type { Prisma$Tx } from './availability.js';
 import { getActivePrice } from './pricing.js';
 import { consumeCoupon } from './coupons.js';
-import { computeTotals, getInterestPercent, sumLines, toCents } from './pricingRules.js';
+import { computeTotals, getInterestPercent, parseInstallmentsCount, sumLines, toCents } from './pricingRules.js';
 
 /** Regra de negócio da venda que o operador precisa ler na tela (400). */
 export class SaleError extends DomainError {}
@@ -83,7 +83,14 @@ export async function registerSale(tx: Prisma$Tx, input: RegisterSaleInput) {
 
   // À vista é sempre uma parcela só, mesmo que o caixa tenha escolhido um
   // parcelamento antes de voltar para o pagamento à vista.
-  const totalInstallments = isPaidUpfront ? 1 : Number(input.installmentsCount) || 1;
+  //
+  // A prazo, a quantidade é conferida aqui também, por mais que o chamador já
+  // tenha validado: 0, negativo ou fracionário geraria uma venda sem parcelas.
+  const totalInstallments = isPaidUpfront ? 1 : parseInstallmentsCount(input.installmentsCount);
+
+  if (totalInstallments === null) {
+    throw new SaleError("O parcelamento precisa ser de 1x a 12x.");
+  }
 
   // A taxa vem do banco, nunca do pedido: se o comprador pudesse mandar a
   // taxa, escolheria a própria. Opção desligada não vira 0% em silêncio —

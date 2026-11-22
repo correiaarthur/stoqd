@@ -157,3 +157,35 @@ describe('registerSale sob concorrência — A1', () => {
     expect(vendidas._sum.quantity ?? 0).toBeLessThanOrEqual(4);
   });
 });
+
+
+describe('parcelamento inválido', () => {
+  const aPrazo = (productId: number, customerId: number, installmentsCount: number) =>
+    testPrisma.$transaction(tx => registerSale(tx, {
+      customerId,
+      items: [{ productId, quantity: 1 }],
+      discount: 0,
+      installmentsCount,
+      paymentType: 'PRAZO',
+      observation: null,
+    }));
+
+  it.each([0, -3, 0.5, 1.5, 13, NaN])('venda a prazo em %s parcelas é recusada e nada é gravado', async (parcelas) => {
+    const produto = await criarProduto({ quantidade: 5, preco: 100 });
+    const cliente = await criarCliente();
+
+    await expect(aPrazo(produto.id, cliente.id, parcelas)).rejects.toThrow(SaleError);
+
+    expect((await testPrisma.product.findUnique({ where: { id: produto.id } }))?.quantity).toBe(5);
+    expect(await testPrisma.sale.count()).toBe(0);
+    expect(await testPrisma.installment.count()).toBe(0);
+  });
+
+  it('1x a prazo continua gerando uma parcela', async () => {
+    const produto = await criarProduto({ quantidade: 5, preco: 100 });
+    const cliente = await criarCliente();
+
+    const venda = await aPrazo(produto.id, cliente.id, 1);
+    expect(venda.installments).toHaveLength(1);
+  });
+});

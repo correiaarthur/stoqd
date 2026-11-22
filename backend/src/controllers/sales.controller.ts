@@ -4,12 +4,19 @@ import { parseCartItems } from '../lib/cartItems.js';
 import { MAX_LINES_PER_CART, MAX_UNITS_PER_CART } from '../lib/availability.js';
 import { SaleError, registerSale } from '../lib/sales.js';
 import { respondWithError } from '../lib/errors.js';
+import { parseId } from '../lib/validation.js';
 import { checkCoupon } from '../lib/coupons.js';
 import { PRODUCT_PRICING_SELECT, getActivePrice } from '../lib/pricing.js';
 import { sumLines } from '../lib/pricingRules.js';
 
 export async function create(req: Request, res: Response) {
   const { customerId, items, installmentsCount = 1, observation, discount = 0, paymentType = 'VISTA' } = req.body;
+
+  // Ausente é venda sem cliente; presente e inválido é erro, não `NaN` no Prisma.
+  const saleCustomerId = customerId === undefined || customerId === null || customerId === '' ? null : parseId(customerId);
+  if (customerId !== undefined && customerId !== null && customerId !== '' && saleCustomerId === null) {
+    return res.status(400).json({ error: "Cliente inválido." });
+  }
 
   const parsed = parseCartItems(items, { maxLines: MAX_LINES_PER_CART, maxUnits: MAX_UNITS_PER_CART });
 
@@ -30,7 +37,7 @@ export async function create(req: Request, res: Response) {
         : null;
 
       return registerSale(tx, {
-        customerId: customerId ? Number(customerId) : null,
+        customerId: saleCustomerId,
         // O `unitPrice` que vem do corpo é ignorado de propósito: quem define o
         // preço é o produto no banco, não quem chama a API.
         items: parsed.items,
