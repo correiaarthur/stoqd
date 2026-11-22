@@ -59,3 +59,31 @@ export function validatePassword(password: unknown): string | null {
   }
   return null;
 }
+
+/** Id de rota: inteiro positivo, ou `null`. `Number("abc")` vira NaN e cairia no 500. */
+export function parseId(value: unknown): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/** Nome de marca/categoria: texto aparado, 1 a 100 caracteres. */
+export function parseLabel(value: unknown): string | null {
+  const name = normalizeName(value);
+  return name.length >= 1 && name.length <= 100 ? name : null;
+}
+
+/** Contato opcional de cliente de balcão: telefone só com dígitos, e-mail válido. */
+export function parseCustomerBody(body: any):
+  | { ok: true; data: { name: string; phone: string | null; email: string | null } }
+  | { ok: false; error: string } {
+  const name = normalizeName(body?.name);
+  if (name.length < 2 || name.length > 120) return { ok: false, error: "Nome é obrigatório" };
+
+  const phone = normalizePhone(body?.phone);
+  if (phone !== '' && !isValidPhone(phone)) return { ok: false, error: "Informe um telefone válido com DDD." };
+
+  const email = optionalEmail(body?.email);
+  if (email !== null && !isValidEmail(email)) return { ok: false, error: "O e-mail informado não parece válido." };
+
+  return { ok: true, data: { name, phone: phone === '' ? null : phone, email } };
+}

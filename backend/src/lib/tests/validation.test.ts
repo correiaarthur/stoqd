@@ -8,6 +8,9 @@ import {
   normalizePhone,
   optionalEmail,
   validateAccountFields,
+  parseCustomerBody,
+  parseId,
+  parseLabel,
   validatePassword,
 } from '../validation.js';
 
@@ -15,10 +18,9 @@ import {
  * O telefone é o identificador de acesso, então normalizá-lo é o que impede o
  * mesmo número digitado de três jeitos de virar três contas.
  *
- * Vale registrar: `customers.controller` **não** usa estas funções (achado A3).
- * Enquanto não usar, o telefone de um Customer nunca casa com o de um User, e
- * a sugestão de vínculo em `orders.list` não acerta. Os testes aqui cobrem a
- * função; o que falta é o chamador.
+ * `customers.controller` também passa por `parseCustomerBody`, então o telefone
+ * de um Customer casa com o de um User e a sugestão de vínculo em `orders.list`
+ * acerta.
  */
 
 describe('normalizePhone', () => {
@@ -123,5 +125,49 @@ describe('validateAccountFields', () => {
   it('valida nome antes de telefone', () => {
     // Com dois campos errados, reporta o primeiro — a ordem atual é essa.
     expect(validateAccountFields({ name: '', phone: '1', email: null })?.field).toBe('name');
+  });
+});
+
+describe('parseId', () => {
+  it('aceita inteiro positivo', () => {
+    expect(parseId('42')).toBe(42);
+  });
+
+  it.each(['abc', '', '0', '-3', '1.5', undefined, null])('recusa %s', (value) => {
+    expect(parseId(value)).toBeNull();
+  });
+});
+
+describe('parseLabel', () => {
+  it('apara e colapsa espaços', () => {
+    expect(parseLabel('  Marca   X ')).toBe('Marca X');
+  });
+
+  it('recusa vazio e texto longo demais', () => {
+    expect(parseLabel('   ')).toBeNull();
+    expect(parseLabel(undefined)).toBeNull();
+    expect(parseLabel('a'.repeat(101))).toBeNull();
+  });
+});
+
+describe('parseCustomerBody', () => {
+  it('normaliza telefone e e-mail', () => {
+    expect(parseCustomerBody({ name: ' Ana  Lima ', phone: '(12) 93456-7890', email: ' ANA@X.COM ' })).toEqual({
+      ok: true,
+      data: { name: 'Ana Lima', phone: '12934567890', email: 'ana@x.com' },
+    });
+  });
+
+  it('contatos vazios viram null', () => {
+    expect(parseCustomerBody({ name: 'Ana', phone: '', email: '' })).toEqual({
+      ok: true,
+      data: { name: 'Ana', phone: null, email: null },
+    });
+  });
+
+  it('recusa nome ausente, telefone curto e e-mail inválido', () => {
+    expect(parseCustomerBody({ phone: '12934567890' }).ok).toBe(false);
+    expect(parseCustomerBody({ name: 'Ana', phone: '123' }).ok).toBe(false);
+    expect(parseCustomerBody({ name: 'Ana', email: 'nao-e-email' }).ok).toBe(false);
   });
 });

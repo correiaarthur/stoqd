@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { translatePrismaError } from '../lib/prismaErrors.js';
+import { parseCustomerBody, parseId } from '../lib/validation.js';
 
 // A lista de clientes precisa de dívida, compras em aberto e atraso — não do
 // histórico inteiro. Carregar os itens de todas as vendas de todos os clientes
@@ -51,9 +52,9 @@ export async function getAll(_req: Request, res: Response) {
 }
 
 export async function getStatement(req: Request, res: Response) {
-  const customerId = Number(req.params.id);
+  const customerId = parseId(req.params.id);
 
-  if (!Number.isInteger(customerId)) {
+  if (customerId === null) {
     return res.status(400).json({ error: "Cliente inválido." });
   }
 
@@ -87,16 +88,11 @@ export async function getStatement(req: Request, res: Response) {
 }
 
 export async function create(req: Request, res: Response) {
-  const { name, phone, email } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ error: "Nome é obrigatório" });
-  }
+  const parsed = parseCustomerBody(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
   try {
-    const customer = await prisma.customer.create({
-      data: { name, phone, email }
-    });
+    const customer = await prisma.customer.create({ data: parsed.data });
     return res.status(201).json(customer);
   } catch (error) {
     return res.status(500).json({ error: "Erro ao criar cliente" });
@@ -104,16 +100,13 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function update(req: Request, res: Response) {
-  const { id } = req.params;
-  const { name, phone, email } = req.body;
+  const customerId = parseId(req.params.id);
+  if (customerId === null) return res.status(400).json({ error: "Cliente inválido." });
 
-  if (!name) {
-    return res.status(400).json({ error: "Nome é obrigatório" });
-  }
+  const parsed = parseCustomerBody(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
   try {
-    const customerId = Number(id);
-
     const existingCustomer = await prisma.customer.findUnique({
       where: { id: customerId }
     });
@@ -124,7 +117,7 @@ export async function update(req: Request, res: Response) {
 
     const updatedCustomer = await prisma.customer.update({
       where: { id: customerId },
-      data: { name, phone, email }
+      data: parsed.data
     });
 
     return res.json(updatedCustomer);
@@ -147,9 +140,9 @@ export async function update(req: Request, res: Response) {
  * de ter a quem cobrar. Melhor dizer não e explicar por quê.
  */
 export async function remove(req: Request, res: Response) {
-  const customerId = Number(req.params.id);
+  const customerId = parseId(req.params.id);
 
-  if (!Number.isInteger(customerId)) {
+  if (customerId === null) {
     return res.status(400).json({ error: "Cliente inválido." });
   }
 

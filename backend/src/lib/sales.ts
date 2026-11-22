@@ -145,6 +145,11 @@ export async function registerSale(tx: Prisma$Tx, input: RegisterSaleInput) {
 
   const manualDiscount = toCents(Number(input.discount) || 0);
 
+  // Desconto negativo viraria acréscimo fora do fluxo de juros.
+  if (manualDiscount < 0) {
+    throw new SaleError("O desconto não pode ser negativo.");
+  }
+
   if (manualDiscount > grossTotal) {
     throw new SaleError("O desconto não pode ser maior que o valor total da venda.");
   }

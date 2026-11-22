@@ -47,7 +47,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as jwt.JwtPayload;
+    const payload = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ['HS256'] }) as jwt.JwtPayload;
 
     // Token emitido antes de existirem papéis não vira admin por omissão.
     const role = payload.role === 'admin' || payload.role === 'customer' ? payload.role : null;
@@ -70,7 +70,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
   if (!token) return next();
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as jwt.JwtPayload;
+    const payload = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ['HS256'] }) as jwt.JwtPayload;
     if (payload.role === 'admin' || payload.role === 'customer') {
       req.auth = { role: payload.role, userId: typeof payload.userId === 'number' ? payload.userId : undefined };
     }
