@@ -131,6 +131,16 @@ test.describe('loja — admin', () => {
     await expect(page).toHaveScreenshot('clientes.png', { fullPage: true });
   });
 
+  test('clientes com o extrato aberto', async ({ page }) => {
+    // O painel verde ao lado da lista: totais, a parcela em atraso com "Dar baixa"
+    // e as compras fechadas.
+    await page.goto('/customers');
+    await pronta(page);
+    await page.getByRole('row', { name: /Carla Monteiro/ }).click();
+    await expect(page.getByText('Deve no total')).toBeVisible();
+    await expect(page).toHaveScreenshot('clientes-extrato.png', { fullPage: true });
+  });
+
   test('vendas', async ({ page }) => {
     await page.goto('/vendas');
     await pronta(page);
