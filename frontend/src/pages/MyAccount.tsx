@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { api } from '../api';
@@ -10,6 +10,8 @@ import './MyAccount.css';
 type Account = { id: number; name: string; email: string | null; phone: string; createdAt: string };
 
 type OrderHistoryItem = {
+  /** Pedido feito pela vitrine, ou venda de balcão do cliente vinculado. */
+  source: 'ORDER' | 'SALE';
   id: number;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   createdAt: string;
@@ -29,10 +31,30 @@ const STATUS_LABEL: Record<OrderHistoryItem['status'], string> = {
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
+  const d = new Date(iso);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return `Hoje, ${time}`;
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', ...(d.getFullYear() !== today.getFullYear() && { year: '2-digit' }) });
 }
+
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+/** O que a loja já sabe do pagamento: parcelas dizem tudo; sem elas, nada se afirma. */
+function paymentText(order: OrderHistoryItem) {
+  const n = order.installments.length;
+  if (n > 1) return order.isPaid ? `${n}x · quitada` : `${n}x no cartão`;
+  if (n === 1 || order.status === 'CONFIRMED') return 'À vista';
+  return null;
+}
+
+/** Ícone e cores do selo de situação, no rodapé do cartão. */
+const SEAL: Record<OrderHistoryItem['status'], { icon: string; className: string }> = {
+  PENDING: { icon: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18', className: 'is-pending' },
+  CONFIRMED: { icon: 'M20 6L9 17l-5-5', className: 'is-confirmed' },
+  CANCELLED: { icon: 'M18 6L6 18M6 6l12 12', className: 'is-cancelled' },
+};
 
 export function MyAccount() {
   const [searchParams] = useSearchParams();
@@ -57,84 +79,136 @@ export function MyAccount() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <div className="loading-state">Carregando sua conta...</div>;
+  // A parcela em aberto que vence primeiro, entre os pedidos confirmados.
+  const nextInstallment = useMemo(() => {
+    const open = orders
+      .filter(order => order.status === 'CONFIRMED')
+      .flatMap(order => order.installments)
+      .filter(installment => !installment.paidAt)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    return open[0] ?? null;
+  }, [orders]);
+
+  if (loading) return <AccountSkeleton />;
   if (!account) return <div className="loading-state">Não foi possível carregar sua conta.</div>;
+
+  const firstName = account.name.trim().split(/\s+/)[0];
 
   return (
     <div className="page-container account-page">
-      <h1 className="page-title">Minha conta</h1>
+      <div className="account-head">
+        <div className="account-head-text">
+          <span className="account-kicker">Minha conta</span>
+          <h1 className="account-title">Olá, <em>{firstName}.</em></h1>
+        </div>
+        <div className="account-stats">
+          <div className="account-stat">
+            <span className="account-stat-label">Pedidos</span>
+            <span className="account-stat-value">{orders.length}</span>
+          </div>
+          {nextInstallment && (
+            <div className="account-stat">
+              <span className="account-stat-label">Próxima parcela</span>
+              <span className="account-stat-value">{formatCurrency(nextInstallment.value)}</span>
+              <span className="account-stat-note">vence em {shortDate(nextInstallment.dueDate)}</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {justOrdered && (
-        <div className="account-banner">
+        <aside className="account-banner" role="status">
           Pedido enviado. A loja recebeu o aviso e vai confirmar com você — o estoque
           só sai quando isso acontecer.
-        </div>
+        </aside>
       )}
 
       <div className="account-layout">
-        <ProfileCard account={account} onSaved={setAccount} />
-        <PasswordCard />
-      </div>
+        <section aria-labelledby="compras-titulo" className="account-orders">
+          <h2 id="compras-titulo" className="account-h2">Minhas <em>compras</em></h2>
 
-      <section className="page-card base-card account-orders">
-        <h2>Minhas compras</h2>
+          {orders.length === 0 ? (
+            <p className="account-empty">Você ainda não fez nenhum pedido.</p>
+          ) : (
+            <div className="account-order-list">
+              {orders.map(order => {
+                const seal = SEAL[order.status];
+                const payment = paymentText(order);
 
-        {orders.length === 0 ? (
-          <p className="text-dim">Você ainda não fez nenhum pedido.</p>
-        ) : (
-          <div className="account-order-list">
-            {orders.map(order => (
-              <article key={order.id} className={`account-order status-${order.status.toLowerCase()}`}>
-                <header>
-                  <div>
-                    <strong>Pedido #{order.id}</strong>
-                    <span className={`badge badge-${order.status.toLowerCase()}`}>{STATUS_LABEL[order.status]}</span>
-                  </div>
-                  <span className="account-order-total">{formatCurrency(order.total)}</span>
-                </header>
-
-                <span className="account-order-meta">{formatDate(order.createdAt)}</span>
-
-                <ul className="account-order-items">
-                  {order.items.map((item, index) => (
-                    <li key={index}>
-                      {item.quantity}x {item.name}
-                      <span>{formatCurrency(item.unitPrice * item.quantity)}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {order.cancelReason && (
-                  <p className="account-order-reason">Motivo da recusa: {order.cancelReason}</p>
-                )}
-
-                {order.installments.length > 0 && (
-                  <div className="account-installments">
-                    <span className="text-dim">
-                      {order.isPaid ? 'Pago' : `Falta ${formatCurrency(order.pendingAmount)}`}
-                    </span>
-                    <div className="account-installments-list">
-                      {order.installments.map(installment => (
-                        <span
-                          key={installment.number}
-                          className={`inst-pill ${installment.paidAt ? 'paid' : 'pending'}`}
-                        >
-                          {installment.number}/{order.installments.length} · {formatCurrency(installment.value)}
-                          {installment.paidAt
-                            ? ' ✓'
-                            : ` · vence ${new Date(installment.dueDate).toLocaleDateString('pt-BR')}`}
+                return (
+                  <article key={`${order.source}-${order.id}`} className="account-order">
+                    <div className="account-order-body">
+                      <div className="account-order-top">
+                        <span className="account-order-text">
+                          <span className="account-order-meta">
+                            {order.source === 'SALE' ? 'Balcão' : 'Pedido'} #{String(order.id).padStart(4, '0')} · {formatDate(order.createdAt)}{payment ? ` · ${payment}` : ''}
+                          </span>
+                          <strong className="account-order-products">
+                            {order.items.map(item => (item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name)).join(', ')}
+                          </strong>
                         </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+                        <strong className="account-order-total">{formatCurrency(order.total)}</strong>
+                      </div>
 
-      <DangerZone />
+                      {order.status === 'PENDING' && (
+                        <p className="account-order-note">A loja vai ligar para confirmar antes de separar.</p>
+                      )}
+                      {order.cancelReason && (
+                        <p className="account-order-note is-bad">“{order.cancelReason}”</p>
+                      )}
+
+                      {order.installments.length > 1 && (
+                        <div className="account-installments">
+                          {order.installments.map(installment => (
+                            <span
+                              key={installment.number}
+                              className={`inst-pill ${installment.paidAt ? 'paid' : 'pending'}`}
+                            >
+                              {installment.number}/{order.installments.length} · {formatCurrency(installment.value)}
+                              {installment.paidAt ? ' ✓' : ` · vence ${shortDate(installment.dueDate)}`}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={`account-seal ${seal.className}`}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={seal.icon} /></svg>
+                      <span><span className="sr-only">Situação: </span>{STATUS_LABEL[order.status]}</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <div className="account-side">
+          <ProfileCard account={account} onSaved={setAccount} />
+          <PasswordCard />
+          <DangerZone />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AccountSkeleton() {
+  return (
+    <div className="page-container account-page" role="status" aria-busy="true" aria-label="Carregando sua conta">
+      <div className="account-head">
+        <div className="account-head-text">
+          <span className="skeleton skeleton-line" style={{ width: 110, height: 14 }} />
+          <span className="skeleton" style={{ width: 'min(100%, 420px)', height: 76 }} />
+        </div>
+        <span className="skeleton" style={{ width: 220, height: 60 }} />
+      </div>
+      <div className="account-layout">
+        <div className="account-order-list">
+          {[0, 1, 2].map(i => <span key={i} className="skeleton" style={{ height: 140 }} />)}
+        </div>
+        <span className="skeleton" style={{ height: 420 }} />
+      </div>
     </div>
   );
 }
@@ -166,32 +240,30 @@ function ProfileCard({ account, onSaved }: { account: Account; onSaved: (account
   };
 
   return (
-    <section className="page-card base-card">
-      <h2>Seus dados</h2>
+    <form className="account-card-green" aria-labelledby="dados-titulo" onSubmit={save}>
+      <h2 id="dados-titulo" className="account-card-title">Seus <em>dados</em></h2>
 
-      <form className="standard-form" onSubmit={save}>
-        <div className="form-group">
-          <label>Nome</label>
-          <input type="text" className="input-standard" required value={form.name} onChange={update('name')} />
-        </div>
-        <div className="form-group">
-          <label>Telefone</label>
-          <input type="tel" className="input-standard" required value={form.phone} onChange={update('phone')} />
-        </div>
-        <div className="form-group">
-          <label>E-mail <span className="label-optional">(opcional)</span></label>
-          <input type="email" className="input-standard" placeholder="Deixe em branco se preferir"
-            value={form.email} onChange={update('email')} />
-        </div>
+      <div className="account-field">
+        <label htmlFor="m-nome">Nome</label>
+        <input id="m-nome" type="text" required value={form.name} onChange={update('name')} />
+      </div>
+      <div className="account-field">
+        <label htmlFor="m-tel">Telefone</label>
+        <input id="m-tel" type="tel" required value={form.phone} onChange={update('phone')} />
+      </div>
+      <div className="account-field">
+        <label htmlFor="m-email">E-mail <span>(opcional)</span></label>
+        <input id="m-email" type="email" placeholder="Deixe em branco se preferir"
+          value={form.email} onChange={update('email')} />
+      </div>
 
-        {error && <div className="account-error">{error}</div>}
-        {message && <div className="account-success">{message}</div>}
+      {error && <div className="account-error" role="alert">{error}</div>}
+      {message && <div className="account-success" role="status">{message}</div>}
 
-        <button type="submit" className="btn-primary" disabled={isSaving}>
-          {isSaving ? 'Salvando...' : 'Salvar alterações'}
-        </button>
-      </form>
-    </section>
+      <button type="submit" className="account-btn-light" disabled={isSaving}>
+        {isSaving ? 'Salvando...' : 'Salvar alterações'}
+      </button>
+    </form>
   );
 }
 
@@ -221,36 +293,36 @@ function PasswordCard() {
   };
 
   return (
-    <section className="page-card base-card">
-      <h2>Senha</h2>
+    <form className="account-password" aria-labelledby="senha-titulo" onSubmit={save}>
+      <h2 id="senha-titulo" className="account-h3">Senha</h2>
 
-      <form className="standard-form" onSubmit={save}>
-        <div className="form-group">
-          <label>Senha atual</label>
-          <input type="password" className="input-standard" required
+      <div className="account-password-fields">
+        <div className="account-field is-light">
+          <label htmlFor="m-atual">Senha atual</label>
+          <input id="m-atual" type="password" required
             value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
         </div>
-        <div className="form-group">
-          <label>Nova senha</label>
-          <input type="password" className="input-standard" required minLength={8}
+        <div className="account-field is-light">
+          <label htmlFor="m-nova">Nova senha</label>
+          <input id="m-nova" type="password" required minLength={8}
             placeholder="Pelo menos 8 caracteres"
             value={newPassword} onChange={e => setNewPassword(e.target.value)} />
         </div>
+      </div>
 
-        {error && <div className="account-error">{error}</div>}
-        {message && <div className="account-success">{message}</div>}
+      {error && <div className="account-error is-light" role="alert">{error}</div>}
+      {message && <div className="account-success is-light" role="status">{message}</div>}
 
-        <button type="submit" className="btn-primary" disabled={isSaving}>
-          {isSaving ? 'Salvando...' : 'Trocar senha'}
-        </button>
+      <button type="submit" className="account-btn-line" disabled={isSaving}>
+        {isSaving ? 'Salvando...' : 'Trocar senha'}
+      </button>
 
-        {/* Recuperação por e-mail entra depois; até lá o caminho é falar com a
-            loja, e a tela precisa dizer isso em vez de deixar a pessoa travada. */}
-        <p className="account-note">
-          Esqueceu a senha? Fale com a loja: a redefinição é feita manualmente por enquanto.
-        </p>
-      </form>
-    </section>
+      {/* Recuperação por e-mail entra depois; até lá o caminho é falar com a
+          loja, e a tela precisa dizer isso em vez de deixar a pessoa travada. */}
+      <p className="account-note">
+        Esqueceu a senha? Fale com a loja: a redefinição é feita manualmente por enquanto.
+      </p>
+    </form>
   );
 }
 
@@ -276,26 +348,22 @@ function DangerZone() {
   };
 
   return (
-    <section className="page-card base-card account-danger">
-      <h2>Excluir minha conta</h2>
-
-      <p className="text-dim">
-        Apaga seu nome, telefone, e-mail e senha deste site. O registro das compras
-        que você já fez continua com a loja — é o histórico de vendas dela, e some
-        do seu acesso, não do controle da loja. Pedidos ainda não confirmados são
-        cancelados.
+    <div className="account-danger">
+      <p className="account-danger-text">
+        Excluir a conta apaga seu nome, telefone, e-mail e senha deste site. As compras
+        continuam no caderno da loja; pedidos ainda não confirmados são cancelados.
       </p>
 
-      {error && <div className="account-error">{error}</div>}
+      {error && <div className="account-error is-light" role="alert">{error}</div>}
 
       {isConfirming ? (
         <div className="account-danger-actions">
-          <button className="btn-secondary" onClick={() => setIsConfirming(false)}>Cancelar</button>
-          <button className="btn-danger" onClick={destroy}>Sim, excluir minha conta</button>
+          <button type="button" className="account-btn-line" onClick={() => setIsConfirming(false)}>Cancelar</button>
+          <button type="button" className="account-btn-danger" onClick={destroy}>Sim, excluir minha conta</button>
         </div>
       ) : (
-        <button className="btn-danger" onClick={() => setIsConfirming(true)}>Excluir conta</button>
+        <button type="button" className="account-danger-link" onClick={() => setIsConfirming(true)}>Excluir minha conta</button>
       )}
-    </section>
+    </div>
   );
 }

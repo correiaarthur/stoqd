@@ -1,137 +1,127 @@
-.account-page { max-width: 1000px; }
+/* --- Minha conta, no desenho Caatinga II --- */
+.account-page { max-width: 1240px; gap: 40px; }
 
+.account-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.account-head-text { display: flex; flex-direction: column; gap: 14px; }
+.account-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--coroa); }
+.account-title { margin: 0; font-family: var(--font-serif); font-size: clamp(44px, 6vw, 80px); line-height: 0.95; font-weight: 400; letter-spacing: -0.035em; }
+.account-title em { color: var(--mandacaru); }
+
+.account-stats { display: flex; flex-wrap: wrap; gap: 28px; }
+.account-stat { display: flex; flex-direction: column; gap: 2px; border-left: 1px solid #C9B89A; padding-left: 20px; }
+.account-stat-label { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-suave); }
+.account-stat-value { font-family: var(--font-serif); font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
+.account-stat-note { font-size: 13px; color: var(--tinta-suave); }
+
+/* O aviso de pedido enviado: um bilhete mostarda. */
 .account-banner {
-  background: var(--success-bg);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: var(--success-color);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 2rem;
-  font-size: 0.95rem;
+  padding: 18px 22px;
+  background: #F2D48A;
+  border: 1.5px solid var(--tinta);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.45;
 }
 
 .account-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 56px;
   align-items: start;
 }
-.account-layout .page-card { margin-bottom: 0; }
 
-.account-page h2 {
-  margin: 0 0 1.5rem 0;
-  font-size: 1.2rem;
-}
+/* --- Compras --- */
+.account-h2 { margin: 0 0 18px; font-family: var(--font-serif); font-size: 40px; font-weight: 400; letter-spacing: -0.02em; }
+.account-h2 em { font-style: italic; }
+.account-empty { margin: 0; font-family: var(--font-serif); font-style: italic; font-size: 20px; color: var(--tinta-suave); }
+.account-order-list { display: flex; flex-direction: column; gap: 14px; }
+.account-order { display: flex; flex-direction: column; background: var(--papel); border: 1.5px solid var(--tinta); }
+.account-order-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; }
+.account-order-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.account-order-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.account-order-meta { font-size: 13px; color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+.account-order-products { font-family: var(--font-serif); font-size: 21px; font-weight: 400; line-height: 1.2; }
+.account-order-total { font-family: var(--font-num); font-size: 18px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums; }
+.account-order-note { margin: 0; font-family: var(--font-serif); font-style: italic; font-size: 17px; line-height: 1.5; color: #4A3F33; }
+.account-order-note.is-bad { color: #7E2F22; }
+.account-installments { display: flex; flex-wrap: wrap; gap: 6px; }
+.inst-pill { font-size: 12.5px; padding: 4px 9px; border: 1px solid var(--fio); border-radius: 0; font-variant-numeric: tabular-nums; color: var(--tinta-suave); }
+.inst-pill.paid { color: #2E6B1A; border-color: #2E6B1A; }
 
-.account-error {
-  background: var(--danger-bg);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--danger-color);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-}
-
-.account-success {
-  background: var(--success-bg);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: var(--success-color);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-}
-
-.account-note {
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.account-orders { margin-top: 2rem; }
-
-.account-order-list {
+.account-seal {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.account-order {
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 1.25rem;
-  background: var(--bg-color);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.account-order.status-cancelled { opacity: 0.7; }
-
-.account-order header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
   align-items: center;
-  gap: 0.5rem 1rem;
-}
-.account-order header > div {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.account-order-total {
+  gap: 10px;
+  padding: 11px 22px;
+  border-top: 1.5px solid var(--tinta);
+  font-size: 13px;
   font-weight: 700;
-  color: var(--success-color);
-  white-space: nowrap;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
+.account-seal.is-pending { background: #E8B931; color: var(--tinta); }
+.account-seal.is-confirmed { background: #2E6B1A; color: var(--papel); }
+.account-seal.is-cancelled { background: #B3261E; color: var(--papel); }
 
-.account-order-meta {
-  color: var(--text-dim);
-  font-size: 0.85rem;
-}
+/* --- Coluna da direita --- */
+.account-side { display: flex; flex-direction: column; gap: 40px; }
 
-.account-order-items {
-  list-style: none;
-  padding: 0;
-  margin: 0.5rem 0 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.9rem;
-}
-.account-order-items li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.account-order-items span { color: var(--text-dim); white-space: nowrap; }
+.account-card-green { display: flex; flex-direction: column; gap: 20px; padding: 30px; background: var(--mandacaru); color: var(--areia); }
+.account-card-title { margin: 0; font-family: var(--font-serif); font-size: 30px; font-weight: 400; letter-spacing: -0.01em; }
+.account-card-title em { color: var(--rosa); }
 
-.account-order-reason {
-  margin: 0.5rem 0 0 0;
-  color: var(--danger-color);
-  font-size: 0.85rem;
+.account-field { display: flex; flex-direction: column; gap: 6px; }
+.account-field label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: #CFE0D5; }
+.account-field label span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.account-field input {
+  min-height: 44px;
+  padding: 9px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid #8FB8A2;
+  border-radius: 0;
+  color: var(--papel);
+  font: inherit;
+  font-size: 17px;
+  outline: none;
 }
+.account-field input::placeholder { color: #8FB0A0; }
+.account-field input:focus { border-bottom-color: var(--rosa); }
+.account-field.is-light label { color: var(--tinta-suave); }
+.account-field.is-light input { color: var(--tinta); border-bottom-color: var(--tinta); }
+.account-field.is-light input::placeholder { color: #8A7B66; }
+.account-field.is-light input:focus { border-bottom-color: var(--coroa); }
 
-.account-installments {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.account-btn-light, .account-btn-line, .account-btn-danger {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 12px 22px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.account-installments-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
+.account-btn-light { background: var(--areia); color: var(--tinta); border: none; }
+.account-btn-light:hover:not(:disabled) { background: var(--papel); }
+.account-btn-line { background: transparent; color: var(--tinta); border: 1.5px solid var(--tinta); }
+.account-btn-line:hover:not(:disabled) { background: var(--tinta); color: var(--papel); }
+.account-btn-danger { background: #B3261E; color: var(--papel); border: 1.5px solid #B3261E; }
+.account-btn-danger:hover { background: #7E2F22; border-color: #7E2F22; }
+.account-btn-light:disabled, .account-btn-line:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.badge-pending { background: rgba(139, 92, 246, 0.12); color: var(--accent-hover); }
-.badge-confirmed { background: var(--success-bg); color: var(--success-color); }
-.badge-cancelled { background: var(--danger-bg); color: var(--danger-color); }
+.account-error { font-size: 14px; font-weight: 600; color: #F4C6D7; }
+.account-success { font-size: 14px; font-weight: 600; color: #DDE9C8; }
+.account-error.is-light { color: #7E2F22; }
+.account-success.is-light { color: #2E6B1A; }
 
-.account-danger { border-color: rgba(239, 68, 68, 0.25); }
-.account-danger p { margin: 0 0 1.5rem 0; max-width: 65ch; line-height: 1.6; }
-.account-danger-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
+.account-password { display: flex; flex-direction: column; gap: 18px; border-top: 1px solid var(--tinta); padding-top: 24px; }
+.account-h3 { margin: 0; font-family: var(--font-serif); font-size: 26px; font-weight: 400; }
+.account-password-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; }
+.account-note { margin: 0; font-size: 13px; line-height: 1.6; color: var(--tinta-suave); }
+
+.account-danger { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid #C9B89A; padding-top: 20px; }
+.account-danger-text { margin: 0; max-width: 340px; font-size: 14px; line-height: 1.5; color: #4A3F33; }
+.account-danger-link { min-height: 44px; padding: 12px 0; background: none; border: none; color: #7E2F22; font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.account-danger-link:hover { color: #B3261E; }
+.account-danger-actions { display: flex; flex-wrap: wrap; gap: 10px; }
