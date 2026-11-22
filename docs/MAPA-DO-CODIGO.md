@@ -121,8 +121,12 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 | `pricingRules.ts` | A ordem desconto → juros (`computeTotals`), a faixa 2x–12x, `getInterestPercent` e `toCents`. | Parcelamento desligado devolve `null` e a venda **recusa** — desligar uma opção não pode virar desconto silencioso. |
 | `pricing.ts` | `getActivePrice`: promocional quando existe, senão o de venda. | Uma linha, importada por todo lado de propósito: se cada tela calculasse, o caixa cobraria um valor e a vitrine mostraria outro. |
 | `coupons.ts` | Normaliza o código, valida (`checkCoupon`) e consome (`consumeCoupon`). | Valida duas vezes: na tela, para informar; na transação, para decidir. O `updateMany` condicional impede dois pedidos simultâneos de passar do `maxUses`. |
-| `cartItems.ts` | `parseCartItems` e `parseCartToken`. | Rejeita quantidade não-inteira, negativa e produto repetido — negativo passaria na checagem de estoque e *aumentaria* o estoque no decremento. |
-| `validation.ts` | Nome, telefone (só dígitos), e-mail opcional, senha ≥ 8. | Compartilhado por cadastro, perfil e pedido, para as três telas recusarem as mesmas coisas. |
+| `validate.ts` | **A base da validação de entrada**, em Zod: `parseWith` (devolve o dado convertido ou a primeira mensagem), `bodyOf` (corpo que não é objeto vale como vazio, e chave de fora é descartada) e as primitivas `positiveInt`, `money`, `optional`, `trimmed`. | Todo schema define a mensagem de cada regra, em português; o Zod está configurado em `ptBR` para que uma mensagem esquecida nunca saia em inglês. A ordem das chaves do schema é a ordem em que o erro é reportado. |
+| `cartItems.ts` | `cartItemsSchema` (e `parseCartItems`, que o envolve) e `parseCartToken`. | Rejeita quantidade não-inteira, negativa e produto repetido — negativo passaria na checagem de estoque e *aumentaria* o estoque no decremento. |
+| `validation.ts` | Os schemas de conta: `registerSchema`, `accountSchema`, `changePasswordSchema`, `customerSchema`, `labelBody`; mais `parseId` e os normalizadores (nome, telefone só com dígitos, e-mail). | Compartilhado por cadastro, perfil e cliente de balcão, para as telas recusarem as mesmas coisas. A senha tem teto de 72 bytes: o bcrypt só lê esses, e truncaria o resto em silêncio. |
+| `productInput.ts` | `productSchema` e as regras de reabastecimento (`mergeAverageCost`, `mergeExpiryDates`). | Recusa dia de validade que não existe (30 de fevereiro) em vez de empurrá-lo para o mês seguinte. |
+| `orderInput.ts` | Os corpos de criar, confirmar e recusar pedido, e a lista de pedidos por situação. | Forma de pagamento desconhecida é recusada: um "PRZO" digitado errado, lido como à vista, registraria como paga uma venda que ia ser fiada. |
+| `saleInput.ts` | O corpo da venda de balcão e as consultas (lista de vendas, relatório, subtotal). | O relatório exige `from`: sem período puxaria o histórico inteiro. |
 | `adminCredentials.ts` | Compara a senha do admin por bcrypt, com cache do hash. | Sem `ADMIN_PASSWORD_HASH`, gera o hash de `ADMIN_PASSWORD` na subida e avisa. |
 | `notifications.ts` | Avisa **a loja** de pedido novo, por Telegram e Resend. | Cada canal no seu try/catch; nunca lança. Falha de aviso não derruba pedido. Loga só o status HTTP, para não vazar token. |
 | `prismaErrors.ts` | Traduz P2002/P2003/P2025 em 409/409/404 com texto que o operador entende. | Lê `error.code` como string em vez de importar a classe do Prisma, que muda de lugar entre versões. |
@@ -361,28 +365,18 @@ pedido, sem espera, sem reserva — o mesmo caminho de código da confirmação.
 
 Observados na leitura do código, para quem for continuar:
 
-1. **Telefone de `Customer` não é normalizado.** `User.phone` guarda só dígitos
-   (`lib/validation.ts`), mas `customers.controller.ts` grava `phone` como veio
-   do formulário. O `suggestedCustomers` de `orders.list` compara os dois com
-   `===`, então um cliente salvo como `(83) 99999-9999` não é sugerido para a
-   conta `83999999999`. Aplicar `normalizePhone` no CRUD de cliente resolveria.
-2. **`products.controller.ts` é o menos rigoroso do backend.** `upsert` e
-   `update` usam `any` e confiam no corpo (`Number(data.quantity)` etc.), sem a
-   validação que as outras rotas têm. É rota de admin, então o risco é de
-   digitação, não de abuso — mas `update` também não traduz erro do Prisma, e
-   nome duplicado ali volta 500.
-3. **`brands`/`categories` não validam duplicidade** — nada impede duas marcas
+1. **`brands`/`categories` não validam duplicidade** — nada impede duas marcas
    com o mesmo nome, e o schema não tem `@unique` nesses campos.
-4. **CORS aberto por padrão.** Sem `CORS_ORIGINS`, `origin: true` reflete
+2. **CORS aberto por padrão.** Sem `CORS_ORIGINS`, `origin: true` reflete
    qualquer origem; em produção isso só aparece como aviso no log.
-5. **Sem testes automatizados.** `npm test` no backend ainda é o placeholder.
-   As regras mais densas — `computeTotals`, `buildInstallments`, `checkCoupon`,
-   `getStockView` — são funções puras ou quase, e seriam o começo barato.
-6. **D1 tem um custo conhecido:** toda leitura de estoque vira uma agregação.
+3. **Testes.** `npm test` roda os unitários (as regras puras e os schemas) e
+   `npm run test:integration` roda os de integração, contra um Postgres
+   descartável (`tests/docker-compose.yml`).
+4. **D1 tem um custo conhecido:** toda leitura de estoque vira uma agregação.
    Irrelevante nesta ordem de grandeza; se um dia pesar, o caminho é
    materializar `reservedQuantity` na mesma transação — depois de medir.
-7. **Validade é por produto, não por lote.** Ao somar estoque, o `upsert` mantém
+5. **Validade é por produto, não por lote.** Ao somar estoque, o `upsert` mantém
    a data mais próxima (a mais conservadora); controle real exigiria uma tabela
    de lotes.
-8. **`merge-duplicate-products.ts` já cumpriu o papel** e roda contra o banco de
+6. **`merge-duplicate-products.ts` já cumpriu o papel** e roda contra o banco de
    produção: é script de uma vez só, não rotina.
