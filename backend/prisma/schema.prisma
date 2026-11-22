@@ -198,6 +198,7 @@ model Reservation {
   @@index([productId, expiresAt])
   @@index([cartToken])
   @@index([orderId])
+  @@index([expiresAt])
 }
 
 enum OrderStatus {

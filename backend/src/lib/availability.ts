@@ -105,6 +105,43 @@ export async function getStockView(
   return view;
 }
 
+/**
+ * Apaga as reservas vencidas de carrinho.
+ *
+ * Reserva vencida já não conta para o estoque (a leitura ignora `expiresAt` no
+ * passado), então apagá-la não muda nenhuma resposta: só impede a tabela de
+ * crescer para sempre e o `groupBy` de cada leitura de ficar mais lento. Reserva
+ * presa a um pedido (`orderId`) fica — sai junto com o pedido, não pelo relógio.
+ */
+export async function purgeExpiredReservations(client: Prisma$Tx | typeof prisma = prisma, now: Date = new Date()) {
+  const { count } = await client.reservation.deleteMany({
+    where: { expiresAt: { lt: now }, orderId: null },
+  });
+
+  return count;
+}
+
+const PURGE_INTERVAL_MS = 60 * 1000;
+let lastPurgeAt = 0;
+
+/**
+ * Limpeza oportunista, a cada reserva nova e no máximo uma vez por minuto por
+ * processo: sem job em segundo plano (que seria uma segunda fonte de verdade) e
+ * sem pagar um DELETE a cada mexida no carrinho. Falha em silêncio — a reserva
+ * que a disparou não pode falhar por causa da faxina.
+ */
+export async function purgeExpiredReservationsThrottled(now: number = Date.now()) {
+  if (now - lastPurgeAt < PURGE_INTERVAL_MS) return;
+  lastPurgeAt = now;
+
+  try {
+    await purgeExpiredReservations(prisma, new Date(now));
+  } catch (error) {
+    lastPurgeAt = 0;
+    console.error("Erro ao limpar reservas vencidas:", error);
+  }
+}
+
 /** Acrescenta `reserved` e `available` a uma lista de produtos já carregada. */
 export async function withAvailability<T extends { id: number; quantity: number }>(
   products: T[],

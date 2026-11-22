@@ -10,6 +10,7 @@ import {
   MAX_UNITS_PER_CART,
   getStockView,
   loadStockProducts,
+  purgeExpiredReservationsThrottled,
   reservationExpiry,
 } from '../lib/availability.js';
 
@@ -90,6 +91,9 @@ export async function reserve(req: Request, res: Response) {
 
       return items;
     });
+
+    // Depois da resposta decidida e sem esperar: é faxina, não parte da reserva.
+    void purgeExpiredReservationsThrottled();
 
     const anyReserved = result.some(item => item.reserved > 0);
 
