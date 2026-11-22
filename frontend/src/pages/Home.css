@@ -1,125 +1,457 @@
-/* --- Estrutura Principal --- */
-.home-container {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 2rem;
-  box-sizing: border-box;
-}
-/* --- Filtros (Vitrine) --- */
-.brands-filter { margin-bottom: 2rem; }
-.filter-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  font-weight: 700;
-  display: block;
-  margin-bottom: 1rem;
-}
-.filter-buttons { display: flex; gap: 0.8rem; flex-wrap: wrap; }
-.btn-filter {
-  background: var(--card-color);
-  border: 1px solid var(--border-color);
-  color: var(--text-dim);
-  padding: 8px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-.btn-filter:hover { border-color: var(--text-dim); color: var(--text-main); }
-.btn-filter.active {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
-  color: white;
-}
+.showcase { width: 100%; }
+.showcase-counter { padding: clamp(24px, 4vw, 40px) clamp(16px, 4vw, 48px) 64px; display: flex; flex-direction: column; gap: 34px; }
+.showcase-counter .catalog { padding: 0; max-width: none; }
+.showcase-admin-head { max-width: none; }
 
-/* --- Grid de Produtos --- */
-.products-grid {
+/* --- Destaque rosa ---
+   O texto fica restrito ao lado esquerdo (um terço); o resto é dos destaques:
+   um grande e dois menores, numerados. */
+.hero {
+  max-width: var(--page-max);
+  margin: clamp(28px, 4vw, 48px) auto clamp(40px, 6vw, 72px);
+  width: calc(100% - 2 * var(--gutter));
+  background: var(--rosa);
+  padding: clamp(24px, 4vw, 48px);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 2rem;
-  padding-top: 10px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 2fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: stretch;
 }
-.product-card {
-  overflow: hidden;
-  transition: transform 0.2s, border-color 0.2s;
+.hero-copy { display: flex; flex-direction: column; justify-content: flex-end; gap: 24px; }
+.hero-kicker { color: var(--tinta); }
+.hero-title {
+  font-size: clamp(40px, 4.4vw, 66px);
+  line-height: 0.97;
+  letter-spacing: -0.035em;
+}
+.hero-title em { color: var(--mandacaru); }
+.hero-foot {
   display: flex;
   flex-direction: column;
+  gap: 20px;
+  border-top: 1px solid var(--tinta);
+  padding-top: 20px;
+}
+.hero-foot p { font-size: 15px; line-height: 1.6; color: #3A2E22; }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.hero-link { font-size: 15px; font-weight: 600; padding: 6px 0; }
+
+/* Os destaques: com três, o primeiro ocupa as duas linhas e os outros dois se
+   empilham ao lado dele. */
+.hero-picks {
+  display: grid;
+  gap: 24px;
+  /* Cada figura agora leva um botão embaixo: mais alto que antes. */
+  min-height: clamp(560px, 52vw, 760px);
+}
+.hero-count-1 { grid-template-columns: minmax(0, 1fr); }
+.hero-count-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hero-count-3 { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.hero-count-3 > :first-child { grid-row: 1 / span 2; }
+.skeleton-hero .hero-picks > .skeleton { min-height: 0; }
+
+.hero-figure { margin: 0; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+/* A foto preenche o que sobra da figura depois da legenda. */
+.hero-picture { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.hero-picture > .shelf-photo,
+.hero-picture > .shelf-placeholder { position: absolute; inset: 0; }
+.hero-number {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  z-index: 1;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1;
+  color: var(--papel);
+}
+.hero-count-3 > :first-child .hero-number { font-size: clamp(40px, 5vw, 64px); }
+.hero-add {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 16px;
+  background: var(--tinta);
+  color: var(--papel);
+  border: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s;
 }
-.product-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--accent-color);
+.hero-add:hover:not(:disabled) { background: var(--mandacaru); }
+.hero-add:disabled { background: transparent; color: #5A4E40; border: 1.5px solid #5A4E40; cursor: not-allowed; justify-content: center; }
+.hero-add-count { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; }
+
+.hero-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  border-top: 1px solid var(--tinta);
+  padding-top: 10px;
 }
-.product-card:hover .product-image {
-  transform: scale(1.05);
+.hero-caption-name { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.hero-caption-name .label-caps { color: #3A2E22; }
+.hero-caption-name .serif { font-size: 18px; line-height: 1.2; }
+.hero-count-3 > :first-child .hero-caption-name .serif,
+.hero-count-1 .hero-caption-name .serif { font-size: 22px; }
+.hero-caption-price { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; white-space: nowrap; }
+.hero-caption-price strong { font-family: var(--font-num); font-size: 19px; font-weight: 600; }
+.hero-caption-price span { font-size: 13px; font-weight: 700; }
+
+/* Abaixo de 960px o texto sobe e os destaques descem: o grande em cima, os
+   dois menores lado a lado embaixo. */
+@media (max-width: 960px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero-picks { min-height: 0; }
+  .hero-count-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
+  .hero-count-3 > :first-child { grid-column: 1 / -1; grid-row: auto; }
+  .hero-picture { flex: none; aspect-ratio: 1 / 1; }
+  .hero-count-3 > :first-child .hero-picture,
+  .hero-count-1 .hero-picture { aspect-ratio: 4 / 3; }
 }
-.product-image-container {
-  height: 220px;
+@media (max-width: 560px) {
+  .hero-picks { gap: 28px 14px; }
+  .hero-caption { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .hero-caption-price { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; white-space: normal; }
+  .hero-caption-name .serif { font-size: 15px; }
+  .hero-count-3 > :first-child .hero-caption { flex-direction: row; align-items: baseline; }
+  .hero-count-3 > :first-child .hero-caption-name .serif { font-size: 19px; }
+}
+
+/* --- Catálogo --- */
+.catalog {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter) 80px;
+}
+.showcase:not(.showcase-counter) .catalog:first-child { padding-top: 40px; }
+.catalog-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.catalog-title { font-size: clamp(36px, 4.5vw, 52px); }
+
+/* Resumo do filtro, à direita do título: contagem e "Limpar filtros", só
+   quando há filtro. Sem filtro, o lugar fica vazio. */
+.catalog-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  font-size: 14px;
+  color: var(--tinta-suave);
+}
+.catalog-summary .btn-link { min-height: 36px; padding: 6px 0; }
+
+/* Âncora "Ler a vitrine" e o retorno ao trocar filtro param abaixo da barra. */
+#catalogo { scroll-margin-top: 96px; }
+
+/* Barra do balcão: dentro da página, grudada no topo da área de trabalho. */
+.counter-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: 0 0 28px;
+  padding: 14px 0;
+  background: var(--areia);
+  border-bottom: 1px solid var(--tinta);
+}
+
+/* --- Prateleira ---
+   Sem filtro, os três primeiros ganham tamanhos de revista (um grande, dois
+   altos); com filtro, a grade fica regular para comparar. */
+.shelf {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 44px 28px;
+  align-items: start;
+}
+/* Cada produto é uma folha: papel com os cantos arredondados, menos o
+   inferior esquerdo — o talo. No hover ela avança para cima e para a direita
+   e deixa para trás um rastro duro, à esquerda e embaixo, no tom de
+   prateleira do próprio produto (--tone, vindo do componente): a espessura
+   de um bloco, não um brilho difuso.
+
+   A lateral é uma extrusão, não uma cópia deslocada da folha. Uma cópia só
+   deixa dois cantos arredondados soltos, com um entalhe de areia entre eles;
+   oito cópias de 1px em 1px varrem o caminho entre a folha e a sombra e
+   fecham a face lateral, como num sólido.
+
+   Ela mora numa camada própria (::before) exatamente atrás da folha. A
+   camada cobre a borda da folha por baixo, então a suavização da curva se
+   mistura ao verde, não ao fundo — sem fio claro no contorno. */
+.shelf-item {
+  --leaf: 28px;
+  /* Quanto a folha avança. A lateral tem exatamente esse tamanho, então a
+     borda esquerda e a de baixo dela ficam paradas onde o card estava: só a
+     folha se move, para cima e para a direita. */
+  --lift: 8px;
+  --tone: var(--mandacaru);
+  /* A lateral é o tom do produto na sombra: na cor exata ela se fundia com a
+     foto e a folha parecia só ter crescido, sem espessura. */
+  --tone-side: color-mix(in srgb, var(--tone) 70%, var(--tinta));
+  position: relative;
+  grid-column: span 4;
+  display: flex;
+}
+.shelf-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--leaf) var(--leaf) var(--leaf) 0;
+  background: var(--tone-side);
+  opacity: 0;
+  box-shadow:
+    0 0 0 0 var(--tone-side),
+    0 0 0 0 var(--tone-side),
+    0 0 0 0 var(--tone-side),
+    0 0 0 0 var(--tone-side),
+    0 0 0 0 var(--tone-side),
+    0 0 0 0 var(--tone-side),
+    0 0 0 0 var(--tone-side),
+    0 0 0 0 var(--tone-side);
+  transition: transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), opacity 0.15s;
+}
+.shelf-leaf {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--papel);
+  border: 1px solid var(--fio);
+  border-radius: var(--leaf) var(--leaf) var(--leaf) 0;
+  overflow: hidden;
+  transition: transform 0.35s var(--ease-out), border-color 0.35s;
+}
+/* O avanço é de quem tem mouse (hover de verdade) ou navega pelo teclado
+   (foco visível). No toque o hover gruda depois do dedo sair, e o card
+   ficaria "avançado" à toa — por isso o hover mora num media query e o foco
+   usa :focus-visible, que o toque não liga. */
+.shelf-item:not([aria-hidden]):has(:focus-visible) .shelf-leaf,
+.shelf-item:not([aria-hidden]):has(:focus-visible)::before {
+  transform: translate(var(--lift), calc(var(--lift) * -1));
+}
+.shelf-item:not([aria-hidden]):has(:focus-visible) .shelf-leaf { border-color: var(--tone-side); }
+.shelf-item:not([aria-hidden]):has(:focus-visible)::before {
+  opacity: 1;
+  box-shadow:
+    -1px 1px 0 0 var(--tone-side),
+    -2px 2px 0 0 var(--tone-side),
+    -3px 3px 0 0 var(--tone-side),
+    -4px 4px 0 0 var(--tone-side),
+    -5px 5px 0 0 var(--tone-side),
+    -6px 6px 0 0 var(--tone-side),
+    -7px 7px 0 0 var(--tone-side),
+    -8px 8px 0 0 var(--tone-side);
+}
+@media (hover: hover) {
+  .shelf-item:not([aria-hidden]):hover .shelf-leaf,
+  .shelf-item:not([aria-hidden]):hover::before {
+    transform: translate(var(--lift), calc(var(--lift) * -1));
+  }
+  .shelf-item:not([aria-hidden]):hover .shelf-leaf { border-color: var(--tone-side); }
+  .shelf-item:not([aria-hidden]):hover::before {
+    opacity: 1;
+    box-shadow:
+      -1px 1px 0 0 var(--tone-side),
+      -2px 2px 0 0 var(--tone-side),
+      -3px 3px 0 0 var(--tone-side),
+      -4px 4px 0 0 var(--tone-side),
+      -5px 5px 0 0 var(--tone-side),
+      -6px 6px 0 0 var(--tone-side),
+      -7px 7px 0 0 var(--tone-side),
+      -8px 8px 0 0 var(--tone-side);
+  }
+}
+.shelf-picture { position: relative; aspect-ratio: 4 / 3; overflow: hidden; }
+.shelf-editorial .shelf-item:nth-child(1) { grid-column: span 6; }
+.shelf-editorial .shelf-item:nth-child(1) .shelf-picture { aspect-ratio: 5 / 4; }
+.shelf-editorial .shelf-item:nth-child(1) .shelf-name { font-size: 32px; }
+.shelf-editorial .shelf-item:nth-child(2),
+.shelf-editorial .shelf-item:nth-child(3) { grid-column: span 3; }
+.shelf-editorial .shelf-item:nth-child(2) .shelf-picture,
+.shelf-editorial .shelf-item:nth-child(3) .shelf-picture { aspect-ratio: 3 / 4; }
+.shelf-editorial .shelf-item:nth-child(2) .shelf-name,
+.shelf-editorial .shelf-item:nth-child(3) .shelf-name { font-size: 21px; }
+
+.shelf-placeholder {
   width: 100%;
-  background: var(--input-bg);
-  border-bottom: 1px solid var(--border-color);
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
-.product-image {
+.shelf-photo { width: 100%; height: 100%; }
+.shelf-photo::after { z-index: 0; }
+.shelf-photo .lazy-img { position: relative; z-index: 1; }
+.shelf-photo:has(.is-loaded)::after { display: none; }
+.skeleton.shelf-picture { display: block; }
+.skeleton-hero .hero-copy { gap: 18px; }
+.skeleton-hero .hero-figure > .skeleton { width: 100%; }
+.shelf-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  display: block;
+  transition: transform 0.6s var(--ease-out);
 }
-.product-image-placeholder {
-  font-size: 3rem;
-  opacity: 0.2;
+@media (hover: hover) {
+  .shelf-item:hover .shelf-img { transform: scale(1.04); }
 }
-.product-info {
-  min-width: 0;
-  padding: 1.5rem;
+/* Selo com o canto superior esquerdo curvo, ecoando o canto da folha. */
+.shelf-seal { position: absolute; top: 16px; left: 16px; border-radius: 10px 0 0 0; }
+.shelf-in-bag {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  /* Folha na diagonal: redonda em cima à esquerda e embaixo à direita. */
+  border-radius: 10px 0 10px 0;
+  padding: 6px 10px;
+  background: var(--mandacaru);
+  color: var(--papel);
+  font-size: 12px;
+  font-weight: 700;
+}
+.is-sold-out .shelf-picture { filter: grayscale(0.7); opacity: 0.75; }
+.is-sold-out .shelf-leaf { background: color-mix(in srgb, var(--papel) 60%, var(--areia)); }
+
+.shelf-label {
+  padding: 18px 20px 0;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
-  flex: 1;
+  gap: 6px;
 }
-.product-info h3 {
-  margin: 0;
-  font-size: 1.15rem;
-  color: var(--text-main);
-  font-weight: 600;
-}
-.product-price {
-  white-space: nowrap;
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: var(--accent-color);
+.shelf-name { font-size: 22px; line-height: 1.15; letter-spacing: -0.01em; }
+.shelf-note { font-size: 13px; font-weight: 600; color: #6A4410; }
+
+/* Preço e botão dividem a linha quando cabem; num card estreito com
+   "Reservar mais um", o botão desce para baixo do preço em vez de vazar. */
+.shelf-buy {
   margin-top: auto;
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
-/* O botão fica colado no preço, e o par inteiro desce até o rodapé do card
-   pelo margin-top:auto do preço — o mesmo mecanismo que já mantinha o preço
-   alinhado quando os nomes dos produtos têm alturas diferentes. */
-.btn-add-to-cart {
-  width: 100%;
-  background: rgba(139, 92, 246, 0.12);
-  color: var(--accent-color);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-sizing: border-box;
-}
-.btn-add-to-cart:hover:not(:disabled) {
-  background: var(--accent-color);
-  color: white;
-}
-.btn-add-to-cart:disabled {
+.shelf-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 9px; }
+.shelf-price s { font-family: var(--font-num); font-size: 14px; font-weight: 500; color: #6E604F; }
+.shelf-price strong { font-family: var(--font-num); font-size: 21px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+/* Só o canto inferior direito é curvo: o botão fecha a folha pelo canto
+   oposto ao talo. */
+.shelf-button {
+  flex-shrink: 0;
+  margin-left: auto;
+  white-space: nowrap;
+  border-radius: 0 0 14px 0;
+  min-height: 44px;
+  padding: 10px 16px;
   background: transparent;
-  border-color: var(--border-color);
-  color: var(--text-dim);
-  cursor: not-allowed;
+  color: var(--tinta);
+  border: 1.5px solid var(--tinta);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
+.shelf-button:hover:not(:disabled) { background: var(--coroa); border-color: var(--coroa); color: var(--papel); }
+.shelf-button:disabled { border-color: var(--fio); color: #8A7B66; cursor: not-allowed; }
+
+.shelf-empty {
+  border: 1.5px dashed var(--tinta);
+  padding: 40px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+.shelf-empty-title { font-family: var(--font-serif); font-size: 30px; line-height: 1.2; }
+
+/* --- Como a reserva funciona: faixa mandacaru --- */
+.how { background: var(--mandacaru); color: var(--areia); }
+.how-inner { max-width: var(--page-max); margin: 0 auto; padding: 72px var(--gutter); }
+.how-title { font-size: clamp(32px, 4vw, 44px); margin-bottom: 40px; }
+.how-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); row-gap: 32px; }
+.how-step { padding: 0 32px; display: flex; flex-direction: column; gap: 12px; border-left: 1px solid #5C8A75; }
+.how-step:first-child { padding-left: 0; border-left: none; }
+.how-step h3 { font-family: var(--font-sans); font-size: 18px; font-weight: 600; letter-spacing: 0; }
+.how-step p { font-size: 15px; line-height: 1.65; color: #E6EDE7; }
+.how-numeral { font-family: var(--font-serif); font-style: italic; font-size: 48px; line-height: 1; color: var(--rosa); }
+
+@media (max-width: 960px) {
+  .shelf-item, .shelf-editorial .shelf-item:nth-child(n) { grid-column: span 6; }
+  .shelf-editorial .shelf-item:nth-child(1) { grid-column: span 12; }
+}
+@media (max-width: 560px) {
+  .shelf { gap: 36px 16px; }
+  .how-step { padding: 0; border-left: none; }
+  .shelf-buy { flex-wrap: wrap; }
+}
+
+.label-short { display: none; }
+
+/* --- Telefone: três por fileira ---
+   Com ~110px por produto a folha vira miniatura: foto em pé, nome em até duas
+   linhas, preço e um botão da largura do card. Marca e categoria saem — não
+   cabem, e o filtro já diz de onde é. */
+@media (max-width: 560px) {
+  .shelf { gap: 18px 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shelf-item, .shelf-editorial .shelf-item:nth-child(n) { grid-column: span 1; --leaf: 14px; --lift: 4px; }
+  .shelf-picture,
+  .shelf-editorial .shelf-item:nth-child(n) .shelf-picture { aspect-ratio: 3 / 4; }
+  .shelf-placeholder svg { height: 52%; width: auto; }
+
+  .shelf-seal { top: 6px; left: 6px; font-size: 8.5px; letter-spacing: 0.04em; padding: 4px 6px; border-radius: 6px 0 0 0; }
+  .shelf-in-bag { right: 6px; bottom: 6px; font-size: 10px; padding: 3px 7px; border-radius: 7px 0 7px 0; }
+
+  .shelf-label { padding: 8px 8px 0; gap: 2px; }
+  .shelf-label .label-caps { display: none; }
+  .shelf-name,
+  .shelf-editorial .shelf-item:nth-child(n) .shelf-name {
+    font-size: 13px;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .shelf-note { font-size: 10px; }
+
+  .shelf-buy { padding: 6px 8px 8px; gap: 6px; flex-direction: column; align-items: stretch; }
+  .shelf-price { flex-direction: column; gap: 0; }
+  .shelf-price strong { font-size: 14px; }
+  .shelf-price s { font-size: 11px; }
+  .shelf-button {
+    margin-left: 0;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 4px;
+    font-size: 12.5px;
+    border-radius: 0 0 10px 0;
+  }
+  .label-long { display: none; }
+  .label-short { display: inline; }
+}
+
+/* --- Fim da prateleira: sentinela da rolagem e avisos --- */
+.shelf-end { min-height: 1px; padding-top: 40px; }
+.shelf-end-note {
+  text-align: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--tinta-apagada);
+}
+.shelf-end-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }

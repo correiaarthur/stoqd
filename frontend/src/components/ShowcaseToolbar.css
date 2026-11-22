@@ -1,0 +1,90 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Busca: folha de tinta com papel dentro — o formato dos cards (tudo
+   redondo, menos o canto inferior esquerdo). */
+.toolbar-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  background: var(--papel);
+  border: 1.5px solid var(--tinta);
+  /* A quina reta fica embaixo à direita, virada para os filtros; nos filtros
+     ela fica à esquerda — assim a busca "aponta" para eles. */
+  border-radius: 24px 24px 0 24px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.toolbar-search:focus-within {
+  border-color: var(--coroa);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--coroa) 16%, transparent);
+}
+.toolbar-search svg { color: var(--tinta-apagada); flex-shrink: 0; }
+.toolbar-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 16px;
+}
+.toolbar-search input::placeholder { color: #8A7B66; }
+.toolbar-search input::-webkit-search-cancel-button { cursor: pointer; }
+
+/* Marca, Categoria e Promoção: folhas soltas, do mesmo formato da busca. */
+.toolbar-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.toolbar-controls .chip { min-height: 48px; border-radius: 24px 24px 24px 0; }
+.toolbar-skeleton { width: 170px; height: 48px; border-radius: 24px 24px 24px 0; }
+.toolbar-trailing { display: flex; flex-shrink: 0; }
+
+/* Telefone e tablet estreito: busca e sacola numa linha, filtros embaixo. */
+@media (max-width: 760px) {
+  .toolbar { flex-wrap: wrap; row-gap: 8px; }
+  .toolbar-search { flex: 1 1 0; order: 1; min-height: 48px; }
+  .toolbar-trailing { order: 2; }
+  .toolbar-controls {
+    order: 3;
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+  .toolbar-controls .multiselect-trigger { min-width: 0; max-width: none; width: 100%; padding: 6px 12px 6px 14px; column-gap: 6px; }
+  .toolbar-skeleton { width: auto; }
+}
+@media (max-width: 560px) {
+  /* A barra gruda no topo a rolagem inteira: cada linha encolhe um pouco. */
+  .toolbar { row-gap: 6px; }
+  .toolbar-search { padding: 0 14px; min-height: 44px; }
+  .toolbar-search input { min-height: 40px; padding: 8px 0; }
+  .toolbar-controls .chip,
+  .toolbar-controls .multiselect-trigger { min-height: 42px; }
+  .toolbar-skeleton { height: 42px; }
+  .toolbar-trailing .bag-link { min-height: 44px; }
+  .toolbar-controls .chip { padding: 10px 12px; font-size: 13px; }
+  .toolbar-controls .chip .chip-count { display: none; }
+
+  /* Filtro estreito: uma linha só. Sem escolha, o nome ("Marca"); com escolha,
+     só o valor, com o ponto verde. */
+  .toolbar-controls .multiselect-trigger { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; padding: 6px 8px 6px 12px; }
+  .toolbar-controls .multiselect-caret { display: none; }
+  .toolbar-controls .multiselect:not(.has-value) .multiselect-value { display: none; }
+  .toolbar-controls .multiselect:not(.has-value) .multiselect-label {
+    font-size: 13.5px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 600;
+    color: var(--papel);
+  }
+  .toolbar-controls .has-value .multiselect-label { display: none; }
+  .toolbar-controls .multiselect-value { font-size: 13.5px; }
+}
