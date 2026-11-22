@@ -1,0 +1,36 @@
+/* O diálogo abre por cima de modais (z-index 9999) — o menu de marca do cadastro
+   de produto, por exemplo, pergunta de dentro de um. O aviso (toast) fica acima. */
+.confirm-overlay { z-index: 10000; }
+
+.confirm-dialog { max-width: 440px; }
+.confirm-dialog.is-danger { border-top-color: var(--estado-erro); }
+
+.confirm-title {
+  margin: 0 0 14px;
+  font-family: var(--font-serif);
+  font-size: clamp(22px, 4vw, 26px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--tinta);
+  overflow-wrap: anywhere;
+}
+
+.confirm-message { display: grid; gap: 10px; margin: 0 0 22px; }
+.confirm-message p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--tinta-suave);
+}
+
+.confirm-actions { margin-top: 0; }
+
+/* Ação que não se desfaz: o botão que confirma fica vermelho, não coroa-de-frade. */
+.btn-primary.confirm-danger { background: var(--estado-erro); border-color: var(--estado-erro); }
+.btn-primary.confirm-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--estado-erro) 82%, black);
+  border-color: color-mix(in srgb, var(--estado-erro) 82%, black);
+}
+
+.confirm-dialog button:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }

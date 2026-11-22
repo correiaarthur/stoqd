@@ -5,6 +5,7 @@ import { DropdownMenu } from './DropdownMenu';
 import { parseCurrencyInput, formatCurrency } from '../utils/formatters';
 import { formatExpiryDate } from '../utils/expiry';
 import { useToast } from '../contexts/toast';
+import { useConfirm } from '../contexts/confirm';
 import { supabase } from '../lib/supabase';
 import type { Brand, Category, Product } from '../hooks/useProducts';
 import './ProductModal.css';
@@ -20,6 +21,7 @@ const MONEY_FIELDS = ['averageCost', 'sellingPrice', 'promotionalPrice'];
 
 export function ProductModal({ productToEdit, existingProducts = [], onClose, onSuccess }: ProductModalProps) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,11 +65,22 @@ export function ProductModal({ productToEdit, existingProducts = [], onClose, on
   const removeTaxonomy = async (resource: TaxonomyResource, id: number, items: Array<Brand | Category>) => {
     const name = items.find(i => i.id === id)?.name || 'este item';
 
-    const message = resource === 'brands'
-      ? `Apagar a marca "${name}"?\n\nTODOS os produtos dessa marca serão apagados junto. Produtos que já foram vendidos bloqueiam a exclusão — nesse caso nada é apagado e a marca continua.\n\nEsta ação não pode ser desfeita.`
-      : `Apagar a categoria "${name}"?\n\nOs produtos continuam existindo, apenas ficam sem categoria.`;
-
-    if (!confirm(message)) return;
+    const confirmed = await confirm(resource === 'brands'
+      ? {
+          title: `Apagar a marca "${name}"?`,
+          message:
+            "TODOS os produtos dessa marca serão apagados junto. Produtos que já foram vendidos bloqueiam a exclusão — nesse caso nada é apagado e a marca continua.\n\n" +
+            "Esta ação não pode ser desfeita.",
+          confirmLabel: 'Apagar',
+          tone: 'danger',
+        }
+      : {
+          title: `Apagar a categoria "${name}"?`,
+          message: "Os produtos continuam existindo, apenas ficam sem categoria.",
+          confirmLabel: 'Apagar',
+          tone: 'danger',
+        });
+    if (!confirmed) return;
 
     try {
       await taxonomy.remove(resource, id);

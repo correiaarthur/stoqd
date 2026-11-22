@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { deleteCustomer } from '../services/customers';
 import { getApiErrorMessage } from '../utils/errors';
 import { useToast } from '../contexts/toast';
+import { useConfirm } from '../contexts/confirm';
 import { useCustomers, type Customer } from '../hooks/useCustomers';
 import { formatCurrency } from '../utils/formatters';
 import { CustomerModal } from '../components/CustomerModal';
@@ -10,6 +11,7 @@ import './Customers.css';
 
 export function Customers() {
   const toast = useToast();
+  const confirm = useConfirm();
   const { customers, loading, refetchCustomers } = useCustomers();
   // Esqueleto só na primeira carga; recarregar depois de salvar não pisca a tela.
   const firstLoad = loading && customers.length === 0;
@@ -31,17 +33,18 @@ export function Customers() {
   // aparece com zero e ainda assim tem histórico. Por isso a tela só nomeia a
   // pessoa e avisa da regra; a recusa, com o motivo, vem na resposta.
   const handleDelete = async (customer: Customer) => {
-    const confirmed = confirm(
-      `Apagar o cadastro de ${customer.name}?\n\n` +
-      "Clientes com venda registrada não podem ser apagados — nesse caso nada será alterado."
-    );
+    const confirmed = await confirm({
+      title: `Apagar o cadastro de ${customer.name}?`,
+      message: "Clientes com venda registrada não podem ser apagados — nesse caso nada será alterado.",
+      confirmLabel: 'Apagar',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
 
-    if (confirmed) {
-      try {
-        await deleteCustomer(customer.id);
-        refetchCustomers();
-      } catch (err) { toast.error(getApiErrorMessage(err, "Erro ao excluir cliente.")); }
-    }
+    try {
+      await deleteCustomer(customer.id);
+      refetchCustomers();
+    } catch (err) { toast.error(getApiErrorMessage(err, "Erro ao excluir cliente.")); }
   };
 
   const startEditing = (customer: Customer) => {

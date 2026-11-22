@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { deleteProduct } from '../services/catalog';
 import { getApiErrorMessage } from '../utils/errors';
 import { useToast } from '../contexts/toast';
+import { useConfirm } from '../contexts/confirm';
 import { useProducts, type Product } from '../hooks/useProducts';
 import { formatCurrency } from '../utils/formatters';
 import { ProductModal } from '../components/ProductModal';
@@ -24,6 +25,7 @@ const needsAttention = (p: Product) => {
 
 export function Inventory() {
   const toast = useToast();
+  const confirm = useConfirm();
   const { products, loading, refetch: refetchProducts } = useProducts();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -32,12 +34,22 @@ export function Inventory() {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
 
   const handleDeleteProduct = async (id: number) => {
-    if (confirm("Tem certeza que deseja apagar TODOS os itens deste produto?")) {
-      try {
-        await deleteProduct(id);
-        refetchProducts();
-      } catch (err) { toast.error(getApiErrorMessage(err, "Erro ao excluir produto.")); }
-    }
+    const name = products.find(product => product.id === id)?.name;
+
+    const confirmed = await confirm({
+      title: name ? `Apagar "${name}"?` : 'Apagar este produto?',
+      message:
+        "Todos os itens deste produto saem do estoque.\n\n" +
+        "Produto que já foi vendido não pode ser apagado — nesse caso nada é alterado. Se ele saiu de linha, zere o estoque.",
+      confirmLabel: 'Apagar',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteProduct(id);
+      refetchProducts();
+    } catch (err) { toast.error(getApiErrorMessage(err, "Erro ao excluir produto.")); }
   };
 
   const openEditModal = (product: Product) => {

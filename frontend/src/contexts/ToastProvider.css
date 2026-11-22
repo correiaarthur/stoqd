@@ -1,8 +1,8 @@
-/* Avisos curtos. Ficam acima do overlay dos modais (z-index 9999): o aviso de
+/* Avisos curtos. Ficam acima dos modais (9999) e do diálogo de confirmação (10000): o aviso de
    "produto salvo" aparece enquanto o modal ainda está fechando. */
 .toast-region {
   position: fixed;
-  z-index: 10000;
+  z-index: 10001;
   right: var(--gutter, 16px);
   bottom: max(var(--gutter, 16px), env(safe-area-inset-bottom));
   display: flex;
