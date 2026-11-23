@@ -68,6 +68,7 @@ leitura. Elas aparecem citadas nos comentários do código.
 | **D4** | **Conta de acesso ≠ cliente.** `User` guarda login; `Customer` guarda histórico. Apagar a conta não apaga as vendas. O vínculo nasce na confirmação de um pedido, quando uma pessoa reconhece a outra. | `schema.prisma`, `me.controller.ts` |
 | **D5** | **Autenticar não é autorizar.** Cliente e admin recebem token assinado pelo mesmo segredo, então toda rota protegida precisa de `requireAdmin` ou `requireCustomer` depois do `authMiddleware`. | `middlewares/auth.ts` |
 | **D6** | **Preço, taxa e desconto vêm do banco, nunca do corpo da requisição.** Senão o comprador escolhe o próprio preço e os próprios juros. | `lib/sales.ts`, `lib/pricingRules.ts` |
+| **D7** | **Dinheiro é centavo inteiro no banco, reais no código.** Colunas `Float` somavam com erro (0,1 + 0,2 = 0,30000000000000004) e o `SUM` do banco o acumulava. As colunas de dinheiro são `Int`, e uma extensão do Prisma converte na fronteira: o código e o frontend continuam em reais. | `lib/moneyColumns.ts`, `lib/prisma.ts` |
 
 **A ordem das contas** (`lib/pricingRules.ts`), que todo total do sistema segue:
 
@@ -117,7 +118,8 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 
 | Arquivo | Responsabilidade | Notas |
 |---|---|---|
-| `prisma.ts` | Cliente Prisma único, via adapter `pg`. | Em produção o log de query é desligado — ele despejaria dados de clientes no stdout. |
+| `prisma.ts` | Cliente Prisma único, via adapter `pg`, **com a extensão de dinheiro**. | Em produção o log de query é desligado — ele despejaria dados de clientes no stdout. |
+| `moneyColumns.ts` | **A fronteira reais ⇄ centavos.** Uma extensão do Prisma converte na escrita (`data`, inclusive aninhada em `create`/`update`/`upsert`/`createMany`, e `where`) e na leitura (inclusive `include`, `_sum`/`_avg`/`_min`/`_max`). As relações vêm do `Prisma.dmmf`; só a lista das colunas monetárias (`MONEY_COLUMNS`) é escrita à mão. | Os tipos do TypeScript não mudam (`Int` e `Float` são `number`). **Não cobre SQL cru** (`$queryRaw`): quem o escreve converte por conta própria — hoje só a dívida em `customers.controller`. `multiply`/`divide` em campo monetário são recusados. Ficam de fora, de propósito, `Product.averageCost` (média ponderada, pode ter fração de centavo) e `InstallmentPlan.interestPercent` (uma taxa). `Coupon.value` é percentual *ou* valor fixo, ambos em centésimos. Um teste impede um `Float` novo no schema sem decisão. |
 | `availability.ts` | **Coração da D1.** `getReservedByProduct`, `getStockView`, `withAvailability`. Define os prazos (5 min anônimo / 30 min identificado) e os tetos do carrinho (50 unidades, 30 linhas). | `excludeCartToken` existe para o carrinho de alguém não bloquear essa mesma pessoa. `available` nunca é negativo. |
 | `sales.ts` | **`registerSale`: o único lugar que cria venda, baixa estoque e gera parcelas.** Também `buildInstallments` e a classe `SaleError`. | Confere o estoque **físico** (D2). Divide as parcelas em centavos e joga o resto nas primeiras. |
 | `pricingRules.ts` | A ordem desconto → juros (`computeTotals`), a faixa 2x–12x, `getInterestPercent` e `toCents`. | Parcelamento desligado devolve `null` e a venda **recusa** — desligar uma opção não pode virar desconto silencioso. |
