@@ -131,6 +131,7 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 | `orderView.ts` | A resposta da lista de pedidos para a loja: `buildAdminOrderView` e suas peças (`buildItemView`, `buildRequestedView`, `suggestedCustomersFor`). | Puro: recebe o que o service leu e devolve o que a tela mostra. O desligamento de um parcelamento depois do pedido aparece como taxa `null`, nunca como juro inventado. |
 | `saleInput.ts` | O corpo da venda de balcão e as consultas (lista de vendas, relatório, subtotal). | O relatório exige `from`: sem período puxaria o histórico inteiro. |
 | `adminCredentials.ts` | Compara a senha do admin por bcrypt, com cache do hash. | Sem `ADMIN_PASSWORD_HASH`, gera o hash de `ADMIN_PASSWORD` na subida e avisa. |
+| `tokens.ts` | **Emitir e verificar o token — e poder revogá-lo.** `signCustomerToken` (leva `tv`, a versão da sessão), `signAdminToken` (leva `cf`, a impressão digital das credenciais do `.env`) e `verifyAuthToken`. | Cliente: o token só vale se `tv` for igual a `User.tokenVersion`; trocar a senha incrementa, e apagar a conta apaga a linha — uma leitura por chave primária a cada requisição. Admin: sem linha no banco, a revogação vem de a credencial mudar (HMAC de e-mail + hash, ou a senha em texto, que não leva sal novo a cada reinício). Token de cliente sem `tv` vale como 0, para ninguém cair no deploy; token de admin sem `cf` é recusado. |
 | `notifications.ts` | Avisa **a loja** de pedido novo, por Telegram e Resend. | Cada canal no seu try/catch; nunca lança. Falha de aviso não derruba pedido. Loga só o status HTTP, para não vazar token. |
 | `prismaErrors.ts` | Traduz P2002/P2003/P2025 em 409/409/404 com texto que o operador entende. | Lê `error.code` como string em vez de importar a classe do Prisma, que muda de lugar entre versões. |
 
@@ -138,7 +139,7 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 
 | Arquivo | Conteúdo |
 |---|---|
-| `auth.ts` | `authMiddleware` (exige token válido com papel), `optionalAuth` (token ruim = token nenhum), `requireAdmin`, `requireCustomer`. Token sem papel é recusado — um token antigo não vira admin por omissão. |
+| `auth.ts` | `authMiddleware` (exige token válido **e não revogado**, com papel), `optionalAuth` (token ruim ou revogado = visitante), `requireAdmin`, `requireCustomer`. | Token sem papel é recusado — um token antigo não vira admin por omissão. A verificação mora em `lib/tokens.ts`. |
 | `rateLimiter.ts` | Seis limitadores, cada um dimensionado pelo que a rota faz: geral 600/15min · login 10/15min (sucesso não conta) · cadastro 5/h · carrinho 120/15min · pedido 10/15min · cupom 20/15min. |
 
 ### 3.4a `src/services/` — o ciclo de vida do pedido
@@ -167,7 +168,7 @@ Cada recurso tem um par. O arquivo de rota é curto de propósito: ele é onde s
 | Controller | O que resolve |
 |---|---|
 | `auth.controller.ts` | Cadastro e login. Um campo de identificação, dois tipos de conta: o admin é testado primeiro (e-mail do `.env`), o cliente entra pelo telefone. Token de 1 dia. |
-| `me.controller.ts` | Área do cliente: ver/editar conta, trocar senha (exige a atual), excluir o perfil (apaga só o `User`) e histórico de compras. `PUBLIC_FIELDS` garante que o hash nunca sai numa resposta. |
+| `me.controller.ts` | Área do cliente: ver/editar conta, trocar senha (exige a atual; **encerra as outras sessões** e devolve um token novo para esta; senha atual errada é 400, não 401, para o cliente web não tratar como sessão expirada), excluir o perfil (apaga só o `User`) e histórico de compras. `PUBLIC_FIELDS` garante que o hash nunca sai numa resposta. |
 | `cart.controller.ts` | `reserve` (substitui as reservas do carrinho — repetir a chamada não deixa órfã), `availability` (consulta sem reservar) e `release`. |
 | `orders.controller.ts` | Só o HTTP do pedido: lê a requisição (`orderInput.ts`), chama `services/orders.service.ts` e responde. `create` (pedido `PENDING`), `list` (tela de Vendas), `confirm` e `cancel`. A regra mora no service; o controller tem cerca de 70 linhas. |
 | `sales.controller.ts` | `create` (venda de balcão — ignora de propósito o `unitPrice` que vier no corpo) e `list` com filtro de período/cliente e teto de 200. |

@@ -2,10 +2,11 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 
 import jwt from 'jsonwebtoken';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { app } from '../../src/server.js';
-import { aplicarMigrations } from '../helpers/testDb.js';
+import { aplicarMigrations, limparBanco } from '../helpers/testDb.js';
+import { cabecalhoAdmin, criarClienteLogado } from '../helpers/tokens.js';
 
 /**
  * O que a API responde quando algo sai do esperado: sempre JSON no formato
@@ -30,10 +31,7 @@ afterAll(async () => {
   await new Promise<void>(resolve => { server.close(() => resolve()); });
 });
 
-const asAdmin = () => ({
-  Authorization: `Bearer ${jwt.sign({ role: 'admin' }, process.env.JWT_SECRET!, { expiresIn: '1h' })}`,
-  'Content-Type': 'application/json',
-});
+const asAdmin = () => ({ ...cabecalhoAdmin(), 'Content-Type': 'application/json' });
 
 describe('erros genéricos', () => {
   it('rota inexistente responde 404 em JSON', async () => {
@@ -165,6 +163,10 @@ describe('corpos e consultas inválidos respondem 400 com a mensagem do schema',
 });
 
 describe('conta: cadastro e troca de senha', () => {
+  // Os telefones de teste se repetem entre arquivos: sem limpar, uma conta deixada
+  // por outro arquivo bate na restrição de telefone único.
+  beforeEach(async () => { await limparBanco(); });
+
   const cadastrar = (body: unknown) =>
     fetch(`${base}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
@@ -183,10 +185,10 @@ describe('conta: cadastro e troca de senha', () => {
   });
 
   it('trocar a senha com a nova curta responde 400', async () => {
-    const token = jwt.sign({ role: 'customer', userId: 1 }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+    const { cabecalho } = await criarClienteLogado();
     const r = await fetch(`${base}/me/password`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { ...cabecalho, 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword: 'x', newPassword: '123' }),
     });
 

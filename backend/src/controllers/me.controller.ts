@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '../lib/prisma.js';
+import { signCustomerToken } from '../lib/tokens.js';
 import { customerUserId } from '../middlewares/auth.js';
 import { BCRYPT_ROUNDS, isAdminEmail } from '../lib/adminCredentials.js';
 import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
@@ -91,15 +92,22 @@ export async function changePassword(req: Request, res: Response) {
     if (!user) return res.status(404).json({ error: "Conta não encontrada." });
 
     if (!await bcrypt.compare(currentPassword, user.passwordHash)) {
-      return res.status(401).json({ error: "A senha atual não confere." });
+      // 400 e não 401: o 401 quer dizer "sessão inválida", e o cliente web reage a
+      // ele limpando o token e indo para o login. Errar a senha atual não encerra
+      // a sessão de ninguém.
+      return res.status(400).json({ error: "A senha atual não confere." });
     }
 
-    await prisma.user.update({
+    // Trocar a senha encerra as outras sessões: a versão sobe, e todo token emitido
+    // antes deixa de valer — inclusive o que a pessoa usou agora. Por isso a resposta
+    // traz um token novo: este aparelho continua entrando, os outros caem.
+    const { tokenVersion } = await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: await bcrypt.hash(newPassword, BCRYPT_ROUNDS) },
+      data: { passwordHash: await bcrypt.hash(newPassword, BCRYPT_ROUNDS), tokenVersion: { increment: 1 } },
+      select: { tokenVersion: true },
     });
 
-    return res.status(204).send();
+    return res.json({ token: signCustomerToken({ id: userId, tokenVersion }) });
   } catch (error) {
     console.error("Erro ao trocar a senha:", error);
     return res.status(500).json({ error: "Não foi possível trocar a senha." });

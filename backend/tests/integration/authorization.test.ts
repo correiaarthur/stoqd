@@ -5,7 +5,8 @@ import jwt from 'jsonwebtoken';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { app } from '../../src/server.js';
-import { aplicarMigrations } from '../helpers/testDb.js';
+import { aplicarMigrations, limparBanco } from '../helpers/testDb.js';
+import { criarClienteLogado } from '../helpers/tokens.js';
 
 /**
  * Quem pode entrar em quê.
@@ -21,8 +22,13 @@ import { aplicarMigrations } from '../helpers/testDb.js';
 let server: Server;
 let base: string;
 
+let cliente: Awaited<ReturnType<typeof criarClienteLogado>>;
+
 beforeAll(async () => {
   aplicarMigrations();
+  // Outro arquivo pode ter deixado contas: os telefones de teste se repetem entre arquivos.
+  await limparBanco();
+  cliente = await criarClienteLogado();
 
   await new Promise<void>(resolve => {
     server = app.listen(0, () => {
@@ -36,13 +42,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await new Promise<void>(resolve => { server.close(() => resolve()); });
 });
-
-function autorizacao(payload: Record<string, unknown>) {
-  const segredo = process.env.JWT_SECRET;
-  if (!segredo) throw new Error('JWT_SECRET ausente no ambiente de teste.');
-
-  return { Authorization: `Bearer ${jwt.sign(payload, segredo, { expiresIn: '1h' })}` };
-}
 
 /** As rotas que só a loja pode ver. */
 const ROTAS_DE_ADMIN = [
@@ -61,7 +60,7 @@ describe('rotas de admin', () => {
   it.each(ROTAS_DE_ADMIN)('%s recusa token de cliente', async rota => {
     // O caso que importa: a pessoa tem conta de verdade, logou de verdade, e
     // tenta a rota da loja.
-    const r = await fetch(`${base}${rota}`, { headers: autorizacao({ userId: 1, role: 'customer' }) });
+    const r = await fetch(`${base}${rota}`, { headers: cliente.cabecalho });
     expect(r.status).toBe(403);
   });
 
@@ -106,9 +105,7 @@ describe('rotas da conta do cliente', () => {
   });
 
   it('/me não é bloqueada para quem é cliente', async () => {
-    const r = await fetch(`${base}/me`, { headers: autorizacao({ userId: 1, role: 'customer' }) });
-    // 404 é aceitável: o usuário 1 pode não existir no banco limpo. O que não
-    // pode é 401 ou 403 — o que se testa aqui é a autorização ter deixado passar.
-    expect([200, 404]).toContain(r.status);
+    const r = await fetch(`${base}/me`, { headers: cliente.cabecalho });
+    expect(r.status).toBe(200);
   });
 });

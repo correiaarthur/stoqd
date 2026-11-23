@@ -1,13 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 
-export type Role = 'admin' | 'customer';
+import { verifyAuthToken, type AuthPayload, type Role } from '../lib/tokens.js';
 
-export type AuthPayload = {
-  role: Role;
-  /** Só existe em token de cliente: o admin não tem linha na tabela User. */
-  userId?: number | undefined;
-};
+export type { AuthPayload, Role };
 
 declare global {
   namespace Express {
@@ -26,17 +21,19 @@ function readToken(req: Request): string | null {
 }
 
 /**
- * Verifica a assinatura e anexa o papel em `req.auth`.
+ * Verifica o token e anexa o papel em `req.auth`.
+ *
+ * Verificar inclui a revogação (`lib/tokens.ts`): um token cuja sessão foi
+ * encerrada — senha trocada, conta apagada, credencial do admin mudada — é
+ * recusado mesmo com a assinatura certa e dentro da validade.
  *
  * Autenticar não é autorizar: a partir do momento em que clientes recebem token
  * assinado com o mesmo segredo do admin, deixar uma rota só com este middleware
  * é o mesmo que abri-la para qualquer pessoa cadastrada. Toda rota protegida
  * precisa vir seguida de `requireAdmin` ou `requireCustomer`.
  */
-export function authMiddleware(req: Request, res: Response, next: NextFunction): Response | void {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<Response | void> {
+  if (!req.headers.authorization) {
     return res.status(401).json({ error: "Token não fornecido. Acesso negado." });
   }
 
@@ -46,36 +43,26 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     return res.status(401).json({ error: "Token malformado ou ausente. Acesso negado." });
   }
 
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ['HS256'] }) as jwt.JwtPayload;
+  const result = await verifyAuthToken(token);
 
-    // Token emitido antes de existirem papéis não vira admin por omissão.
-    const role = payload.role === 'admin' || payload.role === 'customer' ? payload.role : null;
+  if (!result.ok) return res.status(401).json({ error: result.error });
 
-    if (!role) {
-      return res.status(401).json({ error: "Token sem papel definido. Faça login novamente." });
-    }
-
-    req.auth = { role, userId: typeof payload.userId === 'number' ? payload.userId : undefined };
-
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: "Token inválido ou expirado. Faça login novamente." });
-  }
+  req.auth = result.auth;
+  next();
 }
 
 /** Autentica se houver token, mas deixa passar quem não mandou nenhum. */
-export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const token = readToken(req);
-  if (!token) return next();
 
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ['HS256'] }) as jwt.JwtPayload;
-    if (payload.role === 'admin' || payload.role === 'customer') {
-      req.auth = { role: payload.role, userId: typeof payload.userId === 'number' ? payload.userId : undefined };
+  if (token) {
+    try {
+      const result = await verifyAuthToken(token);
+      if (result.ok) req.auth = result.auth;
+    } catch {
+      // Token ruim — ou um banco que não respondeu — numa rota pública é o mesmo
+      // que token nenhum: a pessoa segue como visitante.
     }
-  } catch {
-    // Token ruim numa rota pública é o mesmo que token nenhum.
   }
 
   next();

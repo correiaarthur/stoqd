@@ -164,6 +164,11 @@ model User {
   role         String   @default("customer")
   createdAt    DateTime @default(now())
 
+  /// Versão da sessão. O token carrega a versão com que foi emitido, e o servidor
+  /// só o aceita se for igual à daqui. Trocar a senha incrementa: as sessões
+  /// abertas em outros aparelhos caem, e quem roubou um token deixa de ter acesso.
+  tokenVersion Int      @default(0)
+
   // Vínculo opcional, criado quando o admin reconhece a pessoa na confirmação
   // do pedido. Nasce depois porque o Customer costuma existir antes da conta.
   customerId Int?      @unique

@@ -1,22 +1,15 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail, isAdminPassword } from '../lib/adminCredentials.js';
 import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
 import { parseWith } from '../lib/validate.js';
 import { normalizeEmail, normalizePhone, registerSchema } from '../lib/validation.js';
-import type { Role } from '../middlewares/auth.js';
-
-const TOKEN_LIFETIME = '1d';
+import { signAdminToken, signCustomerToken } from '../lib/tokens.js';
 
 /** Hash válido de uma senha que ninguém conhece, só para igualar o tempo do login. */
 const DUMMY_HASH = bcrypt.hashSync('stoqd-dummy-password', BCRYPT_ROUNDS);
-
-function signToken(payload: { role: Role; userId?: number }) {
-  return jwt.sign(payload, process.env.JWT_SECRET as string, { algorithm: 'HS256', expiresIn: TOKEN_LIFETIME });
-}
 
 export async function register(req: Request, res: Response) {
   const parsed = parseWith(registerSchema, req.body);
@@ -37,14 +30,14 @@ export async function register(req: Request, res: Response) {
     // digitado seria entregar o histórico de compras de quem tem aquele número a
     // qualquer pessoa que o digite: o telefone não é segredo e não é verificado.
     // O vínculo é decisão da loja, tomada ao confirmar um pedido.
-    const user = await prisma.user.create({
+    const { tokenVersion, ...user } = await prisma.user.create({
       data: { name, email, phone, passwordHash },
-      select: { id: true, name: true, email: true, phone: true },
+      select: { id: true, name: true, email: true, phone: true, tokenVersion: true },
     });
 
     return res.status(201).json({
       user,
-      token: signToken({ role: 'customer', userId: user.id }),
+      token: signCustomerToken({ id: user.id, tokenVersion }),
     });
   } catch (error) {
     // A constraint violada pode ser a do telefone ou a do e-mail; o Prisma diz
@@ -86,7 +79,7 @@ export async function login(req: Request, res: Response) {
 
     if (emailIsAdmin && passwordIsAdmin) {
       return res.json({
-        token: signToken({ role: 'admin' }),
+        token: signAdminToken(),
         user: { name: 'Administração', email, role: 'admin' },
       });
     }
@@ -99,7 +92,7 @@ export async function login(req: Request, res: Response) {
 
     if (user && passwordMatches) {
       return res.json({
-        token: signToken({ role: 'customer', userId: user.id }),
+        token: signCustomerToken(user),
         user: { id: user.id, name: user.name, email: user.email, phone: user.phone, role: 'customer' },
       });
     }
