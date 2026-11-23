@@ -99,6 +99,17 @@ describe('vínculo da conta com o cliente da loja', () => {
     expect(historico.body.orders[0]!.items[0]!.name).toBe('Sabonete');
   });
 
+  it('um e-mail que já tem conta é recusado dizendo que é o e-mail, e não o telefone', async () => {
+    await testPrisma.user.create({ data: { name: 'Dona', phone: '11999990009', email: 'dona@loja.com', passwordHash: 'x' } });
+
+    const r = await chamar<{ error?: string }>(register, {
+      body: { name: 'Outra Pessoa', phone: '87996415746', email: 'DONA@loja.com', password: 'senha-forte-123' },
+    });
+
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe('Este e-mail já está em uso.');
+  });
+
   it('um telefone que já tem conta não abre outra', async () => {
     await cadastrar('87996415746');
 

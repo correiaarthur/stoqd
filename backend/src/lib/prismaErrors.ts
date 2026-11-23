@@ -1,3 +1,5 @@
+import { DomainError } from './errors.js';
+
 /**
  * Traduz os erros conhecidos do Prisma em respostas que o operador entende.
  *
@@ -34,8 +36,37 @@ export function translatePrismaError(error: unknown, messages: Messages): Transl
   return null;
 }
 
-/** Campos da constraint única violada (P2002), como o Prisma os informa em `meta.target`. */
+/**
+ * Campos da constraint única violada (P2002).
+ *
+ * O Prisma informa de dois jeitos, conforme o motor. Sem adapter, em
+ * `meta.target`. Com o adapter `pg` (o que este projeto usa), `meta.target` **não
+ * existe**: o campo vem em `meta.driverAdapterError.cause.constraint.fields`. Ler só
+ * o primeiro devolvia sempre lista vazia — e duplicar um e-mail era reportado como
+ * telefone duplicado.
+ */
 export function duplicatedFieldsOf(error: unknown): string[] {
-  const target = (error as { meta?: { target?: unknown } })?.meta?.target;
-  return Array.isArray(target) ? target.map(String) : [];
+  const meta = (error as {
+    meta?: {
+      target?: unknown;
+      driverAdapterError?: { cause?: { constraint?: { fields?: unknown } } };
+    };
+  })?.meta;
+
+  const fields = meta?.target ?? meta?.driverAdapterError?.cause?.constraint?.fields;
+
+  return Array.isArray(fields) ? fields.map(String) : [];
+}
+
+/**
+ * Traduz o erro do Prisma em `DomainError` (com o status certo) quando é um dos
+ * conhecidos, e o relança como está quando não é — para o `catch` do controller
+ * logar e responder 500.
+ */
+export function rethrowTranslated(error: unknown, messages: Messages): never {
+  const translated = translatePrismaError(error, messages);
+
+  if (translated) throw new DomainError(translated.error, translated.status);
+
+  throw error;
 }
