@@ -16,6 +16,9 @@ type DebtRow = {
 // com o histórico da loja. O histórico vem por getStatement.
 //
 // "Em aberto" é parcela sem `paidAt`; "em atraso" é uma delas já vencida.
+//
+// SQL escrito à mão não passa pela extensão de dinheiro: a coluna está em centavos,
+// e a divisão por 100 é daqui. A soma é de inteiros, exata; só o resultado vira reais.
 export async function getAll(_req: Request, res: Response) {
   try {
     const [customers, debts] = await Promise.all([
@@ -25,7 +28,7 @@ export async function getAll(_req: Request, res: Response) {
       }),
       prisma.$queryRaw<DebtRow[]>`
         SELECT s."customerId"                              AS "customerId",
-               COALESCE(SUM(i."value"), 0)::float8         AS "totalDebt",
+               COALESCE(SUM(i."value"), 0)::float8 / 100   AS "totalDebt",
                COUNT(DISTINCT s."id")::int                 AS "pendingSalesCount",
                COALESCE(BOOL_OR(i."dueDate" < NOW()), FALSE) AS "hasOverdue"
         FROM "Installment" i

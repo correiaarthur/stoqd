@@ -326,15 +326,17 @@ describe('listar os pedidos para a loja', () => {
     const conta = await criarConta();
     await pedidoCom(conta.id, [
       { productId: mudou.id, quantity: 1, unitPrice: 100 },
-      { productId: igual.id, quantity: 1, unitPrice: 50.004 },
+      { productId: igual.id, quantity: 1, unitPrice: 50 },
     ]);
 
     const [pedido] = (await listar()).body;
     const porId = new Map(pedido.items.map((i: any) => [i.productId, i]));
 
     expect(porId.get(mudou.id)).toMatchObject({ unitPrice: 100, currentPrice: 120, priceChanged: true });
-    // Diferença menor que meio centavo não é mudança de preço.
-    expect(porId.get(igual.id)).toMatchObject({ unitPrice: 50.004, currentPrice: 50, priceChanged: false });
+    // Preço igual não é mudança. (A tolerância de meio centavo é do `orderView`, testada
+    // sem banco: o banco guarda centavos inteiros, então um preço de pedido com fração
+    // de centavo já não existe.)
+    expect(porId.get(igual.id)).toMatchObject({ unitPrice: 50, currentPrice: 50, priceChanged: false });
   });
 
   it('estoque: o disponível desconta reservas de outros; o físico decide se há para todos', async () => {

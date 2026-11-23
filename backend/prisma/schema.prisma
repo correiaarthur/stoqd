@@ -25,9 +25,15 @@ model Product {
   imageUrl String?
   quantity Int     @default(0)
 
-  averageCost      Float  @default(0)
-  sellingPrice     Float  @default(0)
-  promotionalPrice Float?
+  /// Média ponderada do custo, em reais. Fica `Float` de propósito: é uma estimativa
+  /// que pode ter fração de centavo, e arredondá-la a cada reabastecimento
+  /// distorceria o lucro. Não é dinheiro transacionado.
+  averageCost Float @default(0)
+
+  /// Preços em **centavos inteiros** (ver `lib/moneyColumns.ts`): o código fala em
+  /// reais, e a conversão acontece na fronteira do Prisma.
+  sellingPrice     Int  @default(0)
+  promotionalPrice Int?
 
   expiryDate DateTime?
   createdAt  DateTime  @default(now())
@@ -64,7 +70,8 @@ model Customer {
 
 model Sale {
   id          Int      @id @default(autoincrement())
-  total       Float
+  /// Em centavos.
+  total       Int
   date        DateTime @default(now())
   observation String?
 
@@ -92,12 +99,12 @@ model Sale {
   @@index([customerId])
   @@index([date])
 
-  /// Desconto concedido: cupom e desconto manual somados.
-  discount Float? @default(0)
+  /// Desconto concedido: cupom e desconto manual somados. Em centavos.
+  discount Int? @default(0)
 
   /// Acréscimo do parcelamento. Fica separado do total para o faturamento não
-  /// confundir juros com venda de produto.
-  interest Float? @default(0)
+  /// confundir juros com venda de produto. Em centavos.
+  interest Int? @default(0)
 
   /// Qual cupom foi usado, quando houve. Guardado para o cupom poder ser
   /// auditado depois — sem isto, "por que esta venda saiu 10% mais barata?"
@@ -118,7 +125,8 @@ model SaleItem {
   product   Product @relation(fields: [productId], references: [id])
 
   quantity  Int
-  unitPrice Float
+  /// Em centavos.
+  unitPrice Int
 
   /// `saleId` é percorrido em todo carregamento de venda; `productId`, pelo
   /// RESTRICT que impede apagar produto já vendido — sem índice essa checagem
@@ -130,7 +138,8 @@ model SaleItem {
 model Installment {
   id      Int       @id @default(autoincrement())
   number  Int
-  value   Float
+  /// Em centavos.
+  value   Int
   dueDate DateTime
   paidAt  DateTime?
 
@@ -263,11 +272,13 @@ model Coupon {
   code String @unique
 
   type  CouponType
-  /// Percentual (10 = 10%) ou valor em reais, conforme `type`.
-  value Float
+  /// Percentual ou valor fixo, conforme `type`, em **centésimos**: 10% = 1000 e
+  /// R$ 5,00 = 500. A mesma conversão por 100 serve aos dois.
+  value Int
 
   /// Piso do pedido para o cupom valer. Null = vale para qualquer valor.
-  minimumTotal Float?
+  /// Em centavos.
+  minimumTotal Int?
 
   /// Null = sem prazo / sem teto de usos.
   expiresAt DateTime?
@@ -308,5 +319,5 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
 
   quantity  Int
-  unitPrice Float // preço no momento do pedido
+  unitPrice Int // preço no momento do pedido, em centavos
 }
