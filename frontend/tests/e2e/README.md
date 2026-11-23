@@ -1,6 +1,6 @@
 # Capturas de tela
 
-A única rede do projeto que vê **layout**. Os 324 testes de comportamento não
+A única rede do projeto que vê **layout**. Os testes de comportamento não
 percebem alinhamento quebrado, contraste perdido, componente sumido em tela
 estreita ou sobreposição — e é isso que uma troca de identidade visual arrisca.
 

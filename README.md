@@ -11,7 +11,8 @@ A aplicação foi projetada utilizando uma arquitetura **Cliente-Servidor (API R
 - **TypeScript** garantindo tipagem estática ponta a ponta e previsibilidade no fluxo de dados.
 - **Prisma ORM** para a modelagem relacional de dados, validação e versionamento seguro do banco via migrations.
 - **PostgreSQL** (Hospedado via **Supabase**) escolhido pela conformidade ACID, garantindo a integridade das transações de vendas e do registro de parcelas.
-- **Segurança:** JWT com **papel** (`admin` ou `customer`) verificado em cada rota — autenticar não é autorizar, e um token de cliente recebe 403 em qualquer rota de administração. Senhas em **bcrypt**, headers protegidos com **Helmet** e limites por rota com **Express Rate Limit** (cadastro, carrinho e pedido têm tetos próprios, por serem rotas públicas que escrevem).
+- **Dinheiro em centavos inteiros** no banco (`Int`), convertidos para reais na fronteira do Prisma: colunas `Float` somavam com erro.
+- **Segurança:** JWT com **papel** (`admin` ou `customer`) verificado em cada rota — autenticar não é autorizar, e um token de cliente recebe 403 em qualquer rota de administração. As sessões são **revogáveis**: trocar a senha encerra as outras sessões. Senhas em **bcrypt**, headers protegidos com **Helmet** e limites por rota com **Express Rate Limit** (cadastro, carrinho e pedido têm tetos próprios, por serem rotas públicas que escrevem).
 
 ### Frontend
 - **React 19** com **Vite** para um ambiente de desenvolvimento rápido e otimizado da SPA.
@@ -20,23 +21,30 @@ A aplicação foi projetada utilizando uma arquitetura **Cliente-Servidor (API R
 - **Recharts** para a renderização do Dashboard analítico.
 - **CSS Customizado** (Variáveis globais, CSS Reset e Design System próprio, garantindo alta performance sem dependência de bibliotecas pesadas de UI).
 
+### Qualidade
+- **Vitest** nos dois lados: unitários e de comportamento (Testing Library) e, no backend, testes de **integração** contra um Postgres descartável (Docker) para o que depende do banco — concorrência de venda, autorização por rota, ciclo do pedido.
+- **Playwright** para capturas de tela, a rede que enxerga layout (roda localmente; ver `frontend/tests/e2e/README.md`).
+- **GitHub Actions** (`.github/workflows/ci.yml`): typecheck e testes do backend; lint, build e testes do frontend; `npm audit`.
+
 ## ✨ Funcionalidades Principais
 
-- **Vitrine com carrinho:** A vitrine é a única superfície de escolher produto — do visitante e de quem atende. O checkout é uma página só com dois comportamentos: o cliente logado cria um **pedido pendente**; o admin fecha a **venda de balcão** direto, com cliente, desconto, forma de pagamento e parcelas.
+- **Vitrine com carrinho:** A vitrine é a única superfície de escolher produto — do visitante e de quem atende. Ela carrega em lotes conforme a rolagem, e a busca e os filtros (marca, categoria, promoção) ficam na URL, então um link filtrado abre filtrado. O checkout é uma página só com dois comportamentos: o cliente logado cria um **pedido pendente**; o admin fecha a **venda de balcão** direto, com cliente, desconto, forma de pagamento e parcelas.
 - **Reserva de estoque por 5 minutos:** O disponível nunca é armazenado, sempre derivado — quantidade física menos as reservas ativas, calculado na leitura. Não há job liberando reserva vencida: ela deixa de contar no instante em que vence. Depois do login o prazo passa a 30 minutos.
 - **Pedidos com confirmação manual:** O pedido não baixa estoque. Ao confirmar, a loja vincula (ou cria) o cliente, revalida o estoque e a venda nasce pelo mesmo caminho da venda de balcão. Se o item saiu na loja no intervalo, a confirmação recusa dizendo qual produto — **o balcão sempre ganha da reserva**, porque quem está com o produto na mão vende.
 - **Aviso de pedido novo:** Telegram e e-mail, os dois para a administração. Cada envio é isolado: um canal fora do ar não impede o outro, e falha de aviso nunca derruba o pedido.
 - **Área do cliente:** Dados da conta, troca de senha, histórico de compras com parcelas pagas e pendentes, e exclusão do perfil — que apaga a conta de acesso e preserva o cliente e as vendas, porque o histórico da loja é dela também.
 - **Gestão de Vendas a Prazo:** Controle rigoroso de parcelas atreladas a clientes, com status dinâmico de pendência e cruzamento de datas de vencimento.
 - **Dashboard de Analytics:** Visão financeira em tempo real do faturamento mensal, capital imobilizado em estoque e projeção de lucro.
-- **Gestão de Inventário:** CRUD completo de produtos com categorização por marcas e alertas automáticos de baixo estoque.
+- **Gestão de Inventário:** CRUD completo de produtos com categorização por marcas, alerta de baixo estoque, controle de validade e foto enviada por URL assinada pelo servidor (o navegador não escreve no bucket com a chave pública).
+- **Cupons e juros por parcelamento:** O admin configura a tabela de juros (2x a 12x) e cupons de desconto; preço, taxa e desconto sempre vêm do banco, nunca do corpo da requisição.
 - **Histórico de Clientes:** Extrato detalhado cruzando o histórico de compras, pagamentos realizados e a soma de débitos em aberto.
 
 ## ⚙️ Como rodar o projeto localmente
 
 ### Pré-requisitos
-- Node.js (v18 ou superior)
+- Node.js (v20 ou superior)
 - Um banco de dados PostgreSQL (ou conta no Supabase)
+- Docker, só para rodar os testes de integração do backend
 
 ### 1. Clonar o repositório
 ```bash
@@ -90,6 +98,16 @@ Atalhos disponíveis na raiz:
 | `npm run build` | Compila os dois para produção |
 | `npm run lint` | Roda o ESLint no frontend |
 
+Testes, dentro de cada pasta:
+
+| Comando | O que faz |
+| --- | --- |
+| `npm test` (em `backend/`) | Unitários do backend |
+| `npm run test:integration` (em `backend/`) | Sobe o Postgres descartável e roda os testes de integração |
+| `npm run typecheck` (em `backend/`) | Tipos do código e dos testes |
+| `npm test` (em `frontend/`) | Testes de comportamento do frontend |
+| `npm run e2e` (em `frontend/`) | Capturas de tela do Playwright |
+
 Se preferir terminais separados, os `npm run dev` dentro de `backend/` e `frontend/` continuam funcionando como antes.
 
 ---
@@ -105,7 +123,9 @@ O backend valida o ambiente ao subir: faltando `DATABASE_URL`, `JWT_SECRET`, `AD
 | Start | `npm start` (`node dist/server.js`) |
 | Migrações | `npm run migrate:deploy` antes do primeiro start |
 
-Variáveis obrigatórias: `DATABASE_URL`, `JWT_SECRET` (mínimo 32 caracteres em produção), `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `CORS_ORIGINS` e `NODE_ENV=production`. O `.env.example` documenta cada uma.
+Variáveis obrigatórias: `DATABASE_URL`, `JWT_SECRET` (mínimo 32 caracteres em produção), `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `CORS_ORIGINS` e `NODE_ENV=production`. Para o envio de fotos, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` (a service role fica só no servidor). O `.env.example` documenta cada uma.
+
+`GET /health` responde `{ "status": "ok" }` sem tocar o banco — use-o como sonda de saúde do serviço.
 
 `TRUST_PROXY` já assume `1` em produção, que é o certo para serviço gerenciado. Sem isso o rate limit enxergaria o IP do proxy no lugar do IP de quem chamou, e as tentativas de login de todos os visitantes cairiam no mesmo balde.
 
@@ -116,7 +136,7 @@ Variáveis obrigatórias: `DATABASE_URL`, `JWT_SECRET` (mínimo 32 caracteres em
 
 ## 📚 Documentação do código
 
-O [**mapa do código**](docs/MAPA-DO-CODIGO.md) descreve o que cada arquivo faz e por quê: as decisões que explicam o desenho (reserva derivada, balcão × pedido, conta ≠ cliente), o modelo de dados, o mapa das rotas com as permissões de cada uma e os fluxos ponta a ponta.
+O [**mapa do código**](docs/MAPA-DO-CODIGO.md) descreve o que cada arquivo faz e por quê: as decisões que explicam o desenho (reserva derivada, balcão × pedido, conta ≠ cliente, dinheiro em centavos), o modelo de dados, o mapa das rotas com as permissões de cada uma e os fluxos ponta a ponta.
 
 ---
 
