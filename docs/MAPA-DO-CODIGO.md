@@ -31,7 +31,7 @@ stoqd/
 │       ├── server.ts         Sobe o Express, monta middlewares e routers
 │       ├── routes/           Um arquivo por recurso: caminho + quem pode
 │       ├── controllers/      Um arquivo por recurso: HTTP in, HTTP out
-│       ├── services/         Casos de uso que orquestram transações (hoje: pedidos)
+│       ├── services/         Casos de uso que orquestram transações (pedidos e conta)
 │       ├── lib/              Regra de negócio, sem Express
 │       ├── middlewares/      Autenticação/autorização e limites por rota
 │       └── scripts/          Tarefas manuais (hash de senha, consolidação)
@@ -50,7 +50,7 @@ stoqd/
 
 **Camadas do backend, em uma frase:** `routes` decide *quem pode chamar*,
 `controllers` traduz HTTP em chamada de regra, `services` executa um caso de uso
-inteiro numa transação (hoje, o ciclo de vida do pedido) e `lib` contém as regras
+inteiro (o ciclo de vida do pedido e a conta do cliente) e `lib` contém as regras
 puras que eles usam.
 
 ---
@@ -131,11 +131,12 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 | `productInput.ts` | `productSchema` e as regras de reabastecimento (`mergeAverageCost`, `mergeExpiryDates`). | Recusa dia de validade que não existe (30 de fevereiro) em vez de empurrá-lo para o mês seguinte. |
 | `orderInput.ts` | Os corpos de criar, confirmar e recusar pedido, e a lista de pedidos por situação. | Forma de pagamento desconhecida é recusada: um "PRZO" digitado errado, lido como à vista, registraria como paga uma venda que ia ser fiada. |
 | `orderView.ts` | A resposta da lista de pedidos para a loja: `buildAdminOrderView` e suas peças (`buildItemView`, `buildRequestedView`, `suggestedCustomersFor`). | Puro: recebe o que o service leu e devolve o que a tela mostra. O desligamento de um parcelamento depois do pedido aparece como taxa `null`, nunca como juro inventado. |
+| `orderHistory.ts` | O histórico de compras da conta: `buildPurchaseHistory` e suas peças (`buildOrderEntry`, `buildSaleEntry`, `serializeInstallments`). | Pura. Pedido confirmado mostra o que a **venda** cobrou (desconto, juros, cupom), não o que o pedido dizia. |
 | `saleInput.ts` | O corpo da venda de balcão e as consultas (lista de vendas, relatório, subtotal). | O relatório exige `from`: sem período puxaria o histórico inteiro. |
 | `adminCredentials.ts` | Compara a senha do admin por bcrypt, com cache do hash. | Sem `ADMIN_PASSWORD_HASH`, gera o hash de `ADMIN_PASSWORD` na subida e avisa. |
 | `tokens.ts` | **Emitir e verificar o token — e poder revogá-lo.** `signCustomerToken` (leva `tv`, a versão da sessão), `signAdminToken` (leva `cf`, a impressão digital das credenciais do `.env`) e `verifyAuthToken`. | Cliente: o token só vale se `tv` for igual a `User.tokenVersion`; trocar a senha incrementa, e apagar a conta apaga a linha — uma leitura por chave primária a cada requisição. Admin: sem linha no banco, a revogação vem de a credencial mudar (HMAC de e-mail + hash, ou a senha em texto, que não leva sal novo a cada reinício). Token de cliente sem `tv` vale como 0, para ninguém cair no deploy; token de admin sem `cf` é recusado. |
 | `notifications.ts` | Avisa **a loja** de pedido novo, por Telegram e Resend. | Cada canal no seu try/catch; nunca lança. Falha de aviso não derruba pedido. Loga só o status HTTP, para não vazar token. |
-| `prismaErrors.ts` | Traduz P2002/P2003/P2025 em 409/409/404 com texto que o operador entende. | Lê `error.code` como string em vez de importar a classe do Prisma, que muda de lugar entre versões. |
+| `prismaErrors.ts` | Traduz P2002/P2003/P2025 em 409/409/404 com texto que o operador entende (`translatePrismaError`, ou `rethrowTranslated`, que já lança `DomainError`). `duplicatedFieldsOf` diz qual campo duplicou. | Lê `error.code` como string em vez de importar a classe do Prisma, que muda de lugar entre versões. Com o adapter `pg` o campo duplicado vem em `meta.driverAdapterError.cause.constraint.fields`, **não** em `meta.target`: ler só o segundo reportava e-mail duplicado como telefone. |
 
 ### 3.4 `src/middlewares/`
 
@@ -144,9 +145,9 @@ balcão e a confirmação de pedido cheguem ao mesmo lugar.
 | `auth.ts` | `authMiddleware` (exige token válido **e não revogado**, com papel), `optionalAuth` (token ruim ou revogado = visitante), `requireAdmin`, `requireCustomer`. | Token sem papel é recusado — um token antigo não vira admin por omissão. A verificação mora em `lib/tokens.ts`. |
 | `rateLimiter.ts` | Seis limitadores, cada um dimensionado pelo que a rota faz: geral 600/15min · login 10/15min (sucesso não conta) · cadastro 5/h · carrinho 120/15min · pedido 10/15min · cupom 20/15min. |
 
-### 3.4a `src/services/` — o ciclo de vida do pedido
+### 3.4a `src/services/` — os casos de uso
 
-`orders.service.ts` tem os quatro casos de uso do pedido, cada um numa transação.
+**`orders.service.ts`** tem os quatro casos de uso do pedido, cada um numa transação.
 Os erros de regra saem como `DomainError`, com o status HTTP junto, e o controller
 só os traduz.
 
@@ -156,6 +157,14 @@ só os traduz.
 | `listOrders` | Lê os pedidos e três coisas independentes em paralelo (estoque, planos de parcelamento, candidatos a cliente) e entrega tudo a `lib/orderView.ts`, que monta a resposta. |
 | `confirmOrder` | Em passos nomeados: `claimPendingOrder` (reivindica o pedido **no próprio UPDATE**, para dois cliques simultâneos não gerarem duas vendas), `linkCustomer`, `couponForSale` e `registerSale`. Se qualquer passo falha, a transação inteira reverte e o pedido continua pendente. |
 | `cancelOrder` | Só recusa pedido pendente, guarda o motivo e solta as reservas dele. |
+
+**`account.service.ts`** é a conta do cliente: `getAccount`, `updateAccount` (recusa o
+e-mail do admin; e-mail e telefone duplicados dizem qual dos dois), `changeAccountPassword`
+(exige a atual; sobe a versão da sessão e devolve um token novo), `deleteAccount` (só a
+conta — as vendas e o cliente de balcão ficam) e `getPurchaseHistory`. Quem monta o
+histórico é `lib/orderHistory.ts`, pura: junta os pedidos da vitrine e, só quando a loja
+ligou a conta a um cliente, as vendas de balcão dele, sem repetir a venda que nasceu de um
+pedido.
 
 `lib/orderView.ts` é a parte pura da listagem — sem banco, sem relógio: o preço do
 pedido ao lado do de hoje (diferença menor que meio centavo não conta como
@@ -170,7 +179,7 @@ Cada recurso tem um par. O arquivo de rota é curto de propósito: ele é onde s
 | Controller | O que resolve |
 |---|---|
 | `auth.controller.ts` | Cadastro e login. Um campo de identificação, dois tipos de conta: o admin é testado primeiro (e-mail do `.env`), o cliente entra pelo telefone. Token de 1 dia. |
-| `me.controller.ts` | Área do cliente: ver/editar conta, trocar senha (exige a atual; **encerra as outras sessões** e devolve um token novo para esta; senha atual errada é 400, não 401, para o cliente web não tratar como sessão expirada), excluir o perfil (apaga só o `User`) e histórico de compras. `PUBLIC_FIELDS` garante que o hash nunca sai numa resposta. |
+| `me.controller.ts` | Só o HTTP da área do cliente: ver/editar a conta, trocar a senha (exige a atual; **encerra as outras sessões** e devolve um token novo para esta; senha atual errada é 400, não 401, para o cliente web não tratar como sessão expirada), excluir o perfil e o histórico de compras. A regra está em `services/account.service.ts`; os campos públicos garantem que o hash nunca sai numa resposta. |
 | `cart.controller.ts` | `reserve` (substitui as reservas do carrinho — repetir a chamada não deixa órfã), `availability` (consulta sem reservar) e `release`. |
 | `orders.controller.ts` | Só o HTTP do pedido: lê a requisição (`orderInput.ts`), chama `services/orders.service.ts` e responde. `create` (pedido `PENDING`), `list` (tela de Vendas), `confirm` e `cancel`. A regra mora no service; o controller tem cerca de 70 linhas. |
 | `sales.controller.ts` | `create` (venda de balcão — ignora de propósito o `unitPrice` que vier no corpo) e `list` com filtro de período/cliente e teto de 200. |

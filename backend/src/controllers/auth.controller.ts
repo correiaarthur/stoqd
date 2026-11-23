@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '../lib/prisma.js';
 import { BCRYPT_ROUNDS, isAdminEmail, isAdminPassword } from '../lib/adminCredentials.js';
-import { duplicatedFieldsOf, translatePrismaError } from '../lib/prismaErrors.js';
+import { translatePrismaError } from '../lib/prismaErrors.js';
 import { parseWith } from '../lib/validate.js';
+import { duplicateAccountMessage } from '../services/account.service.js';
 import { normalizeEmail, normalizePhone, registerSchema } from '../lib/validation.js';
 import { signAdminToken, signCustomerToken } from '../lib/tokens.js';
 
@@ -40,14 +41,10 @@ export async function register(req: Request, res: Response) {
       token: signCustomerToken({ id: user.id, tokenVersion }),
     });
   } catch (error) {
-    // A constraint violada pode ser a do telefone ou a do e-mail; o Prisma diz
-    // qual em `meta.target`, e a mensagem precisa apontar o campo certo.
-    const duplicatedField = duplicatedFieldsOf(error);
-
+    // A constraint violada pode ser a do telefone ou a do e-mail, e a mensagem
+    // precisa apontar o campo certo.
     const translated = translatePrismaError(error, {
-      duplicate: duplicatedField.includes('email')
-        ? "Este e-mail já está em uso."
-        : "Já existe uma conta com este telefone. Entre com ele ou use outro número.",
+      duplicate: duplicateAccountMessage(error, "Já existe uma conta com este telefone. Entre com ele ou use outro número."),
     });
     if (translated) return res.status(translated.status).json({ error: translated.error });
 
