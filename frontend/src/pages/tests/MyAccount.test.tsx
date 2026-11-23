@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,9 +15,10 @@ const services = vi.hoisted(() => ({
 vi.mock('../../services/account', () => services);
 
 import { MyAccount } from '../MyAccount';
+import { TOKEN_KEY } from '../../utils/auth';
 
 beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}); });
-afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); });
+afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); localStorage.removeItem(TOKEN_KEY); });
 
 const conta = { id: 1, name: 'Dayana Leite', email: null, phone: '87996415746', createdAt: '2026-01-10T12:00:00.000Z' };
 
@@ -116,5 +118,61 @@ describe('MyAccount', () => {
 
     expect(await screen.findByText('Próxima parcela')).toBeInTheDocument();
     expect(screen.getByText(/vence em 10\/04/)).toBeInTheDocument();
+  });
+});
+
+
+describe('MyAccount — trocar a senha', () => {
+  async function abrir() {
+    services.getMe.mockResolvedValue({ data: conta });
+    services.getMyOrders.mockResolvedValue({ data: { orders: [] } });
+    montar();
+    await screen.findByRole('heading', { level: 1 });
+    return userEvent.setup();
+  }
+
+  const preencher = async (user: ReturnType<typeof userEvent.setup>, atual: string, nova: string) => {
+    await user.type(screen.getByLabelText('Senha atual'), atual);
+    await user.type(screen.getByLabelText('Nova senha'), nova);
+    await user.click(screen.getByRole('button', { name: /alterar senha|trocar senha|salvar senha/i }));
+  };
+
+  it('guarda o token novo que o servidor devolve: as outras sessões caíram, esta continua', async () => {
+    localStorage.setItem(TOKEN_KEY, 'token-antigo');
+    services.changePassword.mockResolvedValue({ data: { token: 'token-novo' } });
+    const user = await abrir();
+
+    await preencher(user, 'senha-velha-1', 'senha-nova-123');
+
+    expect(services.changePassword).toHaveBeenCalledWith('senha-velha-1', 'senha-nova-123');
+    await waitFor(() => expect(localStorage.getItem(TOKEN_KEY)).toBe('token-novo'));
+    expect(await screen.findByText('Senha alterada.')).toBeInTheDocument();
+  });
+
+  it('limpa os campos depois de trocar', async () => {
+    services.changePassword.mockResolvedValue({ data: { token: 'token-novo' } });
+    const user = await abrir();
+
+    await preencher(user, 'senha-velha-1', 'senha-nova-123');
+
+    await screen.findByText('Senha alterada.');
+    expect(screen.getByLabelText('Senha atual')).toHaveValue('');
+    expect(screen.getByLabelText('Nova senha')).toHaveValue('');
+  });
+
+  it('com a senha atual errada, mostra o erro e mantém o token que já tinha', async () => {
+    localStorage.setItem(TOKEN_KEY, 'token-antigo');
+    services.changePassword.mockRejectedValue(
+      new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, undefined, {
+        status: 400, statusText: 'Bad Request', headers: {}, config: {} as never, data: { error: 'A senha atual não confere.' },
+      })
+    );
+    const user = await abrir();
+
+    await preencher(user, 'errada-errada', 'senha-nova-123');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('A senha atual não confere.');
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('token-antigo');
+    expect(screen.queryByText('Senha alterada.')).toBeNull();
   });
 });

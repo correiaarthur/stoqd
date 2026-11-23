@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { getMe, getMyOrders, updateMe, changePassword, deleteMe } from '../services/account';
 import { formatCurrency, formatDayMonth, formatRelativeDate } from '../utils/formatters';
 import { getApiErrorMessage } from '../utils/errors';
-import { clearToken } from '../utils/auth';
+import { clearToken, saveToken } from '../utils/auth';
 import { useAsync } from '../hooks/useAsync';
 import './MyAccount.css';
 
@@ -271,7 +271,9 @@ function PasswordCard() {
     setIsSaving(true);
 
     try {
-      await changePassword(currentPassword, newPassword);
+      // O servidor encerrou as outras sessões e devolveu um token novo para esta.
+      const res = await changePassword(currentPassword, newPassword);
+      saveToken(res.data.token);
       setCurrentPassword('');
       setNewPassword('');
       setMessage('Senha alterada.');
