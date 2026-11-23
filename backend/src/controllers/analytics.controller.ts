@@ -1,21 +1,109 @@
 import { type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { getActivePrice } from '../lib/pricing.js';
+import { lineTotal, sumLines } from '../lib/pricingRules.js';
+import { EXPIRY_WARNING_DAYS, expiryStatusOf } from '../lib/expiryWindow.js';
+import { parseSalesReportQuery } from '../lib/saleInput.js';
+
+
+// Uma linha por item vendido, já com o desconto da venda rateado entre os itens.
+// O dashboard agrupa e filtra em cima disso.
+export async function getSalesReport(req: Request, res: Response) {
+  // Sem período o relatório puxaria o histórico inteiro, que só cresce. O
+  // Dashboard sempre manda `from`; quem chama sem ele recebe o motivo, não um
+  // relatório truncado em silêncio.
+  const query = parseSalesReportQuery(req.query);
+  if (!query.ok) return res.status(400).json({ error: query.error });
+
+  const fromDate = query.data.from;
+
+  try {
+    const sales = await prisma.sale.findMany({
+      where: { date: { gte: fromDate } },
+      orderBy: { date: 'asc' },
+      // Só o que o relatório usa: observação, cliente e parcelas ficam no banco.
+      select: {
+        id: true,
+        date: true,
+        discount: true,
+        items: {
+          select: {
+            quantity: true,
+            unitPrice: true,
+            product: {
+              select: {
+                name: true,
+                brand: { select: { name: true } },
+                category: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const soldItems = sales.flatMap((sale) => {
+      const grossTotal = sumLines(sale.items);
+      const discount = sale.discount || 0;
+
+      return sale.items.map((item) => {
+        const itemGross = lineTotal(item);
+        // Rateio proporcional: um desconto de 10% na venda tira 10% de cada item,
+        // senão a receita por marca/categoria não fecha com o total da venda.
+        const itemDiscount = grossTotal > 0 ? discount * (itemGross / grossTotal) : 0;
+
+        return {
+          saleId: sale.id,
+          date: sale.date,
+          quantity: item.quantity,
+          revenue: itemGross - itemDiscount,
+          productName: item.product.name,
+          brandName: item.product.brand?.name || 'Sem Marca',
+          categoryName: item.product.category?.name || 'Sem Categoria',
+        };
+      });
+    });
+
+    return res.json(soldItems);
+  } catch (error) {
+    console.error("Erro ao gerar o relatório de vendas:", error);
+    return res.status(500).json({ error: "Erro ao gerar o relatório de vendas." });
+  }
+}
 
 export async function getDashboardSummary(_req: Request, res: Response) {
   try {
-    const products = await prisma.product.findMany();
+    // Só as colunas das contas abaixo. Os produtos precisam vir um a um porque o
+    // preço ativo (`getActivePrice`) e a janela de validade (`expiryStatusOf`) são
+    // regras do código — duplicá-las em SQL as deixaria divergir da vitrine e do
+    // caixa. O catálogo é pequeno e limitado; o histórico de vendas, não.
+    const products = await prisma.product.findMany({
+      select: { quantity: true, averageCost: true, sellingPrice: true, promotionalPrice: true, expiryDate: true },
+    });
     
     let totalStockValue = 0;
     let totalExpectedProfit = 0;
-    let lowStockItems = 0;
+    let outOfStockItems = 0;
+    let expiredItems = 0;
+    let expiringSoonItems = 0;
 
     products.forEach(p => {
-      const activePrice = p.promotionalPrice || p.sellingPrice;
+      const activePrice = getActivePrice(p);
       totalStockValue += activePrice * p.quantity;
       totalExpectedProfit += (activePrice - p.averageCost) * p.quantity;
-      
-      if (p.quantity > 0 && p.quantity <= 3) {
-        lowStockItems += 1;
+
+      if (p.quantity === 0) outOfStockItems += 1;
+
+      // Vencimento só interessa em item que ainda está em estoque.
+      //
+      // A classificação sai de `expiryStatusOf` e não de uma comparação local:
+      // `setHours(0,0,0,0)` dava meia-noite **local** contra uma data guardada em
+      // meia-noite **UTC**, e em UTC-3 o produto que vence hoje caía como
+      // vencido. O estoque tem 52 produtos com data — todos contados errado.
+      if (p.quantity > 0) {
+        const status = expiryStatusOf(p.expiryDate);
+        if (status === 'expired') expiredItems += 1;
+        else if (status === 'soon') expiringSoonItems += 1;
       }
     });
 
@@ -34,7 +122,10 @@ export async function getDashboardSummary(_req: Request, res: Response) {
         totalProducts: products.length,
         totalStockValue,
         totalExpectedProfit,
-        lowStockItems
+        outOfStockItems,
+        expiredItems,
+        expiringSoonItems,
+        expiryWarningDays: EXPIRY_WARNING_DAYS
       },
       sales: {
         currentMonthTotal: monthlySales._sum.total || 0,

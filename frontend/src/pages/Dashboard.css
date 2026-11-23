@@ -1,117 +1,109 @@
-/* --- Layout Principal --- */
-.dashboard-container {
-  padding: 2rem 4rem;
-  max-width: 1600px;
+/* Visão geral — Caatinga II. Papel com fio de tinta, números em grotesca. */
+.dash {
+  padding: 40px 48px 64px;
+  max-width: 1400px;
   margin: 0 auto;
-  min-height: 100vh;
-}
-.dashboard-header { margin-bottom: 2rem; }
-.subtitle { color: var(--text-dim); margin-top: -0.5rem; }
-
-/* --- Cards Numéricos --- */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-.stat-card { padding: 1.5rem; }
-.stat-card .label {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.stat-card .value { font-size: 2rem; font-weight: 800; }
-.stat-card.profit { border-left: 4px solid var(--success-color); }
-
-/* --- Barra de Filtros --- */
-.dashboard-filters {
-  display: flex;
-  gap: 1.5rem;
-  background: var(--card-color);
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  margin-bottom: 2rem;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-.filter-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 250px;
-}
-.filter-group label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-transform: uppercase;
+  gap: 24px;
 }
 
-/* --- Botões de Tempo (Pills) --- */
-.time-pills {
-  display: flex;
-  background: var(--input-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.time-pill {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
-  padding: 10px;
-  font-size: 0.85rem;
+.dash-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; border-bottom: 3px solid var(--tinta); padding-bottom: 22px; }
+.dash-head-text { display: flex; flex-direction: column; gap: 10px; }
+.dash-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--coroa); }
+.dash-title { margin: 0; font-size: clamp(40px, 4.4vw, 60px); line-height: 0.95; font-weight: 400; letter-spacing: -0.035em; }
+.dash-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-apagada); }
+
+/* Cartões: papel com fio de tinta */
+.dash-card { background: var(--papel); border: 1.5px solid var(--tinta); box-sizing: border-box; }
+.dash-block { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+.dash-block-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; }
+.dash-h2 { margin: 0; font-size: 28px; font-weight: 400; letter-spacing: -0.01em; }
+.dash-hint { font-size: 13px; color: var(--tinta-suave); }
+.dash-link { font-size: 14px; font-weight: 600; text-underline-offset: 4px; padding: 10px 0; }
+.dash-note { font-size: 14px; color: var(--tinta-suave); }
+.dash-profit { color: #2E6B1A; font-weight: 600; }
+.dash-empty { margin: 0; color: var(--tinta-suave); }
+
+/* Receita grande + dois números empilhados */
+.dash-hero { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.dash-revenue { padding: 28px 30px; display: flex; flex-direction: column; justify-content: space-between; gap: 18px; min-height: 260px; }
+.dash-big {
+  font-family: var(--font-num);
+  font-size: clamp(52px, 8vw, 104px);
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-right: 1px solid var(--border-color);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums lining-nums;
 }
-.time-pill:last-child { border-right: none; }
-.time-pill.active { background: rgba(139, 92, 246, 0.2); color: var(--accent-color); }
+.dash-side { display: flex; flex-direction: column; gap: 16px; }
+.dash-stat { flex: 1 1 0; padding: 22px 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+.dash-mid {
+  font-family: var(--font-num);
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
 
-/* --- Área dos Gráficos --- */
-.charts-grid {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
+/* Situação do estoque: cinco colunas, cada uma com a cor do que mostra */
+.dash-situation { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.dash-sit { border-top: 3px solid var(--tinta); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.dash-sit-value {
+  font-family: var(--font-num);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
 }
-.charts-left-column { display: flex; flex-direction: column; gap: 1.5rem; }
-.chart-card { padding: 1.5rem; }
-.chart-card h3 { margin-bottom: 1.5rem; font-size: 1.1rem; }
+.dash-sit-good { border-top-color: #2E6B1A; }
+.dash-sit-good .dash-sit-value { color: #2E6B1A; }
+.dash-sit-bad { border-top-color: #B3261E; }
+.dash-sit-bad .dash-sit-value { color: #B3261E; }
+.dash-sit-warn { border-top-color: #E8B931; }
+.dash-sit-warn .dash-sit-value { color: #8A5A00; }
 
-/* --- Dropdown de Filtros --- */
-.filter-select {
-  background: var(--input-bg);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  padding: 11px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-}
-.filter-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  background: var(--card-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  z-index: 1000;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-.filter-dropdown-list { max-height: 200px; overflow-y: auto; }
-.filter-dropdown-item { padding: 10px 16px; cursor: pointer; }
-.filter-dropdown-item:hover { background: rgba(255,255,255,0.05); }
+.dash-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
 
-/* --- Responsividade --- */
-@media (max-width: 1100px) { .charts-grid { grid-template-columns: 1fr; } }
+/* Barras do caixa */
+.dash-bars { display: flex; align-items: flex-end; gap: 4px; height: 200px; border-bottom: 1px solid var(--tinta); }
+.dash-bar { flex: 1 1 0; background: var(--mandacaru); min-height: 2px; }
+.dash-bar.is-zero { height: 2px; background: var(--fio); }
+.dash-ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--tinta-apagada); font-variant-numeric: tabular-nums; }
+
+/* Volume por semana */
+.dash-weeks { display: flex; align-items: flex-end; gap: 14px; height: 200px; border-bottom: 1px solid var(--tinta); }
+.dash-week { flex: 1 1 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 6px; }
+.dash-week-value { text-align: center; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dash-week-bar { background: var(--barro); min-height: 2px; }
+.dash-week-bar.is-zero { height: 2px; background: var(--fio); }
+.dash-ticks-bars { gap: 4px; }
+.dash-ticks-bars span { flex: 1 1 0; text-align: center; }
+.dash-week-labels { display: flex; gap: 14px; }
+.dash-week-labels span { flex: 1 1 0; text-align: center; font-size: 12px; color: var(--tinta-apagada); font-variant-numeric: tabular-nums; }
+
+/* Mais vendidos */
+/* Dez posições em duas fileiras de cinco; em tela estreita, cai para menos colunas. */
+.dash-ranking { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.dash-rank { border: 1.5px solid var(--fio); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.dash-rank-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.dash-rank-n { font-family: var(--font-serif); font-style: italic; font-size: 24px; color: var(--coroa); }
+.dash-rank-top strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dash-rank-name { font-family: var(--font-serif); font-size: 18px; line-height: 1.25; flex-grow: 1; overflow-wrap: anywhere; }
+.dash-rank-track { display: block; height: 6px; background: #E6D7BC; }
+.dash-rank-fill { display: block; height: 100%; background: var(--mandacaru); }
+
+/* Esqueleto: a mesma grade, só que os blocos soltos entre si */
+.dash-skeleton { display: flex; flex-direction: column; gap: 24px; }
+.dash-bars-skeleton { gap: 4px; border-bottom-color: var(--fio); }
+.dash-bars-skeleton .skeleton { min-height: 6px; }
+
+@media (max-width: 1100px) { .dash-ranking { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .dash { padding: 28px 20px 48px; }
+  .dash-hero { grid-template-columns: minmax(0, 1fr); }
+  .dash-revenue { min-height: 0; }
+  .dash-ranking { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) { .dash-ranking { grid-template-columns: minmax(0, 1fr); } }

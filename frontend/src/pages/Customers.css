@@ -15,15 +15,15 @@
 }
 
 .customer-row:hover {
-  background-color: rgba(255, 255, 255, 0.03) !important;
+  background-color: color-mix(in oklch, var(--text-main) 3%, transparent) !important;
 }
 
 .customer-row.is-overdue {
-  background-color: rgba(239, 68, 68, 0.08);
+  background-color: color-mix(in oklch, var(--danger-color) 8%, transparent);
 }
 
 .customer-row.is-overdue:hover {
-  background-color: rgba(239, 68, 68, 0.12) !important;
+  background-color: color-mix(in oklch, var(--danger-color) 12%, transparent) !important;
 }
 
 .pending-count {
@@ -38,3 +38,64 @@
   padding: 2rem;
   color: var(--text-dim);
 }
+/* --- Clientes — Caatinga II --- */
+.cu { padding: 40px 48px 64px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 34px; }
+.cu-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; border-bottom: 3px solid var(--tinta); padding-bottom: 22px; }
+.cu-head-text { display: flex; flex-direction: column; gap: 10px; }
+.cu-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--coroa); }
+.cu-title { margin: 0; font-size: clamp(44px, 6vw, 72px); line-height: 0.95; font-weight: 400; letter-spacing: -0.035em; }
+.cu-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-apagada); }
+.cu-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.cu-search { width: 240px; }
+.cu-new { min-height: 44px; padding: 13px 22px; background: var(--mandacaru); border: none; color: var(--papel); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.cu-new:hover { background: #244A3A; }
+
+.cu-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.cu-stat { padding: 4px 24px 4px 0; margin-right: 24px; border-right: 1px solid var(--fio); display: flex; flex-direction: column; gap: 6px; }
+.cu-stat:last-child { border-right: none; }
+.cu-stat-value { font-family: var(--font-num); font-size: 36px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums lining-nums; }
+.cu-bad { color: #B3261E; }
+
+/* Cada cliente é uma linha emoldurada, com um respiro entre elas. */
+.cu-table-wrap { overflow-x: auto; }
+.cu-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; font-size: 15px; min-width: 440px; }
+.cu-table th { text-align: left; padding: 0 12px 2px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
+.cu-table th:first-child { padding-left: 18px; }
+.cu-table th:last-child { padding-right: 18px; }
+.cu-table .num { text-align: right; }
+.cu-table td { padding: 10px 12px; background: var(--papel); border-top: 1.5px solid var(--tinta); border-bottom: 1.5px solid var(--tinta); vertical-align: middle; }
+.cu-table td:first-child { padding-left: 18px; border-left: 1.5px solid var(--tinta); }
+.cu-table td:last-child { padding-right: 18px; border-right: 1.5px solid var(--tinta); }
+.cu-row-late td { background: #F6E3D6; border-color: var(--barro); }
+.cu-open { display: flex; flex-direction: column; gap: 3px; min-height: 44px; justify-content: center; background: none; border: none; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.cu-open strong { font-family: var(--font-serif); font-size: 18px; font-weight: 400; }
+.cu-open span { font-size: 13px; color: var(--tinta-apagada); font-variant-numeric: tabular-nums; }
+.cu-open:hover strong { text-decoration: underline; text-underline-offset: 4px; }
+.cu-pending { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--tinta-suave); }
+.cu-dot { width: 8px; height: 8px; border-radius: 999px; background: transparent; }
+.cu-pending-open { font-weight: 600; color: var(--tinta); }
+.cu-pending-open .cu-dot { background: #E8B931; }
+.cu-pending-late { font-weight: 600; color: #B3261E; }
+.cu-pending-late .cu-dot { background: #B3261E; }
+.cu-debt { font-family: var(--font-num); font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
+.cu-empty { text-align: center; padding: 2.5rem 1rem !important; color: var(--tinta-apagada); }
+.cu-row-actions { display: inline-flex; align-items: center; gap: 4px; }
+.cu-icon { width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: var(--tinta); cursor: pointer; }
+.cu-icon:hover { color: var(--coroa); }
+.cu-row { cursor: pointer; }
+.cu-remove { color: #7E2F22; }
+.cu-remove:hover { color: #B3261E; }
+
+/* Lista e extrato lado a lado; sem extrato, a lista ocupa a largura toda. */
+.cu-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; align-items: start; }
+.cu-body.has-panel { grid-template-columns: minmax(0, 1fr) minmax(360px, 480px); }
+.cu-row.is-selected td { box-shadow: inset 0 -3px 0 var(--mandacaru); }
+@media (max-width: 1100px) { .cu-body.has-panel { grid-template-columns: minmax(0, 1fr); } .statement-panel { position: static; } }
+
+@media (max-width: 900px) { .cu { padding: 28px 20px 48px; } .cu-search { width: 100%; } .cu-actions { width: 100%; } }
+
+/* Esqueleto da primeira carga: mesmas alturas dos valores e das linhas. */
+.cu-sk-stat { display: block; width: 90px; height: 34px; }
+.cu-sk-line { display: block; height: 16px; max-width: 100%; margin: 14px 0; }
+.cu-table td .cu-sk-line { margin-left: 0; }
+.cu-table td.num .cu-sk-line { margin-left: auto; }

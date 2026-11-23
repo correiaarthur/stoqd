@@ -1,106 +1,119 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { SaleError, registerSale } from '../lib/sales.js';
+import { respondWithError } from '../lib/errors.js';
+import { parseSaleCreate, parseSalesQuery } from '../lib/saleInput.js';
+import { checkCoupon } from '../lib/coupons.js';
+import { PRODUCT_PRICING_SELECT, getActivePrice } from '../lib/pricing.js';
+import { sumLines } from '../lib/pricingRules.js';
 
-export async function create(req: Request, res: Response) { 
-  const { customerId, items, installmentsCount = 1, observation, discount = 0 } = req.body;
+export async function create(req: Request, res: Response) {
+  const body = parseSaleCreate(req.body);
+  if (!body.ok) return res.status(400).json({ error: body.error });
 
-  if (!items || items.length === 0) {
-    return res.status(400).json({ error: "A venda precisa ter pelo menos um item." });
-  }
-
-  const discountValue = Number(discount) || 0;
+  const { customerId, items, installmentsCount, observation, discount, paymentType, couponCode } = body.data;
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      
-      let grossTotal = 0;
-      const saleItemsData = [];
+    const sale = await prisma.$transaction(async (tx) => {
+      // O cupom é conferido contra o subtotal real dos produtos no banco, não
+      // contra um total que veio do corpo da requisição.
+      const coupon = couponCode
+        ? await resolveCoupon(tx, couponCode, items)
+        : null;
 
-      for (const item of items) {
-        const product = await tx.product.findUnique({ where: { id: Number(item.productId) } });
-        
-        if (!product) throw new Error(`Produto ID ${item.productId} não encontrado.`);
-        if (product.quantity < item.quantity) throw new Error(`Estoque insuficiente para ${product.name}.`);
-
-        const itemTotal = product.sellingPrice * item.quantity;
-        grossTotal += itemTotal;
-
-        saleItemsData.push({
-          productId: product.id,
-          quantity: item.quantity,
-          unitPrice: product.sellingPrice
-        });
-
-        await tx.product.update({
-          where: { id: product.id },
-          data: { quantity: { decrement: item.quantity } }
-        });
-      }
-
-      if (discountValue > grossTotal) {
-        throw new Error("O desconto não pode ser maior que o valor total da venda.");
-      }
-
-      const finalTotal = grossTotal - discountValue;
-
-      const installmentsData = [];
-      const installmentValue = finalTotal / installmentsCount; 
-      const isPaidUpfront = installmentsCount === 1 && !customerId;
-
-      for (let i = 1; i <= installmentsCount; i++) {
-        const dueDate = new Date();
-        if (!isPaidUpfront) {
-           dueDate.setMonth(dueDate.getMonth() + i);
-        }
-
-        installmentsData.push({
-          number: i,
-          value: installmentValue,
-          dueDate: dueDate,
-          paidAt: isPaidUpfront ? new Date() : null 
-        });
-      }
-
-      const sale = await tx.sale.create({
-        data: {
-          total: finalTotal,
-          discount: discountValue,
-          customerId: customerId ? Number(customerId) : null,
-          observation: observation ? String(observation).trim() : null,
-          items: { create: saleItemsData },
-          installments: { create: installmentsData }
-        },
-        include: {
-          items: true,
-          installments: true
-        }
+      return registerSale(tx, {
+        customerId,
+        // O `unitPrice` que vem do corpo é ignorado de propósito: quem define o
+        // preço é o produto no banco, não quem chama a API.
+        items,
+        discount,
+        installmentsCount,
+        paymentType,
+        observation,
+        coupon,
       });
-
-      return sale;
     });
 
-    return res.status(201).json(result);
-
-  } catch (error: any) {
-    return res.status(400).json({ error: error.message || "Erro ao realizar venda." });
+    return res.status(201).json(sale);
+  } catch (error) {
+    return respondWithError(res, error, "Não foi possível registrar a venda. Tente novamente.");
   }
 }
 
-export async function getRecent(_req: Request, res: Response) {
+export async function list(req: Request, res: Response) {
+  const query = parseSalesQuery(req.query);
+  if (!query.ok) return res.status(400).json({ error: query.error });
+
+  const { from, to, customerId, limit: take } = query.data;
+
+  const dateFilter: { gte?: Date; lte?: Date } = {};
+  if (from) dateFilter.gte = from;
+  if (to) dateFilter.lte = to;
+
   try {
     const sales = await prisma.sale.findMany({
-      take: 20,
+      take,
       orderBy: { date: 'desc' },
+      where: {
+        ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+        ...(customerId ? { customerId } : {}),
+      },
       include: {
-        customer: { select: { name: true } },
+        customer: { select: { id: true, name: true } },
         items: {
           include: { product: { select: { name: true } } }
         },
-        installments: true
+        installments: { orderBy: { number: 'asc' } },
+        order: { select: { id: true } },
+        coupon: { select: { code: true } },
       }
     });
-    return res.json(sales);
+
+    const withStatus = sales.map((sale) => {
+      const grossTotal = sumLines(sale.items);
+      const pending = sale.installments.filter((i) => !i.paidAt);
+
+      return {
+        ...sale,
+        grossTotal,
+        itemsCount: sale.items.reduce((acc, item) => acc + item.quantity, 0),
+        isPaid: pending.length === 0,
+        pendingAmount: pending.reduce((acc, i) => acc + i.value, 0),
+      };
+    });
+
+    return res.json(withStatus);
   } catch (error) {
+    console.error("Erro ao buscar vendas:", error);
     return res.status(500).json({ error: "Erro ao buscar vendas." });
   }
+}
+
+
+/** Subtotal a partir do banco — nunca a partir do que o cliente mandou. */
+export async function subtotalFor(
+  tx: Parameters<typeof registerSale>[0],
+  items: Array<{ productId: number; quantity: number }>
+) {
+  const products = await tx.product.findMany({
+    where: { id: { in: items.map(item => item.productId) } },
+    select: PRODUCT_PRICING_SELECT,
+  });
+
+  const priceById = new Map(products.map(product => [product.id, getActivePrice(product)]));
+
+  return sumLines(items.map(item => ({ quantity: item.quantity, unitPrice: priceById.get(item.productId) ?? 0 })));
+}
+
+async function resolveCoupon(
+  tx: Parameters<typeof registerSale>[0],
+  code: unknown,
+  items: Array<{ productId: number; quantity: number }>
+) {
+  const subtotal = await subtotalFor(tx, items);
+  const result = await checkCoupon(tx, code, subtotal);
+
+  if (!result.ok) throw new SaleError(result.message);
+
+  return { id: result.couponId, discount: result.discount };
 }

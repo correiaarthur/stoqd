@@ -1,0 +1,61 @@
+/* Avisos curtos. Ficam acima dos modais (9999) e do diálogo de confirmação (10000): o aviso de
+   "produto salvo" aparece enquanto o modal ainda está fechando. */
+.toast-region {
+  position: fixed;
+  z-index: 10001;
+  right: var(--gutter, 16px);
+  bottom: max(var(--gutter, 16px), env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 2 * var(--gutter, 16px)));
+  /* A região não rouba clique do que está atrás; só os avisos respondem. */
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 12px 14px 16px;
+  background: var(--papel);
+  color: var(--tinta);
+  border: 1px solid var(--fio);
+  border-top: 4px solid var(--toast-cor);
+  box-shadow: var(--shadow-pop);
+  pointer-events: auto;
+  animation: rise 0.28s var(--ease-out);
+}
+.toast-success { --toast-cor: var(--mandacaru); }
+.toast-error { --toast-cor: var(--estado-erro); }
+
+.toast-icon { flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--toast-cor); }
+
+.toast-message {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--tinta-apagada);
+  cursor: pointer;
+}
+.toast-close svg { width: 16px; height: 16px; }
+.toast-close:hover { background: var(--hover-tint); color: var(--tinta); }
+.toast-close:focus-visible { outline: 2px solid var(--tinta); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

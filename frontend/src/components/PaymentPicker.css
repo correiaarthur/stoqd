@@ -1,0 +1,168 @@
+/* Forma de pagamento, no desenho Caatinga II: linhas separadas por fios, rádio
+   desenhado e as parcelas em cartõezinhos de três colunas. As cores vêm de
+   variáveis: o padrão é papel claro (balcão); o painel verde do visitante as
+   troca. */
+.payment-picker {
+  --pp-text: var(--tinta);
+  --pp-dim: var(--tinta-suave);
+  --pp-line: var(--fio);
+  --pp-radio: var(--coroa);
+  --pp-card-line: var(--tinta-apagada);
+  --pp-active-bg: var(--tinta);
+  --pp-active-fg: var(--papel);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  color: var(--pp-text);
+}
+.checkout-summary-green .payment-picker {
+  --pp-text: var(--areia);
+  --pp-dim: #DCE6DE;
+  --pp-line: #4C7A66;
+  --pp-radio: var(--rosa);
+  --pp-card-line: #5C8A75;
+  --pp-active-bg: var(--areia);
+  --pp-active-fg: var(--tinta);
+}
+
+.payment-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--pp-dim);
+  font-weight: 700;
+}
+/* Para o visitante a pergunta é o título do painel. */
+.payment-picker-customer .payment-label {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--pp-text);
+}
+
+.payment-picker { --pp-drop-bg: var(--papel); }
+.checkout-summary-green .payment-picker { --pp-drop-bg: color-mix(in srgb, #000 30%, var(--mandacaru)); }
+
+/* À vista e parcelado lado a lado, em caixas de fio. */
+.payment-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.payment-group { position: relative; }
+
+.payment-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 4px 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 14px;
+  box-sizing: border-box;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--pp-card-line);
+  border-radius: 0;
+  cursor: pointer;
+  color: var(--pp-text);
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.payment-mode:hover:not(:disabled) { border-color: var(--pp-text); }
+.payment-mode:disabled { cursor: not-allowed; opacity: 0.45; }
+.payment-mode.selected { border-color: var(--pp-radio); }
+
+.payment-radio {
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid var(--pp-dim);
+  flex-shrink: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.payment-mode.selected .payment-radio { border-color: var(--pp-radio); box-shadow: inset 0 0 0 4px var(--pp-radio); }
+
+.payment-mode-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 0; }
+.payment-mode-text strong { font-size: 16px; font-weight: 600; }
+.payment-mode-note { color: var(--pp-dim); font-size: 13px; }
+.payment-mode-value {
+  flex-basis: 100%;
+  padding-left: 32px;
+  font-family: var(--font-num);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Com a lista aberta o botão e ela viram uma peça só: o fundo é o mesmo, a
+   borda de baixo some e a lista começa colada, sem folga. */
+.payment-group.open .payment-mode-header {
+  background: var(--pp-drop-bg);
+  border-color: var(--pp-radio);
+  border-bottom-color: transparent;
+}
+.payment-plans {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  --plan-row: 44px;
+  max-height: calc(var(--plan-row) * 5.5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  background: var(--pp-drop-bg);
+  border: 1px solid var(--pp-radio);
+  border-top: none;
+  animation: plans-unroll 0.2s var(--ease-out, ease-out);
+}
+.payment-plan {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: var(--plan-row);
+  padding: 0 14px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--pp-line);
+  color: var(--pp-text);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.payment-plan:hover { background: color-mix(in srgb, var(--rosa) 28%, transparent); }
+.payment-plan.current { background: var(--rosa); color: var(--tinta); }
+.payment-plan-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+.payment-plan-value { font-family: var(--font-num); font-variant-numeric: tabular-nums lining-nums; }
+.payment-plan-interest { font-size: 12px; opacity: 0.85; white-space: nowrap; }
+/* O total da opção já aparece no cabeçalho e na conta; aqui fica só para leitor de tela. */
+.payment-plan-total {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.payment-hint { color: var(--pp-dim); font-size: 13px; line-height: 1.4; }
+
+@media (max-width: 420px) {
+  .payment-modes { grid-template-columns: minmax(0, 1fr); }
+}
+
+@keyframes plans-unroll { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 -2px 0); } }
+@media (prefers-reduced-motion: reduce) { .payment-plans { animation: none; } }

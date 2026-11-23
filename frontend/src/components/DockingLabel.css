@@ -1,0 +1,51 @@
+/* O fio dobrado: um traço só (o do topo da seção) que, em volta da palavra,
+   sobe e forma a aba. Desenhado em tela cheia, por trás da palavra. */
+.docking-label-frame {
+  --t: 0;
+  position: fixed;
+  top: 0;
+  z-index: 19;
+  overflow: hidden;
+  pointer-events: none;
+}
+.docking-label-line { fill: none; stroke: var(--tinta); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.docking-label-fill { stroke: none; }
+.docking-stop-solid { stop-color: color-mix(in srgb, #C9983F 24%, var(--bg-color)); stop-opacity: 1; }
+.docking-stop-clear { stop-color: color-mix(in srgb, #C9983F 24%, var(--bg-color)); stop-opacity: 0; }
+
+.docking-label {
+  --t: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--tinta);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  cursor: pointer;
+  will-change: transform;
+}
+.docking-label:focus-visible { outline: 2px solid var(--coroa); outline-offset: 2px; }
+.docking-label-text { position: relative; }
+
+/* A seta que avisa que há mais embaixo: some quando a aba baixa. */
+.docking-label-arrow {
+  position: absolute;
+  right: -22px;
+  top: 50%;
+  margin-top: -8px;
+  opacity: var(--t-arrow, 1);
+  animation: docking-nudge 1.6s ease-in-out infinite;
+}
+.docking-label { --t-arrow: calc(1 - var(--t) * 1.4); }
+@keyframes docking-nudge { 0%, 100% { transform: translateY(-1px); } 50% { transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .docking-label-arrow { animation: none; } }

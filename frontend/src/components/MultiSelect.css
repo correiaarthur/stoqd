@@ -1,0 +1,220 @@
+.multiselect {
+  position: relative;
+  /* Cor do menu: o barro, para não se confundir com o verde da sacola. */
+  --menu: var(--barro);
+  --menu-deep: color-mix(in oklch, var(--barro) 52%, var(--vinho));
+  --menu-soft: color-mix(in srgb, var(--papel) 72%, var(--barro));
+}
+
+/* Gatilho: rótulo pequeno em cima, escolha embaixo, fio de tinta em volta. */
+.multiselect-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: center;
+  min-width: 170px;
+  max-width: 240px;
+  min-height: 48px;
+  padding: 6px 18px 6px 20px;
+  background: transparent;
+  border: 1.5px solid var(--tinta);
+  /* Folha, como os cards: tudo redondo menos o canto inferior esquerdo. O raio
+     é explícito (metade da altura) para as pontas ficarem de pílula. */
+  border-radius: 24px 24px 24px 0;
+  color: var(--tinta);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.multiselect-trigger:hover { background: var(--hover-tint); }
+.multiselect-label {
+  grid-column: 1;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--tinta-apagada);
+}
+.multiselect-value {
+  grid-column: 1;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.multiselect-caret { grid-column: 2; grid-row: 1 / 3; transition: transform 0.2s var(--ease-out); }
+.is-open .multiselect-caret { transform: rotate(180deg); }
+
+/* Com escolha feita, o gatilho vira a cor do menu. */
+.has-value .multiselect-trigger { background: var(--menu); border-color: var(--menu); color: var(--papel); }
+.has-value .multiselect-label { color: var(--menu-soft); }
+
+.multiselect-popover {
+  position: absolute;
+  /* Colado na pílula: o fio de cima dele cai sobre o de baixo dela. */
+  top: calc(100% - 1.5px);
+  z-index: 60;
+  min-width: max(100%, 240px);
+  background: var(--papel);
+  border: 1.5px solid var(--tinta);
+  /* Folha, como os produtos: o canto sem curva fica junto do botão. */
+  border-radius: 0 18px 18px 18px;
+  left: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-pop);
+  animation: unroll 0.32s var(--ease-out) both;
+}
+/* Desenrola de cima para baixo, como uma persiana. O recorte passa da caixa
+   nas laterais e embaixo para a sombra não aparecer cortada no fim. */
+@keyframes unroll {
+  from { clip-path: inset(0 -40px 100% -40px); }
+  to { clip-path: inset(0 -40px -60px -40px); }
+}
+.is-closing .multiselect-popover { animation: rollup 0.18s cubic-bezier(0.5, 0, 0.75, 0) both; }
+@keyframes rollup {
+  from { clip-path: inset(0 -40px -60px -40px); }
+  to { clip-path: inset(0 -40px 100% -40px); }
+}
+.multiselect-option { animation: optionDrop 0.3s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 25ms); }
+@keyframes optionDrop {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+/* Altura fixa por opção para a conta da lista fechar: cabem seis opções e
+   60% da sétima. Mais que a metade, para ainda se ler o item cortado; menos
+   que a maior parte, para o corte ficar óbvio. É isso que avisa, sem seta
+   nem texto, que a lista continua para baixo. */
+.multiselect { --option-h: 44px; }
+.multiselect-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  max-height: calc(6.6 * var(--option-h) + 6px);
+  overflow-y: auto;
+  outline: none;
+}
+.multiselect-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--option-h);
+  box-sizing: border-box;
+  padding: 8px 14px;
+  font-size: 15px;
+  cursor: pointer;
+}
+.multiselect-option:hover, .multiselect-option.is-active { background: var(--hover-tint); }
+.multiselect-list:focus-visible .multiselect-option.is-active { outline: 2px solid var(--coroa); outline-offset: -2px; }
+.multiselect-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--tinta);
+  color: var(--papel);
+}
+.multiselect-option[aria-selected="true"] .multiselect-check { background: var(--menu); border-color: var(--menu); }
+.multiselect-option[aria-selected="true"] .multiselect-name { font-weight: 600; }
+.multiselect-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multiselect-count { font-size: 13px; color: var(--tinta-apagada); }
+.multiselect-clear {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--fio);
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+
+
+/* Apoiada pela direita: a lista termina na borda direita da pílula e o canto
+   reto passa para esse lado. O lado vem do componente (prop `align`, virado
+   se não couber na tela). */
+.multiselect-popover[data-align="end"] { left: auto; right: 0; border-radius: 18px 0 18px 18px; }
+
+/* Menu colorido, como a prévia da sacola: aberto, o botão e a lista são uma
+   peça só em verde — sem contorno entre eles e com texto claro. O botão perde
+   a curva de baixo à direita para emendar na lista, como uma aba. */
+.multiselect.is-open .multiselect-trigger,
+.multiselect.is-open .multiselect-trigger:hover {
+  background: var(--menu);
+  border-color: var(--menu);
+  border-bottom-right-radius: 0;
+  color: var(--papel);
+}
+.multiselect.is-open .multiselect-label { color: var(--menu-soft); }
+.multiselect.is-open .multiselect-value { color: var(--papel); }
+
+.multiselect-popover {
+
+  background: linear-gradient(to bottom, var(--menu) 0, var(--menu-deep) 100%);
+  border: none;
+  color: var(--papel);
+}
+.multiselect-option:hover,
+.multiselect-option.is-active { background: color-mix(in srgb, var(--papel) 14%, transparent); }
+.multiselect-check { border-color: color-mix(in srgb, var(--papel) 70%, transparent); color: var(--menu); }
+.multiselect-option[aria-selected="true"] .multiselect-check { background: var(--papel); border-color: var(--papel); }
+.multiselect-count { color: var(--menu-soft); }
+.multiselect-clear { color: var(--papel); border-top-color: color-mix(in srgb, var(--papel) 28%, transparent); }
+.multiselect-list:focus-visible .multiselect-option.is-active { outline-color: var(--rosa); }
+
+/* Sempre colorido, tenha ou não uma escolha: os filtros formam uma família, e
+   a cor deixa de dizer "há filtro ligado". Quem diz isso é o ponto antes do
+   valor. */
+.multiselect-trigger { background: var(--menu); border-color: var(--menu); color: var(--papel); }
+.multiselect-trigger:hover { background: var(--menu-deep); border-color: var(--menu-deep); }
+.multiselect-label { color: var(--menu-soft); }
+.multiselect-value { color: var(--papel); }
+.has-value .multiselect-value::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: var(--papel);
+  vertical-align: 1px;
+}
+
+/* Esmaecer das pontas: enquanto há mais para rolar, os últimos pixels da lista
+   se dissolvem no fundo colorido, como se o conteúdo continuasse além da borda
+   — embaixo sempre que há mais, e em cima depois de rolar.
+   É uma máscara sobre a própria lista — e não um desfoque de fundo, que
+   deixava uma faixa estranha na última linha ao se misturar com o recorte e a
+   animação do menu. A máscara é fixa na caixa visível (não rola junto) e o
+   tamanho do esmaecer anima de 0 até o máximo, então ao chegar no fim da lista
+   ele se desfaz sem pulo. */
+@property --fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.multiselect-list {
+  --fade: 0px;
+  --fade-top: 0px;
+  transition: --fade 0.2s, --fade-top 0.2s;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent calc(var(--fade-top) * 0.4), #000 var(--fade-top), #000 calc(100% - var(--fade)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, transparent calc(var(--fade-top) * 0.4), #000 var(--fade-top), #000 calc(100% - var(--fade)), transparent 100%);
+}
+.multiselect-list[data-more="true"] { --fade: 46px; }
+/* O topo esmaece menos que a base, e os primeiros 40% dele são totalmente
+   transparentes: um pedaço fino de opção que sai por cima desaparece de vez,
+   em vez de deixar uma faixa clara rente à pílula. */
+.multiselect-list[data-less="true"] { --fade-top: 26px; }

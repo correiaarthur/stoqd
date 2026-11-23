@@ -6,3 +6,154 @@
   transition: opacity 0.2s;
 }
 .input-date-styled::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+/* --- Coluna de produto: miniatura + nome --- */
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.product-cell > div { min-width: 0; }
+.product-thumb {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--card-color);
+}
+.product-thumb-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  opacity: 0.45;
+}
+
+/* --- Validade --- */
+.badge-expiry-expired { background: var(--danger-bg); color: var(--danger-color); }
+.badge-expiry-soon { background: color-mix(in oklch, var(--warning-color) 14%, transparent); color: var(--warning-color); }
+.badge-expiry-ok { background: transparent; color: var(--text-dim); font-weight: 500; padding-left: 0; }
+
+/* --- Preço promocional --- */
+.text-promo { color: var(--accent-color); font-weight: 700; }
+
+/* --- Estoque — Caatinga II --- */
+.inv { padding: 40px 48px 64px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 34px; }
+.inv-head { display: flex; flex-direction: column; gap: 10px; border-bottom: 3px solid var(--tinta); padding-bottom: 22px; }
+.inv-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--coroa); }
+.inv-title { margin: 0; font-size: clamp(44px, 6vw, 72px); line-height: 0.95; font-weight: 400; letter-spacing: -0.035em; }
+.inv-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-apagada); }
+
+.inv-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.inv-stat { padding: 4px 24px 4px 0; margin-right: 24px; border-right: 1px solid var(--fio); display: flex; flex-direction: column; gap: 6px; }
+.inv-stat:last-child { border-right: none; }
+.inv-stat-value {
+  font-family: var(--font-num);
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.inv-good { color: #2E6B1A; }
+.inv-bad { color: #B3261E; }
+.inv-muted { color: var(--tinta-apagada); }
+
+.inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.inv-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.inv-filter {
+  min-height: 44px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--fio);
+  color: var(--tinta);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.inv-filter:hover { background: color-mix(in srgb, var(--tinta) 6%, transparent); }
+.inv-filter[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: var(--papel); font-weight: 600; }
+.inv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.inv-search { width: 260px; }
+.inv-new {
+  min-height: 44px;
+  padding: 13px 22px;
+  background: var(--mandacaru);
+  border: none;
+  color: var(--papel);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.inv-new:hover { background: #244A3A; }
+
+.inv-table-wrap { overflow-x: auto; }
+.inv-table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 900px; }
+.inv-table thead tr { border-bottom: 2px solid var(--tinta); }
+.inv-table th {
+  text-align: left;
+  padding: 0 16px 12px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.inv-table th:first-child, .inv-table td:first-child { padding-left: 0; }
+.inv-table th:last-child, .inv-table td:last-child { padding-right: 0; }
+.inv-table .num { text-align: right; }
+.inv-table td { padding: 16px; border-bottom: 1px solid var(--fio); vertical-align: middle; font-variant-numeric: tabular-nums; }
+.inv-product { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.inv-product strong { font-family: var(--font-serif); font-size: 18px; font-weight: 400; }
+.inv-product span { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tinta-apagada); }
+
+.inv-pill {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.inv-pill-ok { background: #D3E6C8; color: #1F4D12; }
+.inv-pill-low { background: #E8B931; color: var(--tinta); }
+.inv-pill-zero { background: #B3261E; color: #FFFFFF; }
+.inv-date { font-size: 14px; color: var(--tinta-suave); white-space: nowrap; }
+.inv-date-none { color: #6E604F; }
+.inv-cost { color: var(--tinta-suave); }
+.inv-sell { font-weight: 600; }
+.inv-was { font-weight: 400; color: var(--tinta-apagada); }
+.inv-promo { color: var(--coroa); font-weight: 700; }
+.inv-margin { font-weight: 600; }
+.inv-empty { text-align: center; padding: 2.5rem 1rem; color: var(--tinta-apagada); }
+
+.inv-row-actions { display: inline-flex; align-items: center; gap: 4px; }
+.inv-edit {
+  min-height: 44px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  color: var(--tinta);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.inv-edit:hover { color: var(--coroa); }
+.inv-remove {
+  width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #7E2F22;
+  cursor: pointer;
+}
+.inv-remove:hover { color: #B3261E; }
+
+@media (max-width: 900px) { .inv { padding: 28px 20px 48px; } .inv-search { width: 100%; } .inv-actions { width: 100%; } }

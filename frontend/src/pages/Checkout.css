@@ -1,0 +1,783 @@
+/* --- Checkout: a única tela de fechar compra, do visitante e do balcão --- */
+.checkout-page { max-width: 1240px; gap: 22px; }
+
+.checkout-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+
+.checkout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 14px;
+}
+.checkout-head-text { display: flex; flex-direction: column; gap: 14px; }
+.checkout-kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--coroa); }
+.checkout-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(44px, 6vw, 80px);
+  line-height: 0.95;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+.checkout-title em { color: var(--mandacaru); }
+
+.checkout-empty {
+  padding: 4rem 3rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+.checkout-empty-icon { color: var(--border-color); }
+.checkout-empty-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.checkout-empty-text h2 {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-main);
+}
+.checkout-empty p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  max-width: 46ch;
+  line-height: 1.6;
+}
+.checkout-empty .btn-primary { text-decoration: none; }
+
+/* Duas colunas iguais, como no desenho: os produtos e o pagamento. */
+.checkout-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: 56px;
+  align-items: start;
+}
+.checkout-main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.checkout-coupon { margin-top: 12px; }
+
+/* --- Lista de itens --- */
+/* Uma página destacada de um bloquinho: papel com a borda de cima picotada
+   (os dentes do arranque), as linhas do caderno e a margem rosa à esquerda. A
+   sombra dura embaixo a descola da página. */
+.checkout-items {
+  --margem: 2.6rem;
+  position: relative;
+  padding: 1.75rem 1.5rem 1.5rem calc(var(--margem) + 1.1rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--papel);
+  border-top: none;
+  border-radius: 0;
+  /* drop-shadow, e não box-shadow: ela segue o contorno desenhado, dentes
+     incluídos, em vez do retângulo da caixa. */
+  filter: drop-shadow(5px 6px 0 color-mix(in srgb, var(--barro) 30%, var(--areia)));
+}
+/* Os dentes do arranque, em cima: triângulos na cor do papel. */
+.checkout-items::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -10px;
+  height: 10px;
+  background: conic-gradient(from 135deg at 50% 0, var(--papel) 0 90deg, #0000 0) 0 0 / 18px 100%;
+}
+/* A margem do caderno: duas linhas finas em rosa, de ponta a ponta. */
+.checkout-items::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--margem);
+  width: 4px;
+  border-left: 1px solid color-mix(in srgb, var(--rosa) 70%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--rosa) 70%, transparent);
+  pointer-events: none;
+}
+/* O conteúdo da página fica por cima da margem. */
+.checkout-items > * { position: relative; z-index: 1; }
+.checkout-items > .stock-checking { margin-bottom: 1rem; }
+
+/* O prazo da reserva, grande, à direita do título. A barra encolhendo mostra o
+   tempo passando de canto de olho. */
+.reservation-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding-left: 28px;
+  border-left: 1px solid #C9B89A;
+  min-width: 190px;
+}
+.reservation-timer-text { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--tinta-suave); }
+.reservation-timer-clock {
+  font-family: var(--font-serif);
+  font-size: clamp(44px, 5vw, 64px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
+}
+.reservation-timer.expired .reservation-timer-clock,
+.reservation-timer.expired .reservation-timer-text { color: var(--barro); }
+.reservation-timer-track { align-self: stretch; height: 4px; margin-top: 8px; background: var(--fio); overflow: hidden; }
+.reservation-timer-fill { height: 100%; background: var(--mandacaru); transition: width 1s linear; }
+
+/* O aviso de estoque: um bilhete mostarda, que também resolve. */
+.stock-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 18px 22px;
+  background: #F2D48A;
+  border: 1.5px solid var(--tinta);
+}
+.stock-alert-text {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.45;
+  color: var(--tinta);
+}
+.stock-alert-text strong { font-weight: 600; }
+.stock-alert-fix {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 10px 18px;
+  background: var(--tinta);
+  color: var(--papel);
+  border: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.stock-alert-fix:hover { background: #3A2E22; }
+
+/* O botão travado explica o motivo em vez de só apagar. */
+.checkout-blocked {
+  display: block;
+  color: var(--danger-color);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.checkout-alert {
+  background: var(--danger-bg);
+  border: 1px solid color-mix(in oklch, var(--danger-color) 30%, transparent);
+  color: var(--danger-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+.checkout-success {
+  background: var(--success-bg);
+  border: 1px solid color-mix(in oklch, var(--success-color) 30%, transparent);
+  color: var(--success-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* O item como no desenho: miniatura à esquerda; à direita, nome e subtotal em
+   cima, quantidade, preço unitário e "Remover" embaixo — tudo sobre a pauta. */
+.checkout-item {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  padding: 1.1rem 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, #6F8CA8 38%, var(--papel));
+  border-radius: 0;
+}
+.checkout-item:last-child { border-bottom: none; }
+.checkout-item.short {
+  /* O realce passa da imagem e do preço, com folga, para não parecer cortado. */
+  margin: 0 -1rem 0 -0.8rem;
+  padding-left: 0.8rem;
+  padding-right: 1rem;
+  background: color-mix(in srgb, var(--barro) 10%, transparent);
+}
+.checkout-item.sold-out { opacity: 0.75; }
+.checkout-item.sold-out .checkout-item-main h3 { text-decoration: line-through; text-decoration-color: var(--tinta-apagada); }
+
+.checkout-item-image {
+  width: 92px;
+  height: 116px;
+  border-radius: 14px 14px 14px 0;
+  background: color-mix(in srgb, var(--barro) 20%, var(--papel));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.checkout-item-image img { width: 100%; height: 100%; object-fit: cover; }
+.checkout-item-placeholder { color: var(--tinta-apagada); }
+
+.checkout-item-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.checkout-item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.checkout-item-main h3 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.checkout-item-subtotal {
+  font-family: var(--font-num);
+  font-size: 19px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.checkout-item-price { font-size: 14px; color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+.checkout-item-warning { display: block; color: var(--barro); font-size: 14px; font-weight: 600; }
+.checkout-item-fix {
+  background: none;
+  border: none;
+  color: var(--barro);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font: inherit;
+  padding: 0 0 0 6px;
+}
+.checkout-item-reserved { display: block; color: var(--mandacaru); font-size: 14px; }
+
+.checkout-item-controls { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+.qty-controls { display: flex; align-items: center; border: 1px solid var(--tinta); border-radius: 12px 12px 12px 0; overflow: hidden; }
+.qty-controls button {
+  width: 32px;
+  height: 34px;
+  background: transparent;
+  border: none;
+  color: var(--tinta);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+.qty-controls button:hover { background: color-mix(in srgb, var(--tinta) 8%, transparent); }
+.qty-controls span { min-width: 26px; text-align: center; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.btn-remove {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 12px 12px 12px 0;
+  color: #7E2F22;
+  cursor: pointer;
+}
+.btn-remove:hover { background: #F6E3D6; }
+
+@media (max-width: 720px) {
+  .checkout-items { --margem: 1.4rem; padding: 1.5rem 1rem 1.25rem calc(var(--margem) + 0.9rem); }
+  .checkout-item { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; }
+  .checkout-item-image { width: 72px; height: 92px; }
+  .checkout-item-top { flex-direction: column; gap: 4px; }
+}
+
+/* --- Coluna do resumo --- */
+.checkout-summary {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.checkout-summary h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.checkout-summary .form-group { margin: 0; }
+.checkout-summary .form-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.checkout-note {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* O valor da parcela desce sob o NÚMERO do total, não sob a palavra "TOTAL":
+   é a mesma quantia dita de outro jeito, e ler as duas na mesma coluna deixa
+   isso óbvio. */
+.total-installments {
+  display: block;
+  text-align: right;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  margin-top: -0.2rem;
+}
+
+.checkout-hint {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.btn-checkout {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  box-sizing: border-box;
+}
+
+.total-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+}
+.total-row-sub, .total-row-discount { font-size: 0.9rem; color: var(--text-dim); }
+.total-row-discount { color: var(--accent-color); }
+
+.total-label {
+  color: var(--text-dim);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Deixou de ser <h2>: uma quantia não é título de seção, e como <h2> ela
+   herdava o filete de `.checkout-summary h2` — que tem especificidade maior
+   que esta classe, então nem `border: none` aqui apagava a linha. Virando
+   <span>, o problema some na raiz em vez de ser abafado com !important. */
+.total-value {
+  /* Grotesca dos números, e não a serifada dos títulos (algarismos de alturas
+     diferentes), no verde-escuro da marca: lê-se de relance e com contraste. */
+  font-family: var(--font-num);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--mandacaru);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* --- Bloco de cliente, herdado do PDV --- */
+.checkout-customer {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  z-index: 100;
+}
+
+.custom-select-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.checkout-customer-select {
+  width: 100%;
+  background: var(--campo);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 12px 36px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.checkout-customer-select:focus { border-color: var(--accent-color); }
+
+.select-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.select-icon.user-icon { left: 12px; }
+.select-icon.chevron-icon { right: 12px; }
+.select-icon.clear-icon { right: 12px; cursor: pointer; pointer-events: auto; }
+.select-icon.clear-icon:hover { color: var(--danger-color); }
+
+.customer-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-pop);
+  z-index: 101;
+}
+
+.customer-dropdown-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid color-mix(in oklch, var(--text-main) 2%, transparent);
+  transition: background 0.2s;
+}
+.customer-dropdown-item:hover {
+  background: color-mix(in oklch, var(--accent-color) 10%, transparent);
+  color: var(--accent-color);
+}
+
+.special-item {
+  color: var(--accent-color);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.customer-phone-dropdown {
+  font-size: 0.8rem;
+  margin-left: 8px;
+  color: var(--text-dim);
+}
+
+.btn-new-customer {
+  background: var(--accent-color);
+  color: var(--on-accent);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  padding: 0 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-new-customer:hover { background: var(--coroa-escura); border-color: var(--coroa-escura); }
+
+/* Os campos de escrever do painel: o fundo sombreado avisa que ali se preenche. */
+.checkout-summary .input-standard {
+  padding-left: 12px;
+  padding-right: 12px;
+  background: var(--campo);
+  /* Sem a linha preta embaixo: o fundo já marca o campo. Ela só volta, em rosa,
+     com o foco. */
+  border-bottom-color: transparent;
+  border-radius: 10px;
+}
+.checkout-summary .input-standard:focus { border-bottom-color: var(--coroa); }
+
+.checkout-discount-group { display: flex; gap: 0.5rem; }
+.checkout-discount-group .input-standard { flex: 1; min-width: 0; }
+
+.checkout-discount-toggle {
+  display: flex;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.checkout-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.checkout-toggle-btn.active {
+  background: var(--accent-color);
+  color: var(--on-accent);
+}
+
+@media (max-width: 900px) {
+  .checkout-layout { grid-template-columns: 1fr; }
+  .checkout-summary { position: static; }
+}
+
+/* Aviso, não impedimento: o balcão vende o que está na prateleira mesmo quando
+   alguém no site reservou aquela unidade. */
+.checkout-item-reserved {
+  display: block;
+  margin-top: 6px;
+  color: var(--accent-color);
+  font-size: 0.85rem;
+}
+
+/* Bloco de totais: produtos, cupom, desconto, juros e o total — as linhas
+   precisam ficar coladas para lerem como uma conta, não como campos soltos. */
+.checkout-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Juros sobem o total, então sobem em cor diferente do desconto, que desce. */
+.total-row-interest {
+  font-size: 0.9rem;
+  color: var(--danger-color);
+}
+
+
+/* --- Decisão 3: o painel do admin em blocos --- */
+/* Seis campos empilhados numa coluna de 320px não têm hierarquia nenhuma.
+   Separados por título e filete, o olho encontra o que procura. */
+.checkout-summary-blocks {
+  padding: 0;
+  gap: 0;
+}
+
+.checkout-block {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.checkout-block + .checkout-block { border-top: 1px solid var(--border-color); }
+
+.checkout-block-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+/* --- Conferência de estoque em andamento --- */
+.stock-checking {
+  margin: 0 0 12px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--tinta-apagada);
+}
+.checkout-item-skeleton { width: 140px; margin-top: 8px; }
+.checkout-item-photo { width: 100%; height: 100%; }
+.checkout-item-photo .lazy-img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; }
+.checkout-item-photo:has(.is-loaded)::after { display: none; }
+
+/* --- O painel de pagamento do visitante: bloco verde --- */
+.checkout-summary-green {
+  position: sticky;
+  top: 1.5rem;
+  padding: 36px;
+  gap: 26px;
+  background: var(--mandacaru);
+  color: var(--areia);
+}
+.checkout-summary-green .checkout-summary-title,
+.checkout-summary-green h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--font-serif);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--areia);
+}
+.checkout-summary-green h2 em { color: var(--rosa); }
+
+.checkout-summary-green .checkout-totals { gap: 10px; padding-top: 0; border-top: none; }
+.checkout-summary-green .total-row-sub { font-size: 15px; color: #E6EDE7; font-variant-numeric: tabular-nums; }
+.checkout-summary-green .total-row-discount { color: #E6EDE7; }
+.checkout-summary-green .total-row-interest { color: #F4C6D7; }
+.checkout-summary-green .total-row-final {
+  align-items: baseline;
+  padding-top: 14px;
+  border-top: 1px solid #4C7A66;
+}
+.checkout-summary-green .total-label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--areia);
+}
+.checkout-summary-green .total-value { font-size: 44px; font-weight: 600; color: var(--papel); }
+.checkout-summary-green .total-installments { color: #DCE6DE; }
+
+.checkout-summary-green .form-group label { color: #CFE0D5; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
+/* Campo escuro sobre o verde: avisa que ali se escreve. */
+.checkout-summary-green .input-standard {
+  background: color-mix(in srgb, #000 28%, var(--mandacaru));
+  color: var(--areia);
+  border-radius: 0;
+}
+.checkout-summary-green .input-standard::placeholder { color: #8FB0A0; }
+.checkout-summary-green .input-standard:focus { border-bottom-color: var(--rosa); }
+
+.checkout-summary-green .checkout-note { font-size: 13px; line-height: 1.6; color: #DCE6DE; }
+.checkout-summary-green .checkout-blocked { color: #F4C6D7; text-align: left; }
+.checkout-summary-green .checkout-alert { background: #F6E3D6; border-color: var(--barro); color: #7E2F22; border-radius: 0; }
+
+.checkout-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 18px 24px;
+  box-sizing: border-box;
+  background: var(--coroa);
+  color: #FFF6EA;
+  border: none;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.checkout-cta:hover:not(:disabled) { background: var(--coroa-escura); color: #FFF6EA; }
+.checkout-cta:disabled { background: color-mix(in srgb, #000 20%, var(--mandacaru)); color: #8FB0A0; cursor: not-allowed; }
+.checkout-cta-ghost { background: transparent; border: 1.5px solid var(--areia); color: var(--areia); justify-content: center; }
+.checkout-cta-ghost:hover:not(:disabled) { background: var(--areia); color: var(--tinta); }
+
+@media (max-width: 760px) {
+  .checkout-summary-green { position: static; padding: 26px 20px; }
+  .reservation-timer { align-items: flex-start; border-left: none; padding-left: 0; }
+}
+
+/* O painel do balcão é o mesmo bloco verde, em três partes separadas por fios. */
+.checkout-summary-green.checkout-summary-blocks { padding: 0; gap: 0; }
+.checkout-summary-green .checkout-block { padding: 16px 28px; gap: 10px; }
+.checkout-summary-green .checkout-block + .checkout-block { border-top: 1px solid #4C7A66; }
+.checkout-summary-green .checkout-block-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #CFE0D5;
+}
+.checkout-summary-green .checkout-block .checkout-totals { padding-top: 0; }
+
+/* Cliente e desconto, em campos escuros sobre o verde. */
+.checkout-summary-green .checkout-customer-select {
+  background: color-mix(in srgb, #000 28%, var(--mandacaru));
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  border-radius: 0;
+  color: var(--areia);
+}
+.checkout-summary-green .checkout-customer-select::placeholder { color: #8FB0A0; }
+.checkout-summary-green .checkout-customer-select:focus { border-bottom-color: var(--rosa); }
+.checkout-summary-green .select-icon { color: #CFE0D5; }
+.checkout-summary-green .customer-dropdown-menu { background: var(--papel); color: var(--tinta); border: 1.5px solid var(--tinta); border-radius: 0; }
+.checkout-summary-green .btn-new-customer { background: var(--coroa); border-color: var(--coroa); color: #FFF6EA; border-radius: 12px 12px 12px 0; }
+.checkout-summary-green .btn-new-customer:hover { background: var(--coroa-escura); border-color: var(--coroa-escura); }
+.checkout-summary-green .checkout-discount-toggle { background: transparent; border: 1px solid #5C8A75; border-radius: 12px 12px 12px 0; overflow: hidden; }
+.checkout-summary-green .checkout-toggle-btn { color: var(--areia); }
+.checkout-summary-green .checkout-toggle-btn.active { background: var(--areia); color: var(--tinta); }
+.checkout-summary-green .checkout-success { background: #DDE9C8; border-color: #2E6B1A; color: #234F14; border-radius: 0; }
+
+/* Balcão: o formulário compacto — menos ar entre campos e linhas de pagamento. */
+.checkout-summary-blocks .payment-picker { gap: 0.5rem; }
+.checkout-summary-blocks .total-row-final { padding-top: 10px; }
+.checkout-summary-blocks .total-value { font-size: 38px; }
+.checkout-summary-blocks .checkout-cta { padding: 15px 24px; }
+
+/* Campos mais baixos, rótulos colados e a observação sem rótulo (o placeholder diz o que é). */
+.checkout-summary-blocks .input-standard,
+.checkout-summary-blocks .checkout-customer-select { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+.checkout-summary-blocks .checkout-discount-toggle { align-self: stretch; }
+.checkout-summary-blocks .checkout-toggle-btn { padding: 0 12px; }
+.checkout-summary-blocks .form-group label { margin-bottom: 4px; }
+.checkout-summary-blocks .checkout-block-obs label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.checkout-summary-blocks .payment-mode-text { gap: 1px; }
+.checkout-summary-blocks .total-value { font-size: 34px; }
+.checkout-summary-blocks .total-row-final { padding-top: 8px; }
+.checkout-summary-blocks .checkout-totals { gap: 6px; }
+
+/* --- Campos no idioma do desenho: sem fundo, só o fio embaixo (como o cupom) --- */
+.checkout-summary-green .input-standard,
+.checkout-summary-green .checkout-customer-select,
+.checkout-summary-blocks .input-standard,
+.checkout-summary-blocks .checkout-customer-select {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid #8FB0A0;
+  border-radius: 0;
+  padding: 10px 0;
+  min-height: 44px;
+  font-size: 17px;
+  color: var(--areia);
+}
+.checkout-summary-green .checkout-customer-select { padding-left: 28px; padding-right: 28px; }
+.checkout-summary-green .input-standard:focus,
+.checkout-summary-green .checkout-customer-select:focus { border-bottom-color: var(--rosa); }
+.checkout-summary-green .select-icon.user-icon { left: 0; }
+.checkout-summary-green .select-icon.chevron-icon,
+.checkout-summary-green .select-icon.clear-icon { right: 0; }
+.checkout-summary-green .checkout-customer { align-items: flex-end; gap: 18px; }
+.checkout-summary-green .btn-new-customer { min-height: 44px; }
+
+.checkout-summary-green .customer-dropdown-menu {
+  top: 100%;
+  box-shadow: 5px 5px 0 var(--tinta);
+}
+.checkout-summary-green .customer-dropdown-item {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--fio);
+}
+.checkout-summary-green .customer-dropdown-item:hover { background: var(--areia); color: var(--tinta); }
+.checkout-summary-green .special-item { color: var(--mandacaru); font-style: italic; }
+.checkout-summary-green .customer-phone-dropdown { font-family: var(--font-sans, inherit); font-size: 13px; color: var(--tinta-suave); }
+
+/* Título dos blocos: a serifada do desenho, em itálico, com o fio embaixo. */
+.checkout-summary-green .checkout-block-title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--areia);
+}

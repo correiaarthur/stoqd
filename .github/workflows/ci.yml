@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Valores só de teste: o setup de integração aponta tudo para o Postgres
+      # descartável da porta 5433 (docker compose) e recusa banco que não seja local.
+      JWT_SECRET: ci-only-secret-with-at-least-32-characters
+      ADMIN_EMAIL: admin@ci.test
+      ADMIN_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:integration
+      - if: always()
+        run: npm run test:db:down
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  # Os baselines do Playwright foram gerados no macOS; renderização de fonte e
+  # antialiasing diferem no Linux, então o e2e visual fica fora do CI até os
+  # baselines serem regenerados num runner Linux.
+
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [backend, frontend]
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Bloqueia só o crítico: o backend ainda carrega 3 "high" do CLI do
+      # prisma (via `effect`), que só saem com `npm audit fix --force`.
+      - run: npm audit --omit=dev --audit-level=critical
+      # Visibilidade, sem travar: lista tudo o que for alto.
+      - run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true

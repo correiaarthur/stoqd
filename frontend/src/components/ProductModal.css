@@ -1,0 +1,15 @@
+/* --- Aviso de recadastro (produto que já existe) --- */
+.restock-notice {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-color);
+  background: color-mix(in oklch, var(--accent-color) 8%, transparent);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.restock-warning {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in oklch, var(--warning-color) 35%, transparent);
+  color: var(--warning-color);
+}

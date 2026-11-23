@@ -1,98 +1,116 @@
-/* --- Estrutura Principal --- */
-.global-header {
-  width: 100%;
-  background-color: var(--card-color);
-  border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-}
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0.8rem 2rem;
-  display: flex;
+/* --- Marca --- */
+.logo {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  gap: calc(var(--logo-size) * 0.3);
+  line-height: 1;
+}
+.logo-name {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: calc(var(--logo-size) * 1.2);
+  letter-spacing: -0.04em;
 }
 
-/* --- Áreas do Header --- */
-.brand-area {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
-  flex: 0 0 220px;
+/* --- Conta: link discreto, sublinhado --- */
+.account-links { display: inline-flex; align-items: center; gap: 18px; font-size: 14px; }
+.account-links a, .account-links button {
+  padding: 10px 0;
+  background: none;
+  border: none;
+  color: var(--tinta);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--tinta) 35%, transparent);
+  cursor: pointer;
 }
-.header-center { flex: 1; display: flex; justify-content: center; }
-.header-nav { display: flex; gap: 8px; justify-content: flex-end; flex: 0 0 auto; }
+.account-links a:hover, .account-links button:hover { color: var(--mandacaru); text-decoration-color: currentColor; }
 
-/* --- Links de Navegação --- */
-.nav-link {
-  display: flex;
+/* --- Sacola: o único bloco cheio do cabeçalho ---
+   Mandacaru, reta nos cantos inferior esquerdo e superior direito: a folha
+   na diagonal. */
+.bag-link {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  text-decoration: none;
-  color: var(--text-dim);
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: all 0.2s;
-  font-size: 0.85rem;
+  min-height: 48px;
+  padding: 10px 20px;
+  background: var(--mandacaru);
+  color: var(--papel);
   font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  border-radius: 24px 0 24px 0;
+  white-space: nowrap;
 }
-.nav-icon {
+.bag-link:hover { background: #244A3A; color: var(--papel); }
+.bag-count { font-family: var(--font-num); font-weight: 600; font-size: 15px; opacity: 0.9; }
+
+/* --- Cabeçalho da vitrine: uma faixa só, grudada no topo ---
+   Sem fios entre faixas: só uma sombra suave separa o cabeçalho dos produtos
+   que passam por baixo dele. */
+.store-bar { background: var(--areia); }
+.store-bar.is-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 14px 24px -22px color-mix(in srgb, var(--tinta) 55%, transparent);
+}
+.store-bar-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 14px var(--gutter);
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--text-dim);
-  transition: color 0.2s;
+  gap: 18px;
 }
-.nav-text { display: inline-block; }
+.store-bar-logo { color: var(--tinta); text-decoration: none; flex-shrink: 0; }
+.store-bar-logo .logo-name { font-size: 36px; }
+.store-bar-toolbar { flex: 1; min-width: 0; }
+.store-bar-account { flex-shrink: 0; }
 
-/* --- Estados Ativos/Hover --- */
-.nav-link:hover { color: white; background: rgba(255, 255, 255, 0.05); }
-.nav-link:hover .nav-icon { color: white; }
-.nav-link.active {
-  color: white;
-  background: rgba(139, 92, 246, 0.15); 
-  border: 1px solid rgba(139, 92, 246, 0.2);
+/* Abaixo de ~1180px não cabe tudo numa linha: marca e conta em cima, a barra
+   de busca, filtros e sacola embaixo. */
+@media (max-width: 1180px) {
+  .store-bar-inner { flex-wrap: wrap; row-gap: 8px; }
+  .store-bar-logo { order: 1; }
+  .store-bar-account { order: 2; margin-left: auto; }
+  .store-bar-toolbar { order: 3; flex: 1 1 100%; }
 }
-.nav-link.active .nav-icon { color: var(--accent-color); }
-
-/* --- Responsividade --- */
-@media (max-width: 900px) {
-  .nav-text { display: none; }
-  .brand-area { flex: 0 0 auto; }
-  .header-nav { gap: 4px; }
-  .nav-link { padding: 8px 12px; }
+@media (max-width: 560px) {
+  .store-bar-inner { padding: 8px var(--gutter) 8px; row-gap: 6px; }
+  .store-bar-logo .logo-name { font-size: 28px; }
+  .store-bar-logo svg { width: 22px; height: 22px; }
+  /* Sacola vira ícone com o número; o nome fica para o leitor de tela. */
+  .store-bar .bag-label { display: none; }
+  .store-bar .bag-link { padding: 8px 12px; gap: 4px; }
 }
-@media (max-width: 600px) {
-  .header-content {
-    padding: 0.8rem 1rem;
-    flex-wrap: wrap; 
-    gap: 1rem;
-    box-sizing: border-box; 
-  }
-  .header-center {
-    order: 3; 
-    flex: 1 1 100%;
-    max-width: 100%; 
-  }
+.bag-icon { flex-shrink: 0; }
+@media (min-width: 561px) {
+  .bag-icon { display: none; }
 }
 
-/* --- Botão de Logout --- */
-button.nav-link {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  padding: 8px 12px;
+/* --- Cabeçalho compacto (checkout, conta) --- */
+.compact-header {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 18px var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--tinta);
 }
-
-button.nav-link.btn-logout:hover {
-  background: rgba(255, 59, 48, 0.1);
-}
-
-button.nav-link.btn-logout:hover .nav-icon {
-  color: #ff3b30;
+.compact-logo { text-decoration: none; color: var(--tinta); }
+.compact-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; font-size: 15px; }
+.compact-nav > a:not(.bag-link) { text-decoration: none; padding: 11px 0; }
+.compact-nav > a.active:not(.bag-link) {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--coroa);
+  text-underline-offset: 6px;
 }

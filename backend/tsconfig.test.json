@@ -1,0 +1,16 @@
+{
+  // Mesmas regras estritas do build, mas enxergando os testes e sem emitir
+  // nada. Existe para que teste não seja a única parte do projeto que o
+  // compilador nunca olha.
+  //
+  // `rootDir` é relaxado porque `tests/` fica fora de `src/` — e aqui não há
+  // emissão, então rootDir não tem trabalho a fazer.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

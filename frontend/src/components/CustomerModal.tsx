@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
-import { api } from '../api';
+import { updateCustomer, createCustomer } from '../services/customers';
+import { getApiErrorMessage } from '../utils/errors';
+import { useToast } from '../contexts/toast';
+import type { Customer, CustomerRecord } from '../hooks/useCustomers';
 
 interface CustomerModalProps {
-  customerToEdit?: any | null;
+  customerToEdit?: Customer | null;
   onClose: () => void;
-  onSuccess: (savedCustomer?: any) => void;
+  /**
+   * O cliente recém-criado volta preenchido para quem abriu o modal a partir de
+   * uma venda poder selecioná-lo na hora. Na edição não há o que devolver.
+   */
+  onSuccess: (savedCustomer?: CustomerRecord) => void;
 }
 
 export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerModalProps) {
+  const toast = useToast();
   const [form, setForm] = useState({ name: '', phone: '', email: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,16 +34,16 @@ export function CustomerModal({ customerToEdit, onClose, onSuccess }: CustomerMo
     setIsSubmitting(true);
     try {
       if (customerToEdit) {
-        await api.put(`/customers/${customerToEdit.id}`, form);
-        alert('Cliente atualizado com sucesso!');
+        await updateCustomer(customerToEdit.id, form);
+        toast.success('Cliente atualizado com sucesso!');
         onSuccess();
       } else {
-        const res = await api.post('/customers', form);
-        alert('Cliente adicionado com sucesso!');
+        const res = await createCustomer<CustomerRecord>(form);
+        toast.success('Cliente adicionado com sucesso!');
         onSuccess(res.data);
       }
       onClose();
-    } catch (err) { alert('Erro ao salvar cliente.'); } finally { setIsSubmitting(false); }
+    } catch (err) { toast.error(getApiErrorMessage(err, 'Erro ao salvar cliente.')); } finally { setIsSubmitting(false); }
   };
 
   return (

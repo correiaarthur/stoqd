@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Sale" ADD COLUMN     "discount" DOUBLE PRECISION DEFAULT 0;

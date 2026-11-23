@@ -2,7 +2,10 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    // "rootDir": "./src",
+    // Com rootDir em src, `dist/server.js` é o ponto de entrada. Sem ele o tsc
+    // usa o ancestral comum dos arquivos compilados e o server cairia em
+    // `dist/src/server.js` só porque existe um .ts na raiz do projeto.
+    "rootDir": "./src",
     "outDir": "./dist",
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -39,5 +42,13 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  // Só o código do servidor. `prisma.config.ts` fica de fora: quem o lê é a CLI
+  // do Prisma, que transpila por conta própria.
+  "include": ["src/**/*"],
+  // `*.test.ts` fica fora do build de propósito: com `rootDir: src` e
+  // `declaration`, cada teste viraria um .js e um .d.ts dentro de dist/ — teste
+  // empacotado junto do servidor em produção. Quem typecheca os testes é o
+  // tsconfig.test.json.
+  "exclude": ["node_modules", "dist", "src/**/tests/**"]
 }
